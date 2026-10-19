@@ -164,3 +164,61 @@ protocolo stdio) y detección de intenciones del agente demo.
 - Aprobaciones de escritura persistentes (tabla `pending_actions`).
 - CAT y comisiones en el simulador; perfilamiento de inversión.
 - Empaquetar la capa de datos como librería compartida backend/MCP.
+
+## Problemas conocidos (estado actual del prototipo)
+
+Hallazgos de las pruebas manuales. Se marcan como pendientes hasta corregirlos.
+
+### Críticos
+- [ ] **El agente no entiende peticiones de tendencia.** "Hazme una gráfica de cómo
+  han cambiado mis gastos en los últimos 4 meses" devuelve el pastel por categoría
+  de un solo mes. La detección por palabras clave toma "gastos" como "analizar el
+  mes". Faltan herramientas de tendencia mensual y comparación de meses, y un
+  componente de gráfica temporal.
+- [ ] **La conversación se pierde al cambiar de pantalla.** Al ir de "Asistente IA"
+  a "Dashboard" y volver, el chat y el panel de resultados quedan vacíos. El estado
+  vive dentro del componente y no se conserva.
+- [ ] **La interfaz muestra detalles internos.** Aparecen chips con nombres de
+  herramientas, subtítulos técnicos y textos como "Calculado con ...". Deben
+  sustituirse por lenguaje de negocio.
+- [ ] **El asistente aún no está endurecido contra preguntas sobre su
+  funcionamiento interno** ni contra intentos de manipulación de instrucciones.
+
+### Altos
+- [ ] **Resultados duplicados:** la misma gráfica y las mismas recomendaciones
+  aparecen en el chat y en el panel derecho.
+- [ ] **Comprensión limitada del lenguaje cotidiano** en modo demostración
+  (ortografía, coloquialismos, referencias como "y el mes pasado?"). Se mejora de
+  fondo con un proveedor de IA real (`AI_PROVIDER=anthropic` u `openai`).
+- [ ] **Datos sintéticos poco realistas:** pocos meses de historial, ingresos
+  constantes y categorías con un solo movimiento (ej. "Hogar: $5,500 en 1
+  movimiento"). Faltan comercios, subcategorías, pagos fijos, suscripciones,
+  créditos, seguros e inversiones.
+- [ ] **Superficie técnica expuesta en desarrollo:** documentación automática de
+  la API accesible y servidor del frontend escuchando también en la red local.
+
+### Medios
+- [ ] **Accesibilidad:** letra pequeña, bajo contraste en leyendas, botón "Enviar"
+  deshabilitado casi invisible, pastel sin valores visibles, sin control de tamaño
+  de letra.
+- [ ] **Sin estados intermedios:** falta indicador de carga, botón de reintentar,
+  cancelar consulta y protección contra doble envío.
+- [ ] **Validación de escrituras:** revisar montos negativos, cero, absurdos,
+  fechas pasadas y duplicados al crear metas.
+- [ ] **Límite de peticiones y de longitud de mensajes** aún sin implementar.
+
+### Bajos
+- [ ] **Menú lateral incompleto:** solo "Dashboard" y "Asistente IA". Faltan
+  cuentas, movimientos, tarjetas, pagos, créditos, ahorro, inversiones, seguros,
+  notificaciones, perfil y ayuda.
+- [ ] **`scripts\start-all.cmd` abre 3 ventanas**, una innecesaria (prueba manual
+  del servidor MCP). Falta un script de apagado.
+
+### Limitaciones del entorno
+- La verificación visual en navegador no se pudo hacer durante el desarrollo
+  inicial; la interfaz se revisó después manualmente.
+- Los 34 tests actuales cubren backend y contrato de UI, no el comportamiento
+  visual del frontend ni las frases de lenguaje natural nuevas.
+- Las herramientas de vista previa que solo ejecutan proyectos de JavaScript no
+  sirven para este repositorio, porque combina Python (backend y MCP) y Next.js
+  (frontend), y no tiene `package.json` en la raíz.
