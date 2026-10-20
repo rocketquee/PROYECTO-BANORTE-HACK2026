@@ -15,12 +15,12 @@ para cualquier intención y, para actuar, el usuario tiene que irse a otra app.
 ## La propuesta de valor
 
 Aquí el agente **construye la pantalla que resuelve el problema**: interpreta la
-intención, consulta datos con herramientas MCP reales y renderiza componentes
+intención, consulta datos con herramientas reales y renderiza componentes
 interactivos (gráficos, tablas, simuladores, formularios) que permiten **actuar
 dentro de la conversación**. Cada interacción con la UI regresa al agente y
 produce nuevas acciones (ciclo cerrado).
 
-**Flujo:** `Usuario → Agente IA → Herramientas MCP → Datos financieros → Interfaz dinámica → Usuario`
+**Flujo:** `Usuario → Agente IA → Herramientas → Datos financieros → Interfaz dinámica → Usuario`
 
 ## Arquitectura
 
@@ -37,10 +37,9 @@ flowchart LR
 
 - **Frontend**: Next.js 15 + TypeScript + Tailwind CSS + Recharts.
 - **Backend**: FastAPI + Pydantic v2 + SQLite (datos sintéticos persistentes).
-- **MCP**: SDK oficial de Python (`mcp`), transporte stdio, 10 herramientas.
+- **MCP**: SDK oficial de Python (`mcp`), transporte stdio, 18 herramientas.
 - **IA**: proveedor configurable (OpenAI / Anthropic) o **modo demostración**
-  explícito sin API key (agente basado en reglas que usa las mismas herramientas
-  MCP reales).
+  sin API key (agente basado en reglas que usa las mismas herramientas MCP reales).
 
 ### El ciclo A2UI (interfaz que viaja)
 
@@ -59,10 +58,10 @@ banorte-ai-finanzas/
 ├── frontend/          # Next.js 15 + TS + Tailwind + Recharts
 ├── backend/           # FastAPI + Pydantic + SQLite
 │   ├── app/           #   api/ core/ schemas/ services/agent/
-│   └── tests/         #   pytest: cálculos, contrato UI, servicios, MCP
+│   └── tests/         #   pytest: cálculos, contrato UI, servicios, MCP, seguridad
 ├── mcp-server/        # Servidor MCP real (FastMCP, stdio)
 ├── docs/              # Arquitectura y decisiones técnicas
-└── scripts/           # Scripts de inicio para Windows
+└── scripts/           # start-all.cmd / stop-all.cmd / run-tests.cmd
 ```
 
 ## Instalación (Windows, sin Anaconda)
@@ -88,37 +87,43 @@ Opcional: copia `.env.example` a `.env` (raíz) y configura tu proveedor de IA.
 | `OPENAI_API_KEY` / `OPENAI_MODEL` | Para proveedor OpenAI |
 | `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` | Para proveedor Anthropic |
 | `FRONTEND_ORIGIN` | CORS restrictivo (default `http://localhost:3000`) |
+| `DEV_MODE` | `1` habilita `/docs`, `/openapi.json` y detalles técnicos. **Desactivado por defecto**; nunca se activa desde la interfaz pública. |
 
 **No hay secretos en el frontend ni en el código.** Sin API key, la app corre en
-**modo demostración explícito** (cada respuesta lo indica), con el agente por
-reglas y las mismas herramientas MCP reales.
+modo demostración con el agente por reglas y las mismas herramientas MCP reales.
 
 ## Iniciar los servicios
 
-Opción rápida: ejecuta `scripts\start-all.cmd` (abre 3 ventanas).
+**Un solo script:** `scripts\start-all.cmd` — levanta backend y frontend, espera a
+que ambos estén listos, abre el navegador y avisa con un mensaje claro si falta
+Python o Node. Para detener todo: `scripts\stop-all.cmd`.
 
-Manual (3 terminales):
+Manual (2 terminales):
 
 ```cmd
-:: Terminal 1 — Backend (http://localhost:8000, docs en /docs)
-.venv\Scripts\python -m uvicorn app.main:app --app-dir backend --port 8000
+:: Terminal 1 — Backend (solo localhost)
+.venv\Scripts\python -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000
 
-:: Terminal 2 — Frontend (http://localhost:3000)
+:: Terminal 2 — Frontend
 cd frontend && npm run dev
 
 :: El servidor MCP se lanza SOLO por el backend (transporte stdio).
-:: Para probarlo aislado o conectarlo a otro cliente, ver mcp-server\README.md
+:: Para probarlo aislado, ver mcp-server\README.md
 ```
 
-## Herramientas MCP
+## Herramientas MCP (18)
 
-`get_balance`, `get_transactions`, `get_cards`, `get_savings_goals`,
-`create_savings_goal`*, `update_savings_goal`*, `analyze_spending`,
-`calculate_credit_simulation`, `get_monthly_summary`, `get_budgets`.
+Consulta: `get_balance`, `get_transactions`, `get_cards`, `get_savings_goals`,
+`analyze_spending`, `calculate_credit_simulation`, `get_monthly_summary`,
+`get_budgets`, `get_spending_trend`, `compare_months`, `get_weekly_spending`,
+`detect_recurring_charges`, `detect_anomalies`, `compare_credit_terms`,
+`budget_vs_actual`, `project_savings`.
+
+Escritura: `create_savings_goal`*, `update_savings_goal`*.
 
 \* Escritura: devuelven `requires_confirmation` sin `confirm=True`; el backend
 convierte eso en una acción pendiente que la UI confirma con el usuario. Además,
-el backend **fuera `confirm=False`** en cualquier llamada de escritura que venga
+el backend **fuerza `confirm=False`** en cualquier llamada de escritura que venga
 del LLM, de modo que el modelo nunca puede saltarse la confirmación humana.
 
 ## Pruebas
@@ -127,10 +132,14 @@ del LLM, de modo que el modelo nunca puede saltarse la confirmación humana.
 .venv\Scripts\python -m pytest backend\tests -v
 ```
 
-Cubre: matemática financiera (francés/alemán, casos límite), contrato de UI
-(rechaza tipos no autorizados y props extra → bloquea inyección), servicios y
-persistencia, herramientas MCP (incluida una prueba de integración real por
-protocolo stdio) y detección de intenciones del agente demo.
+152 pruebas: matemática financiera, contrato de UI (rechaza tipos no autorizados
+y props extra), servicios y persistencia, herramientas MCP (incluida una prueba
+de integración real por protocolo stdio), y la suite de correcciones del reporte
+QA: intención temporal (BUG-001), cero fugas de información (BUG-003), 40 ataques
+de inyección (BUG-004), lenguaje coloquial (BUG-006), nuevas herramientas y
+componentes (BUG-007), consistencia de datos (BUG-008), endurecimiento del
+backend (BUG-009), formato mexicano (BUG-012), recomendaciones solo si se piden
+(BUG-013), validaciones de escritura (BUG-014) e identidad (BUG-017).
 
 ## Seguridad y privacidad
 
@@ -138,87 +147,61 @@ protocolo stdio) y detección de intenciones del agente demo.
 - SQL 100% parameterizado; CORS restringido al origen del frontend.
 - Contrato UI con Pydantic `extra="forbid"`; el frontend solo renderiza tipos
   autorizados desde un registro fijo (nunca evalúa el JSON como código).
-- Escrituras con confirmación explícita del usuario.
+- Escrituras con confirmación explícita del usuario y rechazo de duplicados.
+- **Sin fugas técnicas en la interfaz:** ni la UI ni las respuestas muestran
+  nombres de herramientas, protocolos ni arquitectura (verificado con pruebas).
+- **Guardas anti-manipulación:** 40 variantes de ataque probadas obtienen una
+  negativa amable; el texto malicioso dentro de datos se neutraliza.
+- `/docs` y `/openapi.json` deshabilitados salvo `DEV_MODE=1`; errores genéricos
+  al usuario ("No pude hacer eso. ¿Lo intentamos de otra forma?") y detalle solo
+  en el log; sin encabezados de versión del servidor; límite de 30 mensajes/10 s.
 - El simulador de crédito es **educativo**: no es una oferta, tasa ni aprobación real.
+
+## Accesibilidad (WCAG 2.2 AA)
+
+- Letra base de 18 px con control A- / A / A+ persistente.
+- Contraste ≥ 4.5:1 en texto y ≥ 3:1 en gráficos (paleta oscura verificada).
+- Las rebanadas del pastel muestran nombre + porcentaje, con leyenda textual con
+  valores; toda gráfica tiene resumen en palabras (`aria-label`) y vista "Ver
+  como tabla".
+- Botones de mínimo 44–48 px, foco visible, navegación por teclado.
+- Respeta "reducir movimiento" del sistema.
+- Glosario "¿Qué significa?" (CAT, plazo, tasa, pago mínimo) en el simulador.
 
 ## Guion de demostración (3–5 min)
 
 1. Abre `http://localhost:3000` → dashboard con KPIs, gráficas, metas.
-2. En **Asistente IA**: *"Analiza mis gastos de este mes"* → el agente invoca
-   `analyze_spending` + `get_budgets` + `get_monthly_summary` (chips MCP visibles)
-   y genera gráfica de pastel + recomendaciones con hechos vs sugerencias.
-3. Clic en una categoría del pastel → pregunta de seguimiento al agente.
-4. *"Ayúdame a ahorrar $5,000"* → formulario dinámico + tarjeta de confirmación;
-   al confirmar, `create_savings_goal(confirm=True)` persiste en SQLite y el
-   dashboard se actualiza.
-5. *"¿Cuánto podría pagar mensualmente por un crédito?"* → simulador vivo: mueve
-   monto/plazo/tasa y la mensualidad se recalcula (cálculo validado en backend);
-   "Analizar este plan con el agente" regresa la interacción al agente.
-6. *"¿Cómo puedo organizar mi presupuesto?"* → organizador editable con límites
-   persistidos y alertas de exceso.
+2. En **Asistente IA**: *"¿Cómo han cambiado mis gastos en los últimos 4 meses?"*
+   → gráfica de líneas de 4 meses con valores y conclusión (sin pastel ni
+   recomendaciones no pedidas).
+3. *"Analiza mis gastos de este mes"* → pastel con etiquetas y valores; alterna
+   "Ver como tabla". "ahora en barras" cambia el tipo.
+4. *"Ayúdame a ahorrar $5,000"* → formulario + confirmación con resumen; al
+   confirmar se persiste y aparece en Ahorro y metas.
+5. *"¿Cuánto podría pagar mensualmente por un crédito?"* → simulador vivo con
+   glosario "¿Qué significa?" y aviso de que no es oferta.
+6. *"¿Qué cargos fijos tengo?"* / *"¿tengo cargos duplicados?"* → listas de
+   cargos recurrentes y alertas.
+7. La conversación sobrevive a cambiar de pantalla y a recargar (historial en la
+   barra lateral, con nueva conversación y borrado con confirmación).
 
 ## Mejoras futuras
 
 - Autenticación real (OAuth) y multiusuario.
 - Streaming de respuestas del agente (SSE).
 - Aprobaciones de escritura persistentes (tabla `pending_actions`).
+- Resumen semanal proactivo y alertas de gasto por categoría.
 - CAT y comisiones en el simulador; perfilamiento de inversión.
-- Empaquetar la capa de datos como librería compartida backend/MCP.
 
-## Problemas conocidos (estado actual del prototipo)
+## Problemas conocidos y limitaciones (modo demostración)
 
-Hallazgos de las pruebas manuales. Se marcan como pendientes hasta corregirlos.
-
-### Críticos
-- [ ] **El agente no entiende peticiones de tendencia.** "Hazme una gráfica de cómo
-  han cambiado mis gastos en los últimos 4 meses" devuelve el pastel por categoría
-  de un solo mes. La detección por palabras clave toma "gastos" como "analizar el
-  mes". Faltan herramientas de tendencia mensual y comparación de meses, y un
-  componente de gráfica temporal.
-- [ ] **La conversación se pierde al cambiar de pantalla.** Al ir de "Asistente IA"
-  a "Dashboard" y volver, el chat y el panel de resultados quedan vacíos. El estado
-  vive dentro del componente y no se conserva.
-- [ ] **La interfaz muestra detalles internos.** Aparecen chips con nombres de
-  herramientas, subtítulos técnicos y textos como "Calculado con ...". Deben
-  sustituirse por lenguaje de negocio.
-- [ ] **El asistente aún no está endurecido contra preguntas sobre su
-  funcionamiento interno** ni contra intentos de manipulación de instrucciones.
-
-### Altos
-- [ ] **Resultados duplicados:** la misma gráfica y las mismas recomendaciones
-  aparecen en el chat y en el panel derecho.
-- [ ] **Comprensión limitada del lenguaje cotidiano** en modo demostración
-  (ortografía, coloquialismos, referencias como "y el mes pasado?"). Se mejora de
-  fondo con un proveedor de IA real (`AI_PROVIDER=anthropic` u `openai`).
-- [ ] **Datos sintéticos poco realistas:** pocos meses de historial, ingresos
-  constantes y categorías con un solo movimiento (ej. "Hogar: $5,500 en 1
-  movimiento"). Faltan comercios, subcategorías, pagos fijos, suscripciones,
-  créditos, seguros e inversiones.
-- [ ] **Superficie técnica expuesta en desarrollo:** documentación automática de
-  la API accesible y servidor del frontend escuchando también en la red local.
-
-### Medios
-- [ ] **Accesibilidad:** letra pequeña, bajo contraste en leyendas, botón "Enviar"
-  deshabilitado casi invisible, pastel sin valores visibles, sin control de tamaño
-  de letra.
-- [ ] **Sin estados intermedios:** falta indicador de carga, botón de reintentar,
-  cancelar consulta y protección contra doble envío.
-- [ ] **Validación de escrituras:** revisar montos negativos, cero, absurdos,
-  fechas pasadas y duplicados al crear metas.
-- [ ] **Límite de peticiones y de longitud de mensajes** aún sin implementar.
-
-### Bajos
-- [ ] **Menú lateral incompleto:** solo "Dashboard" y "Asistente IA". Faltan
-  cuentas, movimientos, tarjetas, pagos, créditos, ahorro, inversiones, seguros,
-  notificaciones, perfil y ayuda.
-- [ ] **`scripts\start-all.cmd` abre 3 ventanas**, una innecesaria (prueba manual
-  del servidor MCP). Falta un script de apagado.
-
-### Limitaciones del entorno
-- La verificación visual en navegador no se pudo hacer durante el desarrollo
-  inicial; la interfaz se revisó después manualmente.
-- Los 34 tests actuales cubren backend y contrato de UI, no el comportamiento
-  visual del frontend ni las frases de lenguaje natural nuevas.
-- Las herramientas de vista previa que solo ejecutan proyectos de JavaScript no
-  sirven para este repositorio, porque combina Python (backend y MCP) y Next.js
-  (frontend), y no tiene `package.json` en la raíz.
+- La comprensión del lenguaje natural es por **reglas**: cubre los casos probados
+  (ortografía común, coloquialismos, cantidades en palabras, fechas relativas),
+  pero frases muy libres pueden requerir `AI_PROVIDER=anthropic|openai`.
+- Los datos son ficticios por diseño; el prototipo **no** se conecta a bancos.
+- Los pagos, transferencias, contactos, inversiones y seguros son secciones
+  simuladas informativas (no mueven dinero ni guardan instrumentos reales).
+- El límite de peticiones (30/10 s) es en memoria: se reinicia al reiniciar el
+  backend; para producción usar Redis o similar.
+- Las conversaciones se guardan en `localStorage` del navegador (por equipo y
+  navegador); no hay sincronización multi-dispositivo ni servidor de historial.

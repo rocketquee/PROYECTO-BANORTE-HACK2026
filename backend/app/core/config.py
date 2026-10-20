@@ -18,6 +18,10 @@ ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
 
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
 
+# Developer mode: enables API docs (/docs) and technical UI details.
+# Disabled by default; never toggleable from the public interface.
+DEV_MODE = os.getenv("DEV_MODE", "") in ("1", "true", "yes")
+
 
 def load_dotenv() -> None:
     """Minimal .env loader (no external dependency). Values already set in the

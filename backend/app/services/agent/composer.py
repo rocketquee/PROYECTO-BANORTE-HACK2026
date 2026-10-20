@@ -1,27 +1,45 @@
 """Deterministic UI composer.
 
-Turns intent + MCP tool results into validated UI specs. Both the demo agent
+Turns intent + tool results into validated UI specs. Both the demo agent
 and the live LLM agent use it, so the JSON contract is always produced by
 audited code — never by model output.
+
+All user-visible text uses business language only: no tool names, protocols
+or internal architecture details (those belong to developer mode).
 """
 from datetime import date
 
-from app.core.database import db
 from app.schemas.ui import (
-    BudgetCategory, BudgetPlannerSpec, CategorySlice, CreditParams, CreditResult,
-    CreditSimulatorSpec, FinancialSummarySpec, GoalProgress, Metric,
-    RecommendationItem, RecommendationListSpec, SavingsGoalFormSpec,
-    SavingsProgressSpec, ScheduleRow, SpendingChartSpec, TransactionItem,
-    TransactionsTableSpec,
+    AlertItem, AlertListSpec, BudgetCategory, BudgetPlannerSpec, CategorySlice,
+    ComparisonRow, ComparisonSpec, CreditParams, CreditResult, CreditSimulatorSpec,
+    FinancialSummarySpec, GoalProgress, Metric, RecommendationItem,
+    RecommendationListSpec, SavingsGoalFormSpec, SavingsProgressSpec, ScheduleRow,
+    SpendingChartSpec, TimelineItem, TimelineSpec, TransactionItem,
+    TransactionsTableSpec, TrendChartSpec, TrendPoint,
 )
 from app.services import credit as credit_service
-from app.services import finance
 
 CUR = "$"
+
+MONTHS_ES = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
+             "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
 
 
 def money(value: float) -> str:
     return f"{CUR}{value:,.0f}"
+
+
+def money2(value: float) -> str:
+    return f"{CUR}{value:,.2f}"
+
+
+def long_date(iso: str) -> str:
+    """Formats an ISO date in Mexican style: '18 de octubre de 2026'."""
+    try:
+        y, m, d = (int(p) for p in iso.split("-"))
+        return f"{d} de {MONTHS_ES[m - 1]} de {y}"
+    except (ValueError, IndexError):
+        return iso
 
 
 def financial_summary_ui(summary: dict, total_balance: float) -> FinancialSummarySpec:
@@ -39,16 +57,49 @@ def financial_summary_ui(summary: dict, total_balance: float) -> FinancialSummar
     )
 
 
-def spending_chart_ui(categories: list[dict], month_label: str) -> SpendingChartSpec:
+def spending_chart_ui(categories: list[dict], month_label: str,
+                      chart_type: str = "pie") -> SpendingChartSpec:
     return SpendingChartSpec(type="spending_chart",
         title=f"Gastos por categoría · {month_label}",
         period=month_label,
-        chart_type="pie",
+        chart_type=chart_type if chart_type in ("pie", "bar") else "pie",
         series=[
             CategorySlice(category=c["category"], amount=c["amount"], pct=c["pct"], count=c["count"])
             for c in categories
         ],
     )
+
+
+def trend_chart_ui(series: list[dict], title: str, period: str,
+                   chart_type: str = "line", conclusion: str | None = None) -> TrendChartSpec:
+    return TrendChartSpec(type="trend_chart",
+        title=title,
+        period=period,
+        chart_type=chart_type if chart_type in ("line", "bar", "area") else "line",
+        series=[TrendPoint(label=p["label"], amount=p["total"], month=p.get("month"))
+                for p in series],
+        conclusion=conclusion,
+    )
+
+
+def comparison_ui(title: str, column_a: str, column_b: str,
+                  rows: list[tuple[str, str, str]]) -> ComparisonSpec:
+    return ComparisonSpec(type="comparison",
+        title=title, column_a=column_a, column_b=column_b,
+        rows=[ComparisonRow(label=l, value_a=a, value_b=b) for l, a, b in rows],
+    )
+
+
+def timeline_ui(title: str, items: list[dict]) -> TimelineSpec:
+    return TimelineSpec(type="timeline", title=title,
+        items=[TimelineItem(date=i["date"], title=i["title"], detail=i["detail"])
+               for i in items])
+
+
+def alert_list_ui(title: str, items: list[dict]) -> AlertListSpec:
+    return AlertListSpec(type="alert_list", title=title,
+        items=[AlertItem(severity=i.get("severity", "info"), title=i["title"],
+                         detail=i["detail"]) for i in items])
 
 
 def transactions_table_ui(txs: list[dict], total_count: int, categories: list[str],
@@ -124,7 +175,7 @@ def budget_planner_ui(overview: dict) -> BudgetPlannerSpec:
 def build_recommendations(summary: dict, categories: list[dict],
                           budget_rows: list[dict]) -> list[RecommendationItem]:
     """Rule-based, data-grounded recommendations. Facts vs suggestions are
-    clearly separated and every item states its basis (source of the number)."""
+    clearly separated and every item states its basis in business language."""
     items: list[RecommendationItem] = []
     income = summary["income"]
     expense = summary["expense"]
@@ -136,7 +187,7 @@ def build_recommendations(summary: dict, categories: list[dict],
             detail=(f"Ingresaste {money(income)} y gastaste {money(expense)}; tu balance es "
                     f"{money(summary['net'])}."),
             kind="fact",
-            basis="Calculado con get_monthly_summary sobre tus movimientos del mes.",
+            basis="Calculado con tus ingresos y gastos del mes.",
         ))
 
     if categories:
@@ -145,7 +196,7 @@ def build_recommendations(summary: dict, categories: list[dict],
             title=f"{top['category']} concentra el {top['pct']}% de tus gastos",
             detail=f"{money(top['amount'])} en {top['count']} movimientos este mes.",
             kind="fact",
-            basis="Calculado con analyze_spending sobre tus gastos del mes.",
+            basis="Calculado con tus movimientos del mes.",
         ))
         second = next((c for c in categories[1:] if c["pct"] >= 5), None)
         if second:
@@ -164,14 +215,14 @@ def build_recommendations(summary: dict, categories: list[dict],
                 detail=(f"Llevas {money(row['spent'])} de un límite de {money(row['limit'])} "
                         f"({row['pct']}%)."),
                 kind="suggestion",
-                basis="Comparación entre analyze_spending y los límites que definiste.",
+                basis="Comparación entre tus gastos y los límites que definiste.",
             ))
         elif row.get("pct") is not None and row["pct"] > 85:
             items.append(RecommendationItem(
                 title=f"Vas al {row['pct']}% de tu presupuesto de {row['category']}",
                 detail=f"Quedan {money(max(row['limit'] - row['spent'], 0))} del límite mensual.",
                 kind="fact",
-                basis="Comparación entre analyze_spending y los límites que definiste.",
+                basis="Comparación entre tus gastos y los límites que definiste.",
             ))
 
     return items[:6]
@@ -190,5 +241,6 @@ def default_savings_deadline() -> str:
 def month_context(year: int | None = None, month: int | None = None) -> tuple[int, int, str, str]:
     today = date.today()
     y, m = year or today.year, month or today.month
+    from app.services import finance
     date_from, date_to = finance.month_range(y, m)
     return y, m, date_from, date_to

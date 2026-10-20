@@ -4,234 +4,284 @@ import { useEffect, useRef, useState } from "react";
 import type { ChatResponse, UISpec } from "@/types/contract";
 import { post } from "@/lib/api";
 import DynamicRenderer from "@/components/dynamic/DynamicRenderer";
-
-interface ChatMsg {
-  role: "user" | "assistant" | "system";
-  text?: string;
-  resp?: ChatResponse;
-  error?: string;
-}
+import { activeConversation, chatActions, useChatStore, type ChatMsg } from "@/lib/chatStore";
 
 const QUICK_PROMPTS = [
   "¿En qué estoy gastando más dinero?",
+  "¿Cómo han cambiado mis gastos en los últimos 4 meses?",
   "Analiza mis gastos de este mes",
   "Ayúdame a ahorrar $5,000",
   "¿Cuánto podría pagar mensualmente por un crédito?",
   "Muéstrame mis movimientos y clasifícalos",
-  "¿Cómo puedo organizar mi presupuesto?",
+  "¿Qué cargos fijos tengo?",
+  "Recomiéndame cómo mejorar mis gastos",
 ];
+
+type OnNavigate = (view: string) => void;
 
 export default function AgentView({
   onGoalsChanged,
+  onNavigate,
+  pendingQuestion,
 }: {
   onGoalsChanged: () => void;
+  onNavigate: OnNavigate;
+  pendingQuestion?: { text: string; nonce: number } | null;
 }) {
-  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const store = useChatStore();
+  const conversation = activeConversation(store);
+  const messages = conversation.messages;
+  const loading = store.loading;
+
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [lastUi, setLastUi] = useState<UISpec[]>([]);
+  const [lastFailed, setLastFailed] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const historyRef = useRef<{ role: "user" | "assistant"; content: string }[]>([]);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, loading]);
+  }, [messages.length, loading]);
+
+  // Questions sent from other sections ("Preguntar al asistente sobre esto").
+  const lastNonce = useRef(0);
+  useEffect(() => {
+    if (pendingQuestion && pendingQuestion.nonce !== lastNonce.current) {
+      lastNonce.current = pendingQuestion.nonce;
+      send(pendingQuestion.text);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingQuestion?.nonce]);
 
   async function send(text: string) {
     const message = text.trim();
     if (!message || loading) return;
     setInput("");
-    setMessages((prev) => [...prev, { role: "user", text: message }]);
-    setLoading(true);
+    setLastFailed(null);
+    chatActions.addMessage({ role: "user", text: message });
+    chatActions.setLoading(true);
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
       const resp = await post<ChatResponse>("/api/agent/chat", {
         message,
-        history: historyRef.current.slice(-6),
-      });
-      setMessages((prev) => [...prev, { role: "assistant", resp }]);
-      if (resp.ui?.length) setLastUi(resp.ui);
-      historyRef.current.push(
-        { role: "user", content: message },
-        { role: "assistant", content: resp.message }
-      );
+        history: conversation.history.slice(-6),
+      }, controller.signal);
+      chatActions.addMessage({ role: "assistant", resp });
+      // Assistant-driven navigation ("llévame a mis tarjetas").
+      const nav = resp.interaction_context?.navigate;
+      if (typeof nav === "string" && nav) onNavigate(nav);
     } catch (err) {
-      setMessages((prev) => [...prev, { role: "system", error: (err as Error).message }]);
+      if ((err as Error).name !== "AbortError") {
+        setLastFailed(message);
+        chatActions.addMessage({
+          role: "system",
+          error: "No pude hacer eso. ¿Lo intentamos de otra forma? Revisa que el backend esté encendido y presiona «Reintentar».",
+        });
+      }
     } finally {
-      setLoading(false);
+      chatActions.setLoading(false);
+      abortRef.current = null;
     }
   }
 
+  function cancel() {
+    abortRef.current?.abort();
+  }
+
   async function confirmPending(actionId: string, msgIndex: number) {
-    setLoading(true);
+    chatActions.setLoading(true);
     try {
       const resp = await post<ChatResponse>("/api/agent/confirm", { action_id: actionId });
-      setMessages((prev) =>
-        prev.map((m, i) =>
-          i === msgIndex && m.resp ? { ...m, resp: { ...m.resp, pending_action: null } } : m
-        )
-      );
-      setMessages((prev) => [...prev, { role: "assistant", resp }]);
-      if (resp.ui?.length) setLastUi(resp.ui);
+      chatActions.updateMessage(msgIndex, (m) =>
+        m.resp ? { ...m, resp: { ...m.resp, pending_action: null } } : m);
+      chatActions.addMessage({ role: "assistant", resp });
       onGoalsChanged();
     } catch (err) {
-      setMessages((prev) => [...prev, { role: "system", error: (err as Error).message }]);
+      chatActions.addMessage({ role: "system", error: (err as Error).message });
     } finally {
-      setLoading(false);
+      chatActions.setLoading(false);
     }
   }
 
   function goalCreatedFromForm(name: string, target: number) {
-    setMessages((prev) => [
-      ...prev,
-      { role: "assistant", resp: {
-        message: `Meta "${name}" guardada con objetivo de $${target.toLocaleString("es-MX")}. Ya aparece en tu dashboard.`,
+    chatActions.addMessage({
+      role: "assistant",
+      resp: {
+        message: `Meta "${name}" guardada con objetivo de $${target.toLocaleString("es-MX")}. Ya aparece en tu panel de metas.`,
         mode: "demo", ui: [], tools_used: ["create_savings_goal"],
-      } },
-    ]);
+      },
+    });
     onGoalsChanged();
   }
 
   return (
-    <div className="grid h-full grid-cols-1 gap-0 xl:grid-cols-[1fr_460px]">
-      {/* Chat column */}
-      <div className="flex h-full min-h-0 flex-col border-r border-neutral-200">
-        <div className="border-b border-neutral-200 bg-white px-6 py-4">
-          <h1 className="text-lg font-semibold">Asistente financiero</h1>
-          <p className="text-xs text-neutral-500">
-            El agente usa herramientas MCP reales y genera interfaces dinámicas.
-          </p>
-        </div>
-
-        <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-6">
-          {messages.length === 0 && (
-            <div className="rounded-2xl bg-white p-6 text-sm shadow-sm">
-              <p className="font-medium">¡Hola! Soy tu asistente financiero (prototipo con datos sintéticos).</p>
-              <p className="mt-2 text-neutral-600">
-                Pregúntame por tus gastos, pídeme organizar tu presupuesto, crear una meta de ahorro o
-                simular un crédito. Generaré la interfaz que necesites en tiempo real.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {QUICK_PROMPTS.map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => send(p)}
-                    className="rounded-full border border-neutral-300 px-3 py-1.5 text-xs text-neutral-700 hover:border-brand hover:text-brand"
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {messages.map((m, i) => {
-            if (m.role === "user") {
-              return (
-                <div key={i} className="flex justify-end">
-                  <div className="max-w-[80%] rounded-2xl rounded-br-sm bg-brand px-4 py-3 text-sm text-white">
-                    {m.text}
-                  </div>
-                </div>
-              );
-            }
-            if (m.role === "system") {
-              return (
-                <div key={i} className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">
-                  {m.error}
-                </div>
-              );
-            }
-            return (
-              <div key={i} className="space-y-3">
-                <div className="flex justify-start">
-                  <div className="max-w-[92%] rounded-2xl rounded-bl-sm bg-white px-4 py-3 text-sm shadow-sm">
-                    <p className="whitespace-pre-wrap">{m.resp?.message}</p>
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      {m.resp?.tools_used?.map((t) => (
-                        <span key={t} className="rounded bg-neutral-100 px-2 py-0.5 text-[11px] text-neutral-600">
-                          MCP · {t}
-                        </span>
-                      ))}
-                      {m.resp?.mode === "demo" && (
-                        <span className="rounded bg-brand-soft px-2 py-0.5 text-[11px] font-medium text-brand-dark">
-                          Modo demostración
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                {m.resp?.ui?.map((spec, j) => (
-                  <DynamicRenderer
-                    key={j}
-                    spec={spec}
-                    onAsk={send}
-                    onGoalCreated={goalCreatedFromForm}
-                    onGoalsChanged={onGoalsChanged}
-                    pendingAction={m.resp?.pending_action
-                      ? { id: m.resp.pending_action.id, description: m.resp.pending_action.description }
-                      : null}
-                    onConfirmPending={(actionId) => confirmPending(actionId, i)}
-                  />
-                ))}
-              </div>
-            );
-          })}
-
-          {loading && (
-            <div className="flex items-center gap-2 text-sm text-neutral-500">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-brand" />
-              El agente está consultando las herramientas MCP…
-            </div>
-          )}
-        </div>
-
-        <form
-          onSubmit={(e) => { e.preventDefault(); send(input); }}
-          className="border-t border-neutral-200 bg-white p-4"
-        >
-          <div className="flex gap-2">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Escribe tu solicitud financiera…"
-              className="flex-1 rounded-xl border border-neutral-300 px-4 py-3 text-sm"
-              aria-label="Mensaje para el asistente"
-            />
-            <button
-              type="submit"
-              disabled={loading || !input.trim()}
-              className="rounded-xl bg-brand px-5 py-3 text-sm font-medium text-white hover:bg-brand-dark disabled:opacity-50"
-            >
-              Enviar
-            </button>
-          </div>
-        </form>
+    <div className="grid h-full grid-cols-1 gap-0 xl:grid-cols-[1fr_420px]">
+      <div className="flex h-full min-h-0 flex-col">
+      {/* Chat header — business language only (BUG-003) */}
+      <div className="border-b border-neutral-200 bg-white px-6 py-4">
+        <h1 className="text-lg font-semibold">Asistente financiero</h1>
+        <p className="text-sm text-neutral-600">
+          Te ayudo a revisar tus gastos, ahorro, créditos y presupuesto con tus propios datos.
+        </p>
       </div>
 
-      {/* Dynamic results panel */}
-      <div className="hidden min-h-0 flex-col overflow-y-auto bg-neutral-50 xl:flex">
+      <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-6">
+        {messages.length === 0 && (
+          <div className="rounded-2xl bg-white p-6 text-base shadow-sm">
+            <p className="text-lg font-medium">¡Hola! Soy tu asistente financiero.</p>
+            <p className="mt-2 text-neutral-700">
+              Puedo mostrarte tus gastos, ayudarte a ahorrar, simular un crédito y organizar tu
+              presupuesto. Elige una opción o escribe lo que necesites:
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {QUICK_PROMPTS.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => send(p)}
+                  className="min-h-[48px] rounded-full border-2 border-neutral-300 bg-white px-4 py-2.5 text-base text-neutral-800 hover:border-brand hover:text-brand"
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {messages.map((m: ChatMsg, i: number) => {
+          if (m.role === "user") {
+            return (
+              <div key={`${conversation.id}-${i}`} className="flex justify-end">
+                <div className="max-w-[80%] rounded-2xl rounded-br-sm bg-brand px-4 py-3 text-base text-white">
+                  {m.text}
+                </div>
+              </div>
+            );
+          }
+          if (m.role === "system") {
+            return (
+              <div key={`${conversation.id}-${i}`} className="rounded-xl bg-amber-50 p-4 text-base text-amber-900">
+                <p>{m.error}</p>
+                {lastFailed && (
+                  <button
+                    onClick={() => send(lastFailed)}
+                    className="mt-3 min-h-[48px] rounded-xl bg-brand px-5 py-3 text-base font-medium text-white hover:bg-brand-dark"
+                  >
+                    Reintentar
+                  </button>
+                )}
+              </div>
+            );
+          }
+          const hasUi = (m.resp?.ui?.length ?? 0) > 0;
+          const msgKey = `${conversation.id}-${i}`;
+          const isDetailOpen = store.detailKey === msgKey;
+          return (
+            <div key={`${conversation.id}-${i}`} className="space-y-3">
+              <div className="flex justify-start">
+                <div className="max-w-[92%] rounded-2xl rounded-bl-sm bg-white px-4 py-3 text-base shadow-sm">
+                  <p className="whitespace-pre-wrap">{m.resp?.message}</p>
+                  {hasUi && (
+                    <button
+                      onClick={() =>
+                        chatActions.setDetail(
+                          isDetailOpen ? null : (m.resp!.ui as UISpec[]),
+                          isDetailOpen ? null : msgKey
+                        )
+                      }
+                      className="mt-3 min-h-[48px] rounded-xl border-2 border-brand px-4 py-2.5 text-base font-medium text-brand hover:bg-brand-soft"
+                    >
+                      {isDetailOpen ? "Ocultar detalle expandido" : "Ver detalle expandido"}
+                    </button>
+                  )}
+                </div>
+              </div>
+              {m.resp?.ui?.map((spec, j) => (
+                <DynamicRenderer
+                  key={`${conversation.id}-${i}-${j}`}
+                  spec={spec}
+                  onAsk={send}
+                  onGoalCreated={goalCreatedFromForm}
+                  onGoalsChanged={onGoalsChanged}
+                  pendingAction={m.resp?.pending_action
+                    ? { id: m.resp.pending_action.id, description: m.resp.pending_action.description }
+                    : null}
+                  onConfirmPending={(actionId) => confirmPending(actionId, i)}
+                />
+              ))}
+            </div>
+          );
+        })}
+
+        {loading && (
+          <div className="flex items-center gap-3 text-base text-neutral-700">
+            <span className="h-3 w-3 animate-pulse rounded-full bg-brand" aria-hidden="true" />
+            <span aria-live="polite">Estoy revisando tus datos…</span>
+            <button
+              onClick={cancel}
+              className="min-h-[44px] rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-700 hover:border-brand"
+            >
+              Cancelar
+            </button>
+          </div>
+        )}
+      </div>
+
+      <form
+        onSubmit={(e) => { e.preventDefault(); send(input); }}
+        className="border-t border-neutral-200 bg-white p-4"
+      >
+        <div className="flex gap-2">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Escribe tu solicitud financiera…"
+            className="min-h-[48px] flex-1 rounded-xl border border-neutral-300 px-4 py-3 text-base"
+            aria-label="Mensaje para el asistente"
+          />
+          <button
+            type="submit"
+            disabled={loading || !input.trim()}
+            className="min-h-[48px] rounded-xl bg-brand px-6 py-3 text-base font-semibold text-white hover:bg-brand-dark disabled:cursor-not-allowed disabled:bg-neutral-400 disabled:text-neutral-100"
+          >
+            Enviar
+          </button>
+        </div>
+      </form>
+      </div>
+
+      {/* Expanded-detail panel: results live in the chat; this panel shows
+          the opened-in-detail result only (BUG-005). */}
+      <div className="hidden min-h-0 flex-col overflow-y-auto border-l border-neutral-200 bg-neutral-50 xl:flex">
         <div className="sticky top-0 z-10 border-b border-neutral-200 bg-neutral-50 px-5 py-4">
-          <h2 className="text-sm font-semibold">Panel de resultados dinámicos</h2>
-          <p className="text-xs text-neutral-500">
-            La interfaz se genera según tu intención (contrato JSON validado).
+          <h2 className="text-base font-semibold">Detalle expandido</h2>
+          <p className="text-sm text-neutral-600">
+            Abre aquí cualquier resultado con el botón «Ver detalle expandido» del chat.
           </p>
         </div>
         <div className="space-y-4 p-5">
-          {lastUi.length === 0 ? (
-            <div className="rounded-2xl border-2 border-dashed border-neutral-300 p-8 text-center text-sm text-neutral-500">
-              Aquí aparecerán los componentes que genere el agente: gráficos, tablas,
-              simuladores, formularios y más.
+          {!store.detail ? (
+            <div className="rounded-2xl border-2 border-dashed border-neutral-300 p-8 text-center text-base text-neutral-600">
+              Cada resultado aparece una sola vez en el chat. Si quieres verlo más grande,
+              presiona «Ver detalle expandido».
             </div>
           ) : (
-            lastUi.map((spec, i) => (
-              <DynamicRenderer
-                key={`${spec.type}-${i}-${loading ? "l" : "d"}`}
-                spec={spec}
-                onAsk={send}
-                onGoalCreated={goalCreatedFromForm}
-                onGoalsChanged={onGoalsChanged}
-              />
-            ))
+            <>
+              <button
+                onClick={() => chatActions.setDetail(null)}
+                className="min-h-[44px] rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-700 hover:border-brand"
+              >
+                Cerrar detalle
+              </button>
+              {store.detail.map((spec, i) => (
+                <DynamicRenderer
+                  key={`detail-${i}`}
+                  spec={spec}
+                  onAsk={send}
+                  onGoalCreated={goalCreatedFromForm}
+                  onGoalsChanged={onGoalsChanged}
+                />
+              ))}
+            </>
           )}
         </div>
       </div>

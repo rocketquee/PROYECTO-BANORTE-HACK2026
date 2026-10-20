@@ -131,6 +131,136 @@ def monthly_series(conn, months: int = 6) -> list[dict]:
     return out
 
 
+def _prev_month(y: int, m: int) -> tuple[int, int]:
+    return (y - 1, 12) if m == 1 else (y, m - 1)
+
+
+def spending_trend(conn, months: int = 4, category: str | None = None) -> list[dict]:
+    """Total expense per month for the last `months` months (oldest first)."""
+    today = date.today()
+    keys = []
+    y, m = today.year, today.month
+    for _ in range(max(1, min(months, 24))):
+        keys.append((y, m))
+        y, m = _prev_month(y, m)
+    out = []
+    for y, m in reversed(keys):
+        date_from, date_to = month_range(y, m)
+        if category:
+            row = conn.execute(
+                "SELECT COALESCE(SUM(amount),0) AS total, COUNT(*) AS n FROM transactions"
+                " WHERE type='expense' AND date>=? AND date<=? AND category=?",
+                (date_from, date_to, category),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT COALESCE(SUM(amount),0) AS total, COUNT(*) AS n FROM transactions"
+                " WHERE type='expense' AND date>=? AND date<=?",
+                (date_from, date_to),
+            ).fetchone()
+        out.append({
+            "month": f"{y}-{m:02d}",
+            "label": f"{MONTHS_ES[m - 1].capitalize()} {y}",
+            "total": round(row["total"], 2),
+            "count": row["n"],
+        })
+    return out
+
+
+def weekly_spending(conn, weeks: int = 4) -> list[dict]:
+    """Total expense per ISO week for the last `weeks` weeks (oldest first)."""
+    today = date.today()
+    out = []
+    start = today - timedelta(days=7 * weeks + today.weekday())
+    for w in range(weeks):
+        w_from = start + timedelta(days=7 * w)
+        w_to = w_from + timedelta(days=6)
+        row = conn.execute(
+            "SELECT COALESCE(SUM(amount),0) AS total, COUNT(*) AS n FROM transactions"
+            " WHERE type='expense' AND date>=? AND date<=?",
+            (w_from.isoformat(), w_to.isoformat()),
+        ).fetchone()
+        out.append({
+            "week": w + 1,
+            "label": f"Semana del {w_from.strftime('%d/%m')}",
+            "from": w_from.isoformat(),
+            "to": w_to.isoformat(),
+            "total": round(row["total"], 2),
+            "count": row["n"],
+        })
+    return out
+
+
+def recurring_charges(conn, min_occurrences: int = 3) -> list[dict]:
+    """Merchants/charges that repeat with a similar amount each month."""
+    rows = conn.execute(
+        "SELECT description, COUNT(*) AS n, AVG(amount) AS avg_amount,"
+        " MIN(amount) AS min_amount, MAX(amount) AS max_amount,"
+        " GROUP_CONCAT(DISTINCT substr(date, 1, 7)) AS months"
+        " FROM transactions WHERE type='expense'"
+        " GROUP BY description HAVING n >= ?",
+        (min_occurrences,),
+    ).fetchall()
+    out = []
+    for r in rows:
+        spread = (r["max_amount"] - r["min_amount"]) / r["avg_amount"] if r["avg_amount"] else 1
+        if spread <= 0.45:  # roughly stable amount → recurring
+            cat_row = conn.execute(
+                "SELECT category FROM transactions WHERE description=? LIMIT 1",
+                (r["description"],),
+            ).fetchone()
+            out.append({
+                "description": r["description"],
+                "category": cat_row["category"] if cat_row else "Otros",
+                "occurrences": r["n"],
+                "avg_amount": round(r["avg_amount"], 2),
+                "monthly_estimate": round(r["avg_amount"], 2),
+            })
+    return sorted(out, key=lambda x: -x["monthly_estimate"])
+
+
+def detect_anomalies(conn) -> list[dict]:
+    """Duplicated charges (same description+amount+date) and statistical outliers."""
+    anomalies: list[dict] = []
+    dup_rows = conn.execute(
+        "SELECT date, description, amount, COUNT(*) AS n FROM transactions"
+        " WHERE type='expense' GROUP BY date, description, amount HAVING n > 1"
+        " ORDER BY date DESC LIMIT 10",
+    ).fetchall()
+    for r in dup_rows:
+        anomalies.append({
+            "kind": "duplicado",
+            "date": r["date"],
+            "description": r["description"],
+            "amount": round(r["amount"], 2),
+            "detail": f"El cargo '{r['description']}' aparece {r['n']} veces el mismo día "
+                      f"por {round(r['amount'], 2)} cada uno.",
+        })
+    stats = conn.execute(
+        "SELECT AVG(amount) AS mean, MIN(amount) AS lo, MAX(amount) AS hi FROM transactions"
+        " WHERE type='expense'",
+    ).fetchone()
+    rows = conn.execute(
+        "SELECT date, description, amount FROM transactions WHERE type='expense'"
+        " ORDER BY amount DESC LIMIT 30",
+    ).fetchall()
+    if stats["mean"] and stats["mean"] > 0:
+        # outlier threshold: mean + 5 * mean (simple, robust enough for demo data)
+        threshold = max(stats["mean"] * 5, 5_000)
+        seen = {a["description"] for a in anomalies}
+        for r in rows:
+            if r["amount"] >= threshold and r["description"] not in seen:
+                anomalies.append({
+                    "kind": "inusual",
+                    "date": r["date"],
+                    "description": r["description"],
+                    "amount": round(r["amount"], 2),
+                    "detail": f"Cargo por {round(r['amount'], 2)}, muy por encima de tu gasto "
+                              f"típico ({round(stats['mean'], 2)}).",
+                })
+    return anomalies[:10]
+
+
 # ---------- savings goals ----------
 
 def list_goals(conn) -> list[dict]:
@@ -145,6 +275,10 @@ def list_goals(conn) -> list[dict]:
 
 def create_goal(conn, name: str, target_amount: float, deadline: str | None = None,
                 saved_amount: float = 0) -> dict:
+    existing = {row["name"].strip().lower()
+                for row in conn.execute("SELECT name FROM savings_goals")}
+    if name.strip().lower() in existing:
+        raise ValueError(f"Ya tienes una meta llamada '{name}'. Elige otro nombre.")
     cur = conn.execute(
         "INSERT INTO savings_goals (name, target_amount, saved_amount, deadline) VALUES (?,?,?,?)",
         (name, target_amount, saved_amount, deadline),

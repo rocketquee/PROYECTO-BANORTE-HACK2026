@@ -9,14 +9,16 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+export async function apiFetch<T>(path: string, init?: RequestInit, signal?: AbortSignal): Promise<T> {
   let resp: Response;
   try {
     resp = await fetch(`${API_URL}${path}`, {
       ...init,
+      signal,
       headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
     });
-  } catch {
+  } catch (err) {
+    if ((err as Error).name === "AbortError") throw err;
     throw new ApiError(
       0,
       "No se pudo conectar con el backend. Verifica que esté corriendo en " + API_URL
@@ -33,10 +35,10 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   return resp.json() as Promise<T>;
 }
 
-export function post<T>(path: string, body: unknown): Promise<T> {
-  return apiFetch<T>(path, { method: "POST", body: JSON.stringify(body) });
+export function post<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  return apiFetch<T>(path, { method: "POST", body: JSON.stringify(body) }, signal);
 }
 
-export function patch<T>(path: string, body: unknown): Promise<T> {
-  return apiFetch<T>(path, { method: "PATCH", body: JSON.stringify(body) });
+export function patch<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  return apiFetch<T>(path, { method: "PATCH", body: JSON.stringify(body) }, signal);
 }

@@ -6,6 +6,11 @@
   color-scheme: light;
 }
 
+/* WCAG 2.2 AA: 18px base font size (FontSizeControl can adjust it). */
+html {
+  font-size: 112.5%;
+}
+
 body {
   @apply bg-neutral-100 text-ink antialiased;
 }
@@ -23,4 +28,16 @@ body {
 
 :focus-visible {
   @apply outline-none ring-2 ring-brand ring-offset-1;
+}
+
+/* Respect the OS "reduce motion" setting. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

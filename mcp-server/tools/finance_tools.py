@@ -92,6 +92,91 @@ async def get_budgets_impl(year: int | None = None, month: int | None = None) ->
         return finance.budget_overview(conn, year or today.year, month or today.month)
 
 
+# ---------------------------------------------------------------- temporal tools
+
+def _parse_month_str(value: str) -> tuple[int, int]:
+    y, m = str(value).split("-")
+    y, m = int(y), int(m)
+    if not (2000 <= y <= 2100 and 1 <= m <= 12):
+        raise ValueError(f"Mes inválido: {value}. Use YYYY-MM.")
+    return y, m
+
+
+async def get_spending_trend_impl(months: int = 4, category: str | None = None) -> dict:
+    with db() as conn:
+        series = finance.spending_trend(conn, months, category)
+    total_first, total_last = series[0]["total"], series[-1]["total"]
+    return {
+        "months": months,
+        "category": category,
+        "series": series,
+        "change_pct": (round(100 * (total_last - total_first) / total_first, 1)
+                       if total_first else None),
+    }
+
+
+async def compare_months_impl(month_a: str, month_b: str) -> dict:
+    ya, ma = _parse_month_str(month_a)
+    yb, mb = _parse_month_str(month_b)
+    with db() as conn:
+        a = finance.monthly_summary(conn, ya, ma)
+        b = finance.monthly_summary(conn, yb, mb)
+    return {"month_a": a, "month_b": b,
+            "expense_diff": round(b["expense"] - a["expense"], 2)}
+
+
+async def get_weekly_spending_impl(weeks: int = 4) -> dict:
+    with db() as conn:
+        return {"weeks": weeks, "series": finance.weekly_spending(conn, weeks)}
+
+
+async def detect_recurring_charges_impl() -> dict:
+    with db() as conn:
+        items = finance.recurring_charges(conn)
+    return {"charges": items,
+            "monthly_total": round(sum(i["monthly_estimate"] for i in items), 2)}
+
+
+async def detect_anomalies_impl() -> dict:
+    with db() as conn:
+        return {"anomalies": finance.detect_anomalies(conn)}
+
+
+async def project_savings_impl(monthly_amount: float, target_amount: float,
+                               already_saved: float = 0) -> dict:
+    if monthly_amount <= 0:
+        raise ValueError("El ahorro mensual debe ser mayor a cero.")
+    remaining = target_amount - already_saved
+    if remaining <= 0:
+        return {"months_needed": 0, "message": "Ya alcanzaste esa meta."}
+    months = int(-(-remaining // monthly_amount))  # ceil
+    return {"months_needed": months,
+            "monthly_amount": round(monthly_amount, 2),
+            "target_amount": round(target_amount, 2),
+            "already_saved": round(already_saved, 2)}
+
+
+async def compare_credit_terms_impl(amount: float, terms: list[int] | None = None,
+                                    annual_rate: float = 15.9) -> dict:
+    terms = terms or [12, 24, 36]
+    results = []
+    for t in terms:
+        sim = credit_service.simulate_credit(amount, int(t), annual_rate)
+        results.append({"months": sim["months"],
+                        "monthly_payment": sim["monthly_payment"],
+                        "total_interest": sim["total_interest"],
+                        "total_paid": sim["total_paid"]})
+    return {"amount": round(amount, 2), "annual_rate": annual_rate, "terms": results}
+
+
+async def budget_vs_actual_impl(year: int | None = None, month: int | None = None) -> dict:
+    with db() as conn:
+        today = date.today()
+        overview = finance.budget_overview(conn, year or today.year, month or today.month)
+    exceeded = [c for c in overview["categories"] if c["pct"] is not None and c["pct"] > 100]
+    return {**overview, "exceeded_categories": exceeded}
+
+
 # ---------------------------------------------------------------- write tools
 # Always require explicit user confirmation (`confirm=True`).
 

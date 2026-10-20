@@ -9,6 +9,10 @@ import SavingsProgress from "./SavingsProgress";
 import CreditSimulator from "./CreditSimulator";
 import BudgetPlanner from "./BudgetPlanner";
 import RecommendationList from "./RecommendationList";
+import TrendChart from "./TrendChart";
+import Comparison from "./Comparison";
+import Timeline from "./Timeline";
+import AlertList from "./AlertList";
 
 interface RendererProps {
   spec: UISpec;
@@ -65,5 +69,13 @@ export default function DynamicRenderer(props: RendererProps) {
       );
     case "recommendation_list":
       return <RecommendationList spec={spec} />;
+    case "trend_chart":
+      return <TrendChart spec={spec} />;
+    case "comparison":
+      return <Comparison spec={spec} />;
+    case "timeline":
+      return <Timeline spec={spec} />;
+    case "alert_list":
+      return <AlertList spec={spec} />;
   }
 }

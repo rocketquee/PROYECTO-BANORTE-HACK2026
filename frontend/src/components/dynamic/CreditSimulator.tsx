@@ -154,7 +154,44 @@ export default function CreditSimulator({
         </div>
       )}
 
-      <p className="mt-4 text-xs leading-relaxed text-neutral-400">{spec.disclaimer}</p>
+      <details className="mt-4 rounded-xl border border-neutral-200 p-3">
+        <summary className="cursor-pointer text-base font-medium text-neutral-800">
+          ¿Qué significa?
+        </summary>
+        <dl className="mt-2 space-y-2 text-base text-neutral-700">
+          <div>
+            <dt className="font-semibold">Tasa anual</dt>
+            <dd>El costo del préstamo expresado como porcentaje del monto por año.</dd>
+          </div>
+          <div>
+            <dt className="font-semibold">Plazo</dt>
+            <dd>El número de meses que tomará pagar el crédito completo.</dd>
+          </div>
+          <div>
+            <dt className="font-semibold">Mensualidad</dt>
+            <dd>Lo que pagarías cada mes. Incluye una parte del préstamo y una parte de intereses.</dd>
+          </div>
+          <div>
+            <dt className="font-semibold">Intereses totales</dt>
+            <dd>El costo extra que pagarías por tomar el crédito, además de lo que prestaste.</dd>
+          </div>
+          <div>
+            <dt className="font-semibold">Pago mínimo</dt>
+            <dd>En una tarjeta de crédito, la cantidad más pequeña que puedes pagar para
+                evitar cargos moratorios, aunque el resto sigue generando intereses.</dd>
+          </div>
+          <div>
+            <dt className="font-semibold">CAT</dt>
+            <dd>Costo Anual Total: incluye la tasa más las comisiones; es la forma más
+                completa de comparar créditos.</dd>
+          </div>
+        </dl>
+      </details>
+
+      <p className="mt-4 text-sm leading-relaxed text-neutral-600">{spec.disclaimer}</p>
+      <p className="mt-1 text-sm text-neutral-600">
+        Simulación educativa: no es una oferta ni implica aprobación de crédito.
+      </p>
     </div>
   );
 }

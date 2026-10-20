@@ -10,14 +10,22 @@ from mcp.server.fastmcp import FastMCP
 
 from tools.finance_tools import (
     analyze_spending_impl,
+    budget_vs_actual_impl,
     calculate_credit_simulation_impl,
+    compare_credit_terms_impl,
+    compare_months_impl,
     create_savings_goal_impl,
+    detect_anomalies_impl,
+    detect_recurring_charges_impl,
     get_balance_impl,
     get_budgets_impl,
     get_cards_impl,
     get_monthly_summary_impl,
     get_savings_goals_impl,
+    get_spending_trend_impl,
     get_transactions_impl,
+    get_weekly_spending_impl,
+    project_savings_impl,
     update_savings_goal_impl,
 )
 
@@ -44,6 +52,14 @@ mcp.tool(name="calculate_credit_simulation", description="Calcula la simulación
                      "Simulación educativa; no es una oferta real.")(calculate_credit_simulation_impl)
 mcp.tool(name="get_monthly_summary", description="Resumen financiero del mes: ingresos, gastos, balance y top categorías.")(get_monthly_summary_impl)
 mcp.tool(name="get_budgets", description="Presupuesto del mes: gasto por categoría contra límites configurados.")(get_budgets_impl)
+mcp.tool(name="get_spending_trend", description="Tendencia de gastos de los últimos N meses (opcional por categoría).")(get_spending_trend_impl)
+mcp.tool(name="compare_months", description="Compara dos meses (YYYY-MM): ingresos, gastos y balance.")(compare_months_impl)
+mcp.tool(name="get_weekly_spending", description="Gasto total por semana de las últimas N semanas.")(get_weekly_spending_impl)
+mcp.tool(name="detect_recurring_charges", description="Detecta cargos fijos o recurrentes (suscripciones, pagos mensuales).")(detect_recurring_charges_impl)
+mcp.tool(name="detect_anomalies", description="Detecta cargos duplicados o inusualmente altos.")(detect_anomalies_impl)
+mcp.tool(name="project_savings", description="Proyecta cuántos meses necesitas para una meta si ahorras X al mes.")(project_savings_impl)
+mcp.tool(name="compare_credit_terms", description="Compara plazos de crédito (12/24/36 meses) para un monto dado.")(compare_credit_terms_impl)
+mcp.tool(name="budget_vs_actual", description="Presupuesto planeado contra gasto real, con categorías excedidas.")(budget_vs_actual_impl)
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")

@@ -160,6 +160,61 @@ class RecommendationListSpec(Strict):
     items: list[RecommendationItem]
 
 
+# ---------- temporal / comparison ----------
+
+class TrendPoint(Strict):
+    label: str
+    amount: float
+    month: str | None = None
+
+
+class TrendChartSpec(Strict):
+    type: Literal["trend_chart"]
+    title: str
+    period: str
+    chart_type: Literal["line", "bar", "area"] = "line"
+    series: list[TrendPoint]
+    conclusion: str | None = None
+
+
+class ComparisonRow(Strict):
+    label: str
+    value_a: str
+    value_b: str
+
+
+class ComparisonSpec(Strict):
+    type: Literal["comparison"]
+    title: str
+    column_a: str
+    column_b: str
+    rows: list[ComparisonRow]
+
+
+class TimelineItem(Strict):
+    date: str
+    title: str
+    detail: str
+
+
+class TimelineSpec(Strict):
+    type: Literal["timeline"]
+    title: str
+    items: list[TimelineItem]
+
+
+class AlertItem(Strict):
+    severity: Literal["info", "warning", "critical"]
+    title: str
+    detail: str
+
+
+class AlertListSpec(Strict):
+    type: Literal["alert_list"]
+    title: str
+    items: list[AlertItem]
+
+
 # ---------- discriminated union ----------
 
 UISpec = Annotated[
@@ -172,6 +227,10 @@ UISpec = Annotated[
         CreditSimulatorSpec,
         BudgetPlannerSpec,
         RecommendationListSpec,
+        TrendChartSpec,
+        ComparisonSpec,
+        TimelineSpec,
+        AlertListSpec,
     ],
     Field(discriminator="type"),
 ]
@@ -179,6 +238,7 @@ UISpec = Annotated[
 AUTHORIZED_COMPONENTS = [
     "financial_summary", "spending_chart", "transactions_table", "savings_goal_form",
     "savings_progress", "credit_simulator", "budget_planner", "recommendation_list",
+    "trend_chart", "comparison", "timeline", "alert_list",
 ]
 
 

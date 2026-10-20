@@ -131,6 +131,59 @@ export interface RecommendationListSpec {
   items: RecommendationItem[];
 }
 
+export interface TrendPoint {
+  label: string;
+  amount: number;
+  month?: string | null;
+}
+
+export interface TrendChartSpec {
+  type: "trend_chart";
+  title: string;
+  period: string;
+  chart_type: "line" | "bar" | "area";
+  series: TrendPoint[];
+  conclusion?: string | null;
+}
+
+export interface ComparisonRow {
+  label: string;
+  value_a: string;
+  value_b: string;
+}
+
+export interface ComparisonSpec {
+  type: "comparison";
+  title: string;
+  column_a: string;
+  column_b: string;
+  rows: ComparisonRow[];
+}
+
+export interface TimelineItem {
+  date: string;
+  title: string;
+  detail: string;
+}
+
+export interface TimelineSpec {
+  type: "timeline";
+  title: string;
+  items: TimelineItem[];
+}
+
+export interface AlertItem {
+  severity: "info" | "warning" | "critical";
+  title: string;
+  detail: string;
+}
+
+export interface AlertListSpec {
+  type: "alert_list";
+  title: string;
+  items: AlertItem[];
+}
+
 export type UISpec =
   | FinancialSummarySpec
   | SpendingChartSpec
@@ -139,7 +192,11 @@ export type UISpec =
   | SavingsProgressSpec
   | CreditSimulatorSpec
   | BudgetPlannerSpec
-  | RecommendationListSpec;
+  | RecommendationListSpec
+  | TrendChartSpec
+  | ComparisonSpec
+  | TimelineSpec
+  | AlertListSpec;
 
 export const AUTHORIZED_COMPONENTS = [
   "financial_summary",
@@ -150,6 +207,10 @@ export const AUTHORIZED_COMPONENTS = [
   "credit_simulator",
   "budget_planner",
   "recommendation_list",
+  "trend_chart",
+  "comparison",
+  "timeline",
+  "alert_list",
 ] as const;
 
 export interface PendingAction {
