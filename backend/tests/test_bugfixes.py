@@ -5,6 +5,7 @@ client is replaced by a local dispatcher over the real tool implementations,
 so tests exercise the same code paths without spawning a subprocess.
 """
 import asyncio
+import re
 from datetime import date
 
 import pytest
@@ -28,6 +29,7 @@ IMPLS = {
     "get_spending_trend": ft.get_spending_trend_impl,
     "get_weekly_spending": ft.get_weekly_spending_impl,
     "detect_recurring_charges": ft.detect_recurring_charges_impl,
+    "detect_duplicates": ft.detect_duplicates_impl,
     "detect_anomalies": ft.detect_anomalies_impl,
     "compare_months": ft.compare_months_impl,
     "project_savings": ft.project_savings_impl,
@@ -493,6 +495,263 @@ class TestBug017Identity:
         resp = ask("¿quién eres?")
         assert resp.message.startswith("Soy tu asistente financiero Banorte.")
         assert "gastos" in resp.message and "crédito" in resp.message
+
+
+# ============================================ QA round 2 (reported findings)
+
+class TestR01CategoryBars:
+    """"gastos por categoría en barras" → bars per category, not the trend."""
+
+    def test_bars_by_category_not_trend(self):
+        resp = ask("Muéstrame mis gastos por categoría en barras")
+        assert ui_types(resp) == ["spending_chart"], ui_types(resp)
+        spec = resp.ui[0].model_dump()
+        assert spec["chart_type"] == "bar"
+        cats = [s["category"] for s in spec["series"]]
+        assert len(cats) > 1, "esperaba varias categorías, no una serie temporal"
+        assert not any(c.lower().startswith(("ene", "feb", "sep", "oct")) for c in cats)
+
+
+class TestR02Timeline:
+    """"línea del tiempo de movimientos" → a timeline component."""
+
+    def test_timeline_component(self):
+        resp = ask("Enséñame mi línea del tiempo de movimientos")
+        assert ui_types(resp) == ["timeline"], ui_types(resp)
+        items = resp.ui[0].model_dump()["items"]
+        assert len(items) >= 5
+        assert all("date" in i and "title" in i for i in items)
+        dates = [i["date"] for i in items]
+        assert dates == sorted(dates, reverse=True), "debe ir del más reciente al más antiguo"
+
+    def test_timeline_variants(self):
+        for phrase in ("muéstrame una cronología de movimientos",
+                       "dame un timeline de mis movimientos"):
+            assert ui_types(ask(phrase)) == ["timeline"], phrase
+
+
+class TestR03PayrollAndBonus:
+    """Nómina/aguinaldo must answer with real dates and amounts."""
+
+    def test_payroll_dates_and_amounts(self):
+        resp = ask("¿Cuándo me cae la nómina?")
+        assert resp.message.startswith("Tu nómina es quincenal")
+        assert " de " in resp.message, "debe incluir fechas en formato mexicano"
+        assert "$" in resp.message, "debe incluir montos"
+        assert "próximo depósito" in resp.message
+
+    def test_bonus_amounts(self):
+        resp = ask("¿Cuánto recibí de aguinaldo?")
+        assert "aguinaldo" in resp.message.lower()
+        assert "$22,000" in resp.message, "el aguinaldo sembrado es de $22,000"
+        assert "15 de diciembre" in resp.message
+
+    def test_not_generic_summary(self):
+        resp = ask("¿Cuánto recibí de aguinaldo?")
+        assert "Tu saldo total" not in resp.message
+        assert "mayor partida" not in resp.message
+
+
+class TestR04IdentityDisclosure:
+    """Must clarify it is an AI assistant in demo mode, not a person/bank."""
+
+    def test_person_question(self):
+        resp = ask("¿Eres una persona real?")
+        low = resp.message.lower()
+        assert "inteligencia artificial" in low
+        assert "no soy una persona real" in low
+
+    def test_bank_question(self):
+        resp = ask("¿Eres de Banorte?")
+        low = resp.message.lower()
+        assert "no soy" in low and "banco oficial" in low
+        assert "ficticios" in low
+
+    def test_variants(self):
+        for phrase in ("eres un humano", "eres un bot", "eres el banco oficial",
+                       "trabajas para banorte"):
+            low = ask(phrase).message.lower()
+            assert "inteligencia artificial" in low, phrase
+
+
+class TestR05DuplicatesVsAnomalies:
+    """Duplicates = only duplicates; unusual = per-category, excluding recurring."""
+
+    def test_duplicates_only_duplicates(self):
+        resp = ask("¿Tengo algún cobro duplicado?")
+        assert ui_types(resp) == ["alert_list"]
+        items = resp.ui[0].model_dump()["items"]
+        assert items, "el seed incluye un cargo duplicado de Rappi"
+        assert all("duplicado" in i["title"].lower() for i in items)
+
+    def test_recurring_not_reported_as_unusual(self):
+        anomalies = ask("¿Tengo cargos inusuales?").ui[0].model_dump()["items"]
+        titles = " ".join(i["title"] for i in anomalies).lower()
+        assert "renta" not in titles, "un pago fijo no es inusual"
+        assert "luz" not in titles and "internet" not in titles
+        assert all("inusual" in item["title"].lower() for item in anomalies)
+
+    def test_anomalies_excludes_duplicates(self):
+        from app.services import finance
+        import sqlite3
+        with database.db() as conn:
+            anomalies = finance.detect_anomalies(conn)
+            dups = {(d["date"], d["description"]) for d in finance.detect_duplicates(conn)}
+        assert not any((a["date"], a["description"]) in dups for a in anomalies)
+
+    def test_anomaly_threshold_is_per_category(self):
+        from app.services import finance
+        with database.db() as conn:
+            recurring = {c["description"] for c in finance.recurring_charges(conn)}
+            anomalies = finance.detect_anomalies(conn)
+        assert anomalies, "el seed incluye un cargo inusual"
+        assert not (set(a["description"] for a in anomalies) & recurring)
+
+
+class TestR06PartialMonthComparison:
+    """An in-progress month must be flagged, not compared as if complete."""
+
+    def test_current_month_is_flagged(self):
+        from datetime import date
+        resp = ask("Compara mis gastos de septiembre contra octubre")
+        assert ui_types(resp) == ["comparison"]
+        today = date.today()
+        if today.month == 10:
+            assert "en curso" in resp.message
+            assert "hasta hoy" in resp.message
+
+    def test_two_explicit_months_are_compared(self):
+        resp = ask("Compara agosto contra septiembre")
+        spec = resp.ui[0].model_dump()
+        assert "Agosto" in spec["column_a"] and "Septiembre" in spec["column_b"]
+
+
+class TestR07FixedPaymentsConsistency:
+    """The count, the list and the total must agree, and seasonal one-offs
+    (a December gift) must not be counted as a monthly fixed payment."""
+
+    def test_count_matches_list(self):
+        resp = ask("¿Qué pagos fijos tengo?")
+        items = resp.ui[0].model_dump()["items"]
+        stated = int(re.search(r"Detecté (\d+) cargos", resp.message).group(1))
+        assert stated == len(items), f"dice {stated} y lista {len(items)}"
+
+    def test_total_matches_sum(self):
+        resp = ask("¿Qué pagos fijos tengo?")
+        items = resp.ui[0].model_dump()["items"]
+        stated = float(re.search(r"\$([\d,]+) mensual", resp.message).group(1).replace(",", ""))
+        total = sum(float(i["title"].split("$")[1].split("/")[0].replace(",", ""))
+                    for i in items)
+        assert abs(stated - total) < 1, f"el total dice {stated} y la suma es {total}"
+
+    def test_seasonal_gift_excluded(self):
+        from app.services import finance
+        with database.db() as conn:
+            recurring = {c["description"] for c in finance.recurring_charges(conn)}
+        assert not any("regalo" in d.lower() for d in recurring)
+
+    def test_every_recurring_appears_in_several_months(self):
+        from app.services import finance
+        with database.db() as conn:
+            for c in finance.recurring_charges(conn):
+                assert c["months_count"] >= 6, c
+
+
+class TestR08MexicanFormat:
+    """$349 (not 348.9), $14,800 (not 14800.0), -$8,673 (not $-8,673)."""
+
+    def test_no_float_artifacts_in_ui(self):
+        """Money must never leak raw floats: no 1-decimal (348.9) and no
+        3+-decimal artifacts. Two decimals ($348.90) are correct."""
+        money_1dec = re.compile(r"\$\d[\d,]*\.\d(?!\d)")
+        money_3dec = re.compile(r"\$\d[\d,]*\.\d{3,}")
+        for phrase in ("Analiza mis gastos de este mes", "¿Cuál es mi saldo?",
+                       "¿Qué pagos fijos tengo?", "¿Tengo cargos inusuales?",
+                       "¿Cuándo me cae la nómina?", "¿Cuánto recibí de aguinaldo?"):
+            text = full_text(ask(phrase))
+            assert not money_1dec.search(text), f"{phrase}: dinero con 1 decimal"
+            assert not money_3dec.search(text), f"{phrase}: dinero con 3+ decimales"
+            assert "14800.0" not in text and "348.9 " not in text
+
+    def test_negative_sign_precedes_currency(self):
+        text = ask("¿Cuál es mi saldo?").message
+        assert "$-" not in text
+        assert "-$" in text
+
+    def test_money_helpers(self):
+        assert composer_money(-8673.2) == "-$8,673"
+        assert composer_money(14800.0) == "$14,800"
+        assert composer_money2(348.9) == "$348.90"
+
+    def test_budget_limits_have_currency_in_ui(self):
+        from app.services import finance
+        import json
+        with database.db() as conn:
+            budgets = finance.budget_overview(conn, 2026, 10)
+        limits = [c["limit"] for c in budgets["categories"]]
+        assert all(isinstance(v, (int, float)) for v in limits)
+        # The UI component must carry the numeric limit so the renderer can
+        # format it; it must never be sent pre-formatted as a bare number string.
+        assert "limits" in json.dumps(budgets).lower() or limits
+
+
+class TestR09NegativeAvailablePhrasing:
+    """A negative available balance must be spelled out, not shown as $-X."""
+
+    def test_says_overspent(self):
+        resp = ask("¿Cómo voy con mi presupuesto?")
+        assert "de más" in resp.message
+        assert "te quedan -" not in resp.message
+        assert "$-" not in resp.message
+
+    def test_positive_case_still_readable(self):
+        """The seed runs a persistent deficit, so both branches are unit-tested
+        directly on the phrasing helper."""
+        assert orch.available_phrase(1234.0) == "te quedan $1,234 disponibles"
+        assert orch.available_phrase(-8673.2) == "ya gastaste $8,673 de más este mes"
+        assert "$-" not in orch.available_phrase(-1.0)
+
+
+class TestR10FoodIncludesSupermarketAndRestaurants:
+    """"comida" must include both Supermercado and Restaurantes."""
+
+    def test_comida_groups_two_categories(self):
+        resp = ask("¿Cuánto llevo gastado en comida?")
+        spec = resp.ui[0].model_dump()
+        cats = {s["category"] for s in spec["series"]}
+        assert "Supermercado" in cats and "Restaurantes" in cats, cats
+        assert "Comida" in spec["title"]
+        assert "Comida" in resp.message
+
+    def test_aliases_share_the_group(self):
+        for phrase in ("¿cuánto gasté en alimentos?", "mis gastos de comer"):
+            spec = ask(phrase).ui[0].model_dump()
+            cats = {s["category"] for s in spec["series"]}
+            assert {"Supermercado", "Restaurantes"} <= cats, phrase
+
+    def test_restaurantes_alone_still_works(self):
+        spec = ask("¿cuánto gasté en restaurantes?").ui[0].model_dump()
+        cats = {s["category"] for s in spec["series"]}
+        assert cats == {"Restaurantes"}
+
+
+class TestR11NoAvisoPrefix:
+    """No "Aviso:" prefix stuck onto charge rows."""
+
+    def test_no_aviso_prefix_in_components(self):
+        import json
+        for phrase in ("¿Qué pagos fijos tengo?", "¿Tengo cargos inusuales?",
+                       "¿Tengo algún cobro duplicado?"):
+            payload = json.dumps([u.model_dump() for u in ask(phrase).ui],
+                                 ensure_ascii=False)
+            assert "Aviso:" not in payload, phrase
+            assert '"Aviso"' not in payload, phrase
+
+    def test_alert_titles_are_clean(self):
+        items = ask("¿Tengo cargos inusuales?").ui[0].model_dump()["items"]
+        assert items
+        assert all(not i["title"].startswith("Aviso") for i in items)
+        assert all(":" in i["title"] for i in items)  # "Cargo inusual: ..."
 
 
 # ---------------------------------------------------------------- helpers

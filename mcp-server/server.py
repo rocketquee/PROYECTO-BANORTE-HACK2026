@@ -16,6 +16,7 @@ from tools.finance_tools import (
     compare_months_impl,
     create_savings_goal_impl,
     detect_anomalies_impl,
+    detect_duplicates_impl,
     detect_recurring_charges_impl,
     get_balance_impl,
     get_budgets_impl,
@@ -56,7 +57,8 @@ mcp.tool(name="get_spending_trend", description="Tendencia de gastos de los últ
 mcp.tool(name="compare_months", description="Compara dos meses (YYYY-MM): ingresos, gastos y balance.")(compare_months_impl)
 mcp.tool(name="get_weekly_spending", description="Gasto total por semana de las últimas N semanas.")(get_weekly_spending_impl)
 mcp.tool(name="detect_recurring_charges", description="Detecta cargos fijos o recurrentes (suscripciones, pagos mensuales).")(detect_recurring_charges_impl)
-mcp.tool(name="detect_anomalies", description="Detecta cargos duplicados o inusualmente altos.")(detect_anomalies_impl)
+mcp.tool(name="detect_duplicates", description="Detecta cobros duplicados (mismo cargo aplicado dos veces el mismo día).")(detect_duplicates_impl)
+mcp.tool(name="detect_anomalies", description="Detecta cargos inusualmente altos para su categoría, excluyendo recurrentes y duplicados.")(detect_anomalies_impl)
 mcp.tool(name="project_savings", description="Proyecta cuántos meses necesitas para una meta si ahorras X al mes.")(project_savings_impl)
 mcp.tool(name="compare_credit_terms", description="Compara plazos de crédito (12/24/36 meses) para un monto dado.")(compare_credit_terms_impl)
 mcp.tool(name="budget_vs_actual", description="Presupuesto planeado contra gasto real, con categorías excedidas.")(budget_vs_actual_impl)

@@ -56,7 +56,7 @@ function NavButton({ item, active, onClick }: {
     <button
       onClick={onClick}
       aria-current={active ? "page" : undefined}
-      className={`flex min-h-[48px] w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
+      className={`flex min-h-[48px] w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-base transition-colors ${
         active ? "bg-brand/25 font-semibold text-white" : "text-neutral-300 hover:bg-white/10 hover:text-white"
       }`}
     >
@@ -78,25 +78,26 @@ export default function Sidebar({ view, onChange, onClose }: Props) {
   }
 
   return (
-    <aside className="flex h-screen w-64 shrink-0 flex-col overflow-y-auto bg-ink text-neutral-300">
-      <div className="flex items-center gap-3 px-5 py-5">
+    <aside className="flex h-full min-h-0 w-64 shrink-0 flex-col overflow-hidden bg-ink text-neutral-300">
+      <div className="flex shrink-0 items-center gap-3 px-5 py-5">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand font-bold text-white">
           BF
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-white">Banorte AI Finanzas</p>
-          <p className="text-xs text-neutral-400">Prototipo educativo</p>
+          <p className="truncate text-base font-semibold text-white">Banorte AI Finanzas</p>
+          <p className="text-base text-neutral-300">Prototipo educativo</p>
         </div>
       </div>
 
-      <div className="px-5 pb-4">
+      <div className="shrink-0 px-5 pb-4">
         <FontSizeControl />
       </div>
 
-      <nav className="flex-1 px-3" aria-label="Secciones">
+      {/* The sidebar owns its scroll when content doesn't fit (UI-1). */}
+      <nav className="min-h-0 flex-1 overflow-y-auto px-3" aria-label="Secciones">
         {GROUPS.map((group) => (
           <div key={group.title} className="mb-4">
-            <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+            <p className="mb-1 px-3 text-base font-semibold uppercase tracking-wide text-neutral-300">
               {group.title}
             </p>
             {group.items.map((item) => (
@@ -111,18 +112,18 @@ export default function Sidebar({ view, onChange, onClose }: Props) {
           <button
             onClick={() => setHistoryOpen(!historyOpen)}
             aria-expanded={historyOpen}
-            className="flex min-h-[48px] w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm text-neutral-300 hover:bg-white/10 hover:text-white"
+            className="flex min-h-[48px] w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-base text-neutral-300 hover:bg-white/10 hover:text-white"
           >
-            <span className="font-semibold uppercase tracking-wide text-neutral-500">
+            <span className="font-semibold uppercase tracking-wide text-neutral-300">
               Historial de conversaciones
             </span>
             <span aria-hidden="true">{historyOpen ? "▾" : "▸"}</span>
           </button>
           {historyOpen && (
-            <div className="mt-1 space-y-1">
+            <div className="mt-1 max-h-64 space-y-1 overflow-y-auto pr-1">
               <button
                 onClick={() => { chatActions.newConversation(); go("asistente"); }}
-                className="flex min-h-[44px] w-full items-center gap-2 rounded-lg border border-white/20 px-3 py-2 text-sm text-white hover:border-white"
+                className="flex min-h-[48px] w-full items-center gap-2 rounded-lg border border-white/20 px-3 py-2 text-base text-white hover:border-white"
               >
                 + Nueva conversación
               </button>
@@ -135,8 +136,8 @@ export default function Sidebar({ view, onChange, onClose }: Props) {
                     onClick={() => { chatActions.selectConversation(c.id); go("asistente"); }}
                     className="min-w-0 flex-1 text-left"
                   >
-                    <p className="truncate text-sm text-neutral-200">{c.title}</p>
-                    <p className="text-xs text-neutral-500">
+                    <p className="truncate text-base text-neutral-100">{c.title}</p>
+                    <p className="text-base text-neutral-300">
                       {new Date(c.createdAt).toLocaleDateString("es-MX", {
                         day: "numeric", month: "short",
                       })}
@@ -149,7 +150,7 @@ export default function Sidebar({ view, onChange, onClose }: Props) {
                         chatActions.deleteConversation(c.id);
                       }
                     }}
-                    className="min-h-[36px] min-w-[36px] rounded text-neutral-500 opacity-0 hover:text-brand group-hover:opacity-100 focus-visible:opacity-100"
+                    className="min-h-[48px] min-w-[48px] rounded text-neutral-300 hover:text-brand"
                   >
                     ✕
                   </button>
@@ -160,7 +161,7 @@ export default function Sidebar({ view, onChange, onClose }: Props) {
         </div>
       </nav>
 
-      <div className="border-t border-white/10 px-5 py-4 text-xs leading-relaxed text-neutral-400">
+      <div className="shrink-0 border-t border-white/10 px-5 py-4 text-base leading-relaxed text-neutral-300">
         Prototipo educativo con datos ficticios.
         <br />
         No afiliado a Banorte.

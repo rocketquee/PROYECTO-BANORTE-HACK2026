@@ -42,11 +42,11 @@ export default function CreditSimulator({
 
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-      <h3 className="mb-4 text-sm font-semibold">{spec.title}</h3>
+      <h3 className="mb-4 text-base font-semibold">{spec.title}</h3>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="space-y-4">
-          <label className="block text-sm">
+          <label className="block text-base">
             <span className="mb-1 block font-medium text-neutral-700">
               Monto solicitado: {money(params.amount)}
             </span>
@@ -60,12 +60,12 @@ export default function CreditSimulator({
               value={amount}
               onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ""))}
               inputMode="decimal"
-              className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-base"
               aria-label="Monto solicitado"
             />
           </label>
 
-          <label className="block text-sm">
+          <label className="block text-base">
             <span className="mb-1 block font-medium text-neutral-700">Plazo: {months} meses</span>
             <input
               type="range" min={3} max={120} step={3}
@@ -76,21 +76,21 @@ export default function CreditSimulator({
           </label>
 
           <div className="grid grid-cols-2 gap-3">
-            <label className="block text-sm">
+            <label className="block text-base">
               <span className="mb-1 block font-medium text-neutral-700">Tasa anual (%)</span>
               <input
                 value={rate}
                 onChange={(e) => setRate(e.target.value.replace(/[^\d.]/g, ""))}
                 inputMode="decimal"
-                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-base"
               />
             </label>
-            <label className="block text-sm">
+            <label className="block text-base">
               <span className="mb-1 block font-medium text-neutral-700">Método</span>
               <select
                 value={method}
                 onChange={(e) => setMethod(e.target.value as "frances" | "aleman")}
-                className="w-full rounded-lg border border-neutral-300 bg-white px-2 py-2 text-sm"
+                className="w-full rounded-lg border border-neutral-300 bg-white px-2 py-2 text-base"
               >
                 <option value="frances">Francés (pago fijo)</option>
                 <option value="aleman">Alemán (pago decreciente)</option>
@@ -100,21 +100,21 @@ export default function CreditSimulator({
         </div>
 
         <div className="flex flex-col justify-center rounded-xl bg-neutral-50 p-5">
-          <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+          <p className="text-base font-medium uppercase tracking-wide text-neutral-700">
             Mensualidad estimada
           </p>
           <p className="text-4xl font-bold text-brand">{money(result.monthly_payment, 2)}</p>
-          <div className="mt-4 space-y-1 text-sm text-neutral-600">
+          <div className="mt-4 space-y-1 text-base text-neutral-600">
             <p>Intereses totales: <strong>{money(result.total_interest, 2)}</strong></p>
             <p>Total a pagar: <strong>{money(result.total_paid, 2)}</strong></p>
             <p>Método: <strong>{method === "frances" ? "Francés (pago fijo)" : "Alemán (pago decreciente)"}</strong></p>
           </div>
-          {error && <p className="mt-3 text-sm text-brand">{error}</p>}
+          {error && <p className="mt-3 text-base text-brand">{error}</p>}
           <button
             onClick={() =>
               onAsk(`Analiza este plan de crédito: monto ${money(params.amount)}, plazo de ${months} meses, tasa de ${params.annual_rate}% anual, método ${method}. ¿Qué opinas y qué riesgos debo considerar?`)
             }
-            className="mt-4 rounded-lg border border-brand px-4 py-2 text-sm font-medium text-brand hover:bg-brand-soft"
+            className="mt-4 rounded-lg border border-brand px-4 py-2 text-base font-medium text-brand hover:bg-brand-soft"
           >
             Analizar este plan con el agente
           </button>
@@ -123,14 +123,14 @@ export default function CreditSimulator({
 
       <button
         onClick={() => setShowSchedule(!showSchedule)}
-        className="mt-4 text-sm font-medium text-neutral-600 underline-offset-2 hover:underline"
+        className="mt-4 text-base font-medium text-neutral-600 underline-offset-2 hover:underline"
       >
         {showSchedule ? "Ocultar tabla de amortización" : "Ver tabla de amortización"}
       </button>
       {showSchedule && (
         <div className="mt-2 max-h-64 overflow-y-auto rounded-lg border border-neutral-200">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-neutral-50 text-xs uppercase text-neutral-500">
+          <table className="w-full text-base">
+            <thead className="sticky top-0 bg-neutral-50 text-base uppercase text-neutral-700">
               <tr>
                 <th className="p-2 text-left">#</th>
                 <th className="p-2 text-right">Pago</th>
@@ -144,7 +144,7 @@ export default function CreditSimulator({
                 <tr key={r.n} className="border-t border-neutral-100">
                   <td className="p-2">{r.n}</td>
                   <td className="p-2 text-right">{money(r.payment, 2)}</td>
-                  <td className="p-2 text-right text-neutral-500">{money(r.interest, 2)}</td>
+                  <td className="p-2 text-right text-neutral-700">{money(r.interest, 2)}</td>
                   <td className="p-2 text-right">{money(r.principal, 2)}</td>
                   <td className="p-2 text-right">{money(r.balance, 2)}</td>
                 </tr>
@@ -188,8 +188,8 @@ export default function CreditSimulator({
         </dl>
       </details>
 
-      <p className="mt-4 text-sm leading-relaxed text-neutral-600">{spec.disclaimer}</p>
-      <p className="mt-1 text-sm text-neutral-600">
+      <p className="mt-4 text-base leading-relaxed text-neutral-600">{spec.disclaimer}</p>
+      <p className="mt-1 text-base text-neutral-600">
         Simulación educativa: no es una oferta ni implica aprobación de crédito.
       </p>
     </div>

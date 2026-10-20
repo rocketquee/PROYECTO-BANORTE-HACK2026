@@ -1,10 +1,22 @@
-export function money(value: number, decimals = 2): string {
+/**
+ * Mexican money format (R8): "$349" (never 348.9), "$14,800" (never 14800.0)
+ * and "-$8,673" (never "$-8,673"). Amounts are shown in whole pesos by
+ * default; pass `decimals` explicitly where cents are meaningful.
+ */
+export function money(value: number, decimals = 0): string {
   return new Intl.NumberFormat("es-MX", {
     style: "currency",
     currency: "MXN",
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   }).format(value);
+}
+
+/** Thousands separator without decimals, for editable numeric fields. */
+export function moneyInput(value: number): string {
+  return new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0 }).format(
+    Number.isFinite(value) ? value : 0
+  );
 }
 
 export function fmtDate(iso: string): string {

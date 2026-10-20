@@ -26,10 +26,15 @@ MONTHS_ES = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
 
 
 def money(value: float) -> str:
+    """Mexican format: $14,800 · negatives as -$8,673 (never $-8,673)."""
+    if value < 0:
+        return f"-{CUR}{abs(value):,.0f}"
     return f"{CUR}{value:,.0f}"
 
 
 def money2(value: float) -> str:
+    if value < 0:
+        return f"-{CUR}{abs(value):,.2f}"
     return f"{CUR}{value:,.2f}"
 
 

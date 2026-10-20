@@ -25,20 +25,20 @@ export default function SavingsProgress({
 
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-      <h3 className="mb-4 text-sm font-semibold">{title}</h3>
+      <h3 className="mb-4 text-base font-semibold">{title}</h3>
       <div className="space-y-5">
         {local.map((g) => (
           <div key={g.id}>
-            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-base">
               <span className="font-medium">
                 {g.name}
                 {g.status === "completada" && (
-                  <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                  <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-base font-medium text-emerald-700">
                     Completada
                   </span>
                 )}
               </span>
-              <span className="text-neutral-500">
+              <span className="text-neutral-700">
                 {money(g.saved_amount)} / {money(g.target_amount)} · {g.progress_pct}%
                 {g.deadline && ` · límite ${fmtDate(g.deadline)}`}
               </span>
@@ -52,14 +52,14 @@ export default function SavingsProgress({
             <button
               onClick={() => addAmount(g, 500)}
               disabled={busy === g.id}
-              className="mt-2 rounded-lg border border-brand px-3 py-1.5 text-xs font-medium text-brand hover:bg-brand-soft disabled:opacity-50"
+              className="mt-2 rounded-lg border border-brand px-3 py-1.5 text-base font-medium text-brand hover:bg-brand-soft disabled:opacity-50"
             >
               {busy === g.id ? "Abonando…" : "Abonar $500"}
             </button>
           </div>
         ))}
         {local.length === 0 && (
-          <p className="text-sm text-neutral-500">No hay metas todavía.</p>
+          <p className="text-base text-neutral-700">No hay metas todavía.</p>
         )}
       </div>
     </div>

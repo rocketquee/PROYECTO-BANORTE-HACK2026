@@ -115,17 +115,17 @@ export default function AgentView({
   }
 
   return (
-    <div className="grid h-full grid-cols-1 gap-0 xl:grid-cols-[1fr_420px]">
+    <div className={`grid h-full min-h-0 grid-cols-1 ${store.detail ? "xl:grid-cols-[1fr_420px]" : ""}`}>
       <div className="flex h-full min-h-0 flex-col">
       {/* Chat header — business language only (BUG-003) */}
-      <div className="border-b border-neutral-200 bg-white px-6 py-4">
+      <div className="shrink-0 border-b border-neutral-200 bg-white px-6 py-4">
         <h1 className="text-lg font-semibold">Asistente financiero</h1>
-        <p className="text-sm text-neutral-600">
+        <p className="text-base text-neutral-700">
           Te ayudo a revisar tus gastos, ahorro, créditos y presupuesto con tus propios datos.
         </p>
       </div>
 
-      <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-6">
+      <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
         {messages.length === 0 && (
           <div className="rounded-2xl bg-white p-6 text-base shadow-sm">
             <p className="text-lg font-medium">¡Hola! Soy tu asistente financiero.</p>
@@ -218,7 +218,7 @@ export default function AgentView({
             <span aria-live="polite">Estoy revisando tus datos…</span>
             <button
               onClick={cancel}
-              className="min-h-[44px] rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-700 hover:border-brand"
+              className="min-h-[48px] rounded-lg border border-neutral-400 px-3 py-2 text-base text-neutral-800 hover:border-brand"
             >
               Cancelar
             </button>
@@ -228,7 +228,7 @@ export default function AgentView({
 
       <form
         onSubmit={(e) => { e.preventDefault(); send(input); }}
-        className="border-t border-neutral-200 bg-white p-4"
+        className="shrink-0 border-t border-neutral-200 bg-white p-4"
       >
         <div className="flex gap-2">
           <input
@@ -241,7 +241,7 @@ export default function AgentView({
           <button
             type="submit"
             disabled={loading || !input.trim()}
-            className="min-h-[48px] rounded-xl bg-brand px-6 py-3 text-base font-semibold text-white hover:bg-brand-dark disabled:cursor-not-allowed disabled:bg-neutral-400 disabled:text-neutral-100"
+            className="min-h-[48px] rounded-xl bg-brand px-6 py-3 text-base font-semibold text-white hover:bg-brand-dark disabled:cursor-not-allowed disabled:bg-neutral-600 disabled:text-white"
           >
             Enviar
           </button>
@@ -249,42 +249,36 @@ export default function AgentView({
       </form>
       </div>
 
-      {/* Expanded-detail panel: results live in the chat; this panel shows
-          the opened-in-detail result only (BUG-005). */}
-      <div className="hidden min-h-0 flex-col overflow-y-auto border-l border-neutral-200 bg-neutral-50 xl:flex">
-        <div className="sticky top-0 z-10 border-b border-neutral-200 bg-neutral-50 px-5 py-4">
-          <h2 className="text-base font-semibold">Detalle expandido</h2>
-          <p className="text-sm text-neutral-600">
-            Abre aquí cualquier resultado con el botón «Ver detalle expandido» del chat.
-          </p>
-        </div>
-        <div className="space-y-4 p-5">
-          {!store.detail ? (
-            <div className="rounded-2xl border-2 border-dashed border-neutral-300 p-8 text-center text-base text-neutral-600">
-              Cada resultado aparece una sola vez en el chat. Si quieres verlo más grande,
-              presiona «Ver detalle expandido».
+      {/* Expanded-detail panel (UI-2): only rendered while a result is open,
+          so it never reserves space nor shows placeholder copy when closed. */}
+      {store.detail && (
+        <div className="flex h-full min-h-0 flex-col overflow-hidden border-l border-neutral-200 bg-neutral-50">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-neutral-200 bg-neutral-50 px-5 py-4">
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold">Detalle expandido</h2>
+              <p className="text-base text-neutral-700">Resultado abierto desde el chat.</p>
             </div>
-          ) : (
-            <>
-              <button
-                onClick={() => chatActions.setDetail(null)}
-                className="min-h-[44px] rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-700 hover:border-brand"
-              >
-                Cerrar detalle
-              </button>
-              {store.detail.map((spec, i) => (
-                <DynamicRenderer
-                  key={`detail-${i}`}
-                  spec={spec}
-                  onAsk={send}
-                  onGoalCreated={goalCreatedFromForm}
-                  onGoalsChanged={onGoalsChanged}
-                />
-              ))}
-            </>
-          )}
+            <button
+              onClick={() => chatActions.setDetail(null)}
+              aria-label="Cerrar detalle expandido"
+              className="min-h-[48px] min-w-[48px] shrink-0 rounded-lg border border-neutral-400 px-3 py-2 text-base text-neutral-800 hover:border-brand"
+            >
+              Cerrar
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
+            {store.detail.map((spec, i) => (
+              <DynamicRenderer
+                key={`detail-${i}`}
+                spec={spec}
+                onAsk={send}
+                onGoalCreated={goalCreatedFromForm}
+                onGoalsChanged={onGoalsChanged}
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

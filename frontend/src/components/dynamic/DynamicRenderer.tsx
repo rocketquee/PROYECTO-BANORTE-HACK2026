@@ -32,7 +32,7 @@ export default function DynamicRenderer(props: RendererProps) {
   const { spec } = props;
   if (!(AUTHORIZED_COMPONENTS as readonly string[]).includes(spec.type)) {
     return (
-      <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
+      <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-base text-amber-800">
         Componente no autorizado: {String((spec as { type?: string }).type)}
       </div>
     );

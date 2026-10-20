@@ -15,6 +15,14 @@ body {
   @apply bg-neutral-100 text-ink antialiased;
 }
 
+/* The document never scrolls; each panel scrolls on its own (UI-1). */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

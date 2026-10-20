@@ -3,15 +3,9 @@
 import type { AlertListSpec } from "@/types/contract";
 
 const STYLES = {
-  info: "border-neutral-300 bg-neutral-50",
-  warning: "border-amber-400 bg-amber-50",
+  info: "border-neutral-400 bg-neutral-50",
+  warning: "border-amber-500 bg-amber-50",
   critical: "border-brand bg-brand-soft",
-} as const;
-
-const LABELS = {
-  info: "Aviso",
-  warning: "Atención",
-  critical: "Importante",
 } as const;
 
 export default function AlertList({ spec }: { spec: AlertListSpec }) {
@@ -21,11 +15,10 @@ export default function AlertList({ spec }: { spec: AlertListSpec }) {
       <ul className="space-y-3">
         {spec.items.map((item, i) => (
           <li key={i} className={`rounded-xl border-2 p-4 ${STYLES[item.severity]}`}>
-            <p className="text-sm font-semibold text-neutral-900">
-              <span className="sr-only">{LABELS[item.severity]}: </span>
-              {item.title}
-            </p>
-            <p className="mt-1 text-sm text-neutral-700">{item.detail}</p>
+            {/* R11: no "Aviso:"/severity prefix is glued onto the charge row;
+                the title itself already says what the charge is. */}
+            <p className="text-base font-semibold text-neutral-900">{item.title}</p>
+            <p className="mt-1 text-base text-neutral-800">{item.detail}</p>
           </li>
         ))}
       </ul>

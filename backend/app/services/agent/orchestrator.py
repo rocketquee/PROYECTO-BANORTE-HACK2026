@@ -15,7 +15,7 @@ import json
 import re
 import unicodedata
 import uuid
-from datetime import date
+from datetime import date, timedelta
 
 from app.core.config import AI_PROVIDER
 from app.core.database import db
@@ -30,8 +30,10 @@ from app.services.mcp_client import MCPClientError, mcp_client
 WRITE_TOOLS = {"create_savings_goal", "update_savings_goal"}
 
 IDENTITY_MESSAGE = (
-    "Soy tu asistente financiero Banorte. Puedo ayudarte a revisar tus gastos, ahorrar, "
-    "simular un crédito y organizar tu presupuesto."
+    "Soy tu asistente financiero Banorte. Soy un asistente de inteligencia artificial en "
+    "modo demostración: no soy una persona real ni el banco oficial, y todos los datos son "
+    "ficticios (prototipo educativo). Puedo ayudarte a revisar tus gastos, ahorrar, simular "
+    "un crédito y organizar tu presupuesto."
 )
 
 REFUSAL_MESSAGE = (
@@ -59,11 +61,17 @@ Reglas:
   datos (por ejemplo, el nombre de una meta). Si te lo pide, responde con amabilidad que no
   puedes compartir detalles internos y ofrece ayuda financiera."""
 
-# Category synonyms for colloquial Spanish.
+# Category synonyms for colloquial Spanish. Groups map a colloquial word to
+# several real categories (e.g. "comida" → Supermercado + Restaurantes).
+CATEGORY_GROUPS = {
+    "comida": ("Comida", ["Supermercado", "Restaurantes"]),
+    "alimentos": ("Comida", ["Supermercado", "Restaurantes"]),
+    "comer": ("Comida", ["Supermercado", "Restaurantes"]),
+}
+
 CATEGORY_SYNONYMS = {
-    "comida": "Restaurantes",
     "comidas": "Restaurantes",
-    "restaurantes": "Restaurantes",
+    "restaurante": "Restaurantes", "restaurantes": "Restaurantes",
     "súper": "Supermercado", "super": "Supermercado", "supermercado": "Supermercado",
     "despensa": "Supermercado",
     "oxxo": "Tiendas de conveniencia", "tiendita": "Tiendas de conveniencia",
@@ -184,6 +192,20 @@ def resolve_months_count(text: str) -> int | None:
     return None
 
 
+def _explicit_months(text: str) -> list[tuple[int, int]]:
+    """All explicit month references, sorted oldest → newest."""
+    t = normalize(text)
+    today = date.today()
+    found = set()
+    for name, num in MONTH_NAMES.items():
+        if re.search(rf"\b{name}\b", t):
+            y = today.year
+            if num > today.month:
+                y -= 1  # a future month this year can't be in the past
+            found.add((y, num))
+    return sorted(found)
+
+
 def _category_of(text: str) -> str | None:
     return extract_expense_category(text)
 
@@ -192,9 +214,26 @@ def extract_expense_category(text: str) -> str | None:
     t = normalize(text)
     if not re.search(r"\b(gasto|gastos|gastado|gaste)\b", t) and "de" not in t:
         return None
+    for key in CATEGORY_GROUPS:
+        if re.search(rf"\b{key}\b", t):
+            return None  # groups are handled by extract_expense_categories
     for key, cat in CATEGORY_SYNONYMS.items():
         if re.search(rf"\b{re.escape(key)}\b", t):
             return cat
+    return None
+
+
+def extract_expense_categories(text: str) -> tuple[str, list[str]] | None:
+    """(display_label, [categories]) for a colloquial category or group."""
+    t = normalize(text)
+    if not re.search(r"\b(gasto|gastos|gastado|gaste)\b", t) and "de" not in t:
+        return None
+    for key, (display, cats) in CATEGORY_GROUPS.items():
+        if re.search(rf"\b{key}\b", t):
+            return display, cats
+    for key, cat in CATEGORY_SYNONYMS.items():
+        if re.search(rf"\b{re.escape(key)}\b", t):
+            return cat, [cat]
     return None
 
 
@@ -233,6 +272,10 @@ _OUT_OF_SCOPE_PATTERNS = [
 _IDENTITY_PATTERNS = [
     r"qui[eé]n eres", r"quien eres", r"qu[eé] eres", r"como te llamas", r"c[oó]mo te llamas",
     r"qui[eé]n te (cre[oó]|hizo|program[oó])", r"de d[oó]nde vienes", r"eres (humano|una persona)",
+    r"persona real", r"eres real", r"humano real", r"eres (un|una) (bot|robot|persona|humano)",
+    r"eres de banorte", r"banorte (oficial|real|verdad)", r"trabajas (para|en) banorte",
+    r"banco oficial", r"eres (una )?(ia|inteligencia artificial|asistente virtual)",
+    r"estas (en|en modo) demostraci", r"modo demostraci",
 ]
 
 _NAV_TARGETS = {
@@ -262,16 +305,23 @@ def detect_intent(text: str) -> str:
         return "navigate"
 
     # temporal / trend analysis
+    if re.search(r"linea del tiempo|l[ií]nea (del )?(de )?tiempo|cronolog[ií]a|timeline", t):
+        return "timeline"
+    if re.search(r"nomina|aguinaldo|bono de desempe", t):
+        return "payroll"
     if re.search(r"cambiado|cambio de|tendencia|evoluci|mes a mes|histori|comportamiento|"
                  r"ultimos \d+ meses|como he gastado|he gastado en los ultimos", t):
         return "trend"
-    if re.search(r"\bcompar", t) and re.search(r"mes|periodo", t):
+    if re.search(r"\bcompar|versus|\bvs\b|\bcontra\b", t) and \
+            (re.search(r"\bmes\b", t) or _explicit_months(t)):
         return "compare"
     if re.search(r"\bsemana", t) and re.search(r"gast", t):
         return "weekly"
     if re.search(r"recurrente|suscripci|cargos? fijos|se repiten|pagos? fijos", t):
         return "recurring"
-    if re.search(r"inusual|extra|sospechos|duplicado|raro|anomal", t):
+    if re.search(r"duplicad|doble cobro|cobrado dos veces|dos veces", t):
+        return "duplicates"
+    if re.search(r"inusual|extra|sospechos|raro|anomal", t):
         return "anomalies"
     if re.search(r"si ahorro|al mes.*juntar|juntar.*al mes|tardar", t):
         return "projection"
@@ -328,18 +378,22 @@ def _followup(text: str) -> dict | None:
         return None
     if re.search(r"\bmes (pasado|anterior)\b", t) and re.match(r"^(y|ahora|dime|muestrame)", t):
         return {"kind": "prev_month"}
-    if re.search(r"\b(barras?|barras)\b", t) and re.search(r"ahora|en|c[aá]mbia|hazlo|mejor", t):
+    # A chart-type change must reference the previous result explicitly
+    # ("ahora en barras", "hazlo en tabla"), not just contain the word.
+    change_word = re.search(r"\b(ahora|hazlo|c[aá]mbia|mejor|usa|muestralo)\b", t) \
+        or re.match(r"^(barras?|lineas?|area|tabla|lista)\b", t)
+    if change_word and re.search(r"\bbarras?\b", t):
         return {"kind": "chart_type", "chart_type": "bar"}
-    if re.search(r"lineas?|l[ií]nea", t) and re.search(r"ahora|en|c[aá]mbia|hazlo|mejor", t):
+    if change_word and re.search(r"\blineas?\b", t):
         return {"kind": "chart_type", "chart_type": "line"}
-    if re.search(r"en (tabla|lista)", t) and re.search(r"ese|este|mismo|ahora|hazlo", t):
-        return {"kind": "chart_type", "chart_type": "table"}
-    if re.search(r"area|[aá]rea", t) and re.search(r"ahora|en|c[aá]mbia|hazlo", t):
+    if change_word and re.search(r"\b(area)\b", t):
         return {"kind": "chart_type", "chart_type": "area"}
+    if change_word and re.search(r"\b(tabla|lista)\b", t) and re.search(r"\b(ese|este|mismo)\b|\btablas?\b", t):
+        return {"kind": "chart_type", "chart_type": "table"}
     if re.search(r"solo lo de|solo de|nada mas de", t):
-        cat = extract_expense_category(text)
-        if cat:
-            return {"kind": "category", "category": cat}
+        match = extract_expense_categories(text)
+        if match:
+            return {"kind": "category", "cats": match}
     if re.match(r"^no[,;]?\s+me refer[ií]a", t):
         corrected = re.sub(r"^no[,;]?\s+me refer[ií]a a\s*", "", t)
         return {"kind": "corrected", "text": corrected}
@@ -395,31 +449,40 @@ async def _demo_trend(text: str, chart_type: str | None = None) -> ChatResponse:
 
 async def _demo_spending(text: str, chart_type: str | None = None,
                          month: tuple[int, int] | None = None,
-                         category: str | None = None) -> ChatResponse:
+                         categories: list[str] | str | None = None) -> ChatResponse:
     y, m = month or resolve_month(text) or _month_defaults()
-    cat = category or extract_expense_category(text)
+    if isinstance(categories, str):
+        categories = [categories]
+    match = extract_expense_categories(text)
+    if categories:
+        wanted, display = categories, (categories[0] if len(categories) == 1 else None)
+    elif match:
+        display, wanted = match
+    else:
+        wanted, display = None, None
     date_from, date_to = finance.month_range(y, m)
     spending = await mcp_client.call("analyze_spending",
                                      {"date_from": date_from, "date_to": date_to})
     cats = spending.get("categories", [])
-    if cat:
-        cats = [c for c in cats if c["category"] == cat]
+    if wanted:
+        cats = [c for c in cats if c["category"] in wanted]
     label = _month_label(y, m)
     if not cats:
         return ChatResponse(
-            message=(f"No encontré gastos de {cat} en {label}. "
+            message=(f"No encontré gastos de {display or 'esa categoría'} en {label}. "
                      "¿Quieres ver el total de otro mes o de otra categoría?"
-                     if cat else f"No registré gastos en {label}."),
+                     if wanted else f"No registré gastos en {label}."),
             mode="demo", ui=[], tools_used=["analyze_spending"])
     total = sum(c["amount"] for c in cats)
     top = cats[0]
-    ui = composer.spending_chart_ui(cats, label + (f" · {cat}" if cat else ""),
+    cat_label = display or (top["category"] if len(cats) == 1 else None)
+    ui = composer.spending_chart_ui(cats, label + (f" · {cat_label}" if cat_label else ""),
                                     chart_type=chart_type or "pie")
     message = (f"En {label} llevas {composer.money(total)} de gastos"
-               + (f" en {cat}" if cat else "")
+               + (f" en {cat_label}" if cat_label else "")
                + f". Tu mayor partida es {top['category']} con {composer.money(top['amount'])} "
                  f"({top['pct']}% del total). Puedes cambiar la vista con «Ver como tabla».")
-    _ctx_note("spending", last_month=(y, m), last_category=cat, last_chart_type="pie")
+    _ctx_note("spending", last_month=(y, m), last_category=display, last_chart_type="pie")
     return ChatResponse(message=message, mode="demo", ui=[ui], tools_used=["analyze_spending"])
 
 
@@ -560,14 +623,22 @@ def _credit_ui_from_result(sim: dict) -> CreditSimulatorSpec:
     )
 
 
+def available_phrase(available: float) -> str:
+    """Plain-language balance status: never "te quedan $-X" (R9)."""
+    if available < 0:
+        return f"ya gastaste {composer.money(abs(available))} de más este mes"
+    return f"te quedan {composer.money(available)} disponibles"
+
+
 async def _demo_budget() -> ChatResponse:
     y, m = _month_defaults()
     budgets = await mcp_client.call("get_budgets", {"year": y, "month": m})
     ui = composer.budget_planner_ui(budgets)
+    available = budgets.get("available", 0)
     exceeded = [c for c in budgets.get("categories", []) if c.get("pct") is not None and c["pct"] > 100]
+    avail_phrase = available_phrase(available)
     message = (f"Tu ingreso del mes es {composer.money(budgets['income'])} y llevas gastado "
-               f"{composer.money(budgets['total_spent'])}; te queda disponible "
-               f"{composer.money(budgets['available'])}. "
+               f"{composer.money(budgets['total_spent'])}; {avail_phrase}. "
                + (f"Ojo: excediste el límite en {len(exceeded)} categoría(s): "
                   + ", ".join(c["category"] for c in exceeded) + ". " if exceeded else "")
                + "Puedes editar los límites y ver el efecto inmediato.")
@@ -644,45 +715,67 @@ async def _demo_recurring() -> ChatResponse:
                             mode="demo", ui=[], tools_used=["detect_recurring_charges"])
     items = [{"severity": "info",
               "title": f"{c['description']} · {composer.money(c['monthly_estimate'])}/mes",
-              "detail": f"Categoria {c['category']}; aparece {c['occurrences']} veces con un "
+              "detail": f"Categoría {c['category']}; aparece {c['occurrences']} veces en "
+                        f"{c.get('months_count', c['occurrences'])} meses distintos, con un "
                         "importe casi igual cada mes."}
-             for c in charges[:8]]
+             for c in charges]
     ui = composer.alert_list_ui("Cargos recurrentes detectados", items)
+    monthly_total = round(sum(c["monthly_estimate"] for c in charges), 2)
     return ChatResponse(
-        message=(f"Detecté {len(charges)} cargos que se repiten cada mes, por un total de "
-                 f"aproximadamente {composer.money(rec.get('monthly_total', 0))} mensual. "
+        message=(f"Detecté {len(items)} cargos que se repiten cada mes, por un total de "
+                 f"aproximadamente {composer.money(monthly_total)} mensual. "
                  "Estos son tus pagos fijos y suscripciones."),
         mode="demo", ui=[ui], tools_used=["detect_recurring_charges"])
+
+
+async def _demo_duplicates() -> ChatResponse:
+    res = await mcp_client.call("detect_duplicates", {})
+    dups = res.get("duplicates", [])
+    if not dups:
+        return ChatResponse(
+            message="Buenas noticias: no encontré cobros duplicados (el mismo cargo aplicado "
+                    "dos veces el mismo día).",
+            mode="demo", ui=[], tools_used=["detect_duplicates"])
+    items = [{"severity": "critical",
+              "title": f"Cargo duplicado: {d['description']} · {composer.money(d['amount'])}",
+              "detail": f"Del {composer.long_date(d['date'])}. {d['detail']}"}
+             for d in dups]
+    ui = composer.alert_list_ui("Cobros duplicados", items)
+    return ChatResponse(
+        message=(f"Encontré {len(dups)} cobro(s) duplicado(s): el mismo cargo aplicado dos "
+                 "veces el mismo día. Si no lo reconoces, conviene verificarlo."),
+        mode="demo", ui=[ui], tools_used=["detect_duplicates"])
 
 
 async def _demo_anomalies() -> ChatResponse:
     res = await mcp_client.call("detect_anomalies", {})
     anomalies = res.get("anomalies", [])
     if not anomalies:
-        return ChatResponse(message="Buenas noticias: no encontré cargos duplicados ni "
-                                    "inusualmente altos en tus movimientos.",
-                            mode="demo", ui=[], tools_used=["detect_anomalies"])
-    items = [{"severity": "critical" if a["kind"] == "duplicado" else "warning",
-              "title": f"Cargo {a['kind']}: {a['description']} · {composer.money(a['amount'])}",
+        return ChatResponse(
+            message="Buenas noticias: no encontré cargos inusualmente altos en tus "
+                    "movimientos (comparados con el promedio de su propia categoría).",
+            mode="demo", ui=[], tools_used=["detect_anomalies"])
+    items = [{"severity": "warning",
+              "title": f"Cargo inusual: {a['description']} · {composer.money(a['amount'])}",
               "detail": f"Del {composer.long_date(a['date'])}. {a['detail']}"}
              for a in anomalies]
     ui = composer.alert_list_ui("Cargos que conviene revisar", items)
     return ChatResponse(
-        message=f"Encontré {len(anomalies)} cargo(s) que destacan de tus movimientos. "
-                "Revísalos: si no los reconoces, valdría la pena verificarlos.",
+        message=(f"Encontré {len(anomalies)} cargo(s) inusualmente altos para su categoría. "
+                 "Excluí tus pagos fijos recurrentes (como la renta) y los cobros duplicados, "
+                 "que se muestran aparte."),
         mode="demo", ui=[ui], tools_used=["detect_anomalies"])
 
 
 async def _demo_compare(text: str) -> ChatResponse:
     today = date.today()
-    t = normalize(text)
-    y, m = today.year, today.month
-    prev = _shift_month(y, m, -1)
-    month_b = resolve_month(text) or (y, m)
-    if re.search(r"mes (pasado|anterior)", t) and re.search(r"(este|actual) mes|con|y|vs", t):
-        month_a = prev
+    current = (today.year, today.month)
+    months = _explicit_months(text)
+    if len(months) >= 2:
+        month_a, month_b = months[0], months[1]
     else:
-        month_a = prev
+        month_b = resolve_month(text) or current
+        month_a = _shift_month(*month_b, -1)
     a = await mcp_client.call("get_monthly_summary",
                               {"year": month_a[0], "month": month_a[1]})
     b = await mcp_client.call("get_monthly_summary",
@@ -698,8 +791,77 @@ async def _demo_compare(text: str) -> ChatResponse:
     message = (f"Comparando {a['month_label']} y {b['month_label']}: gastaste "
                f"{composer.money(abs(diff))} {direction} en {b['month_label']} "
                f"({composer.money(a['expense'])} vs {composer.money(b['expense'])}).")
+    notes = []
+    for label, mm in ((a["month_label"], month_a), (b["month_label"], month_b)):
+        if mm == current:
+            notes.append(f"{label} está en curso: la comparación considera tus movimientos "
+                         f"hasta hoy ({composer.long_date(today.isoformat())}).")
+    if notes:
+        message += " " + " ".join(notes)
     return ChatResponse(message=message, mode="demo", ui=[ui],
                         tools_used=["get_monthly_summary"])
+
+
+async def _demo_timeline() -> ChatResponse:
+    txs = await mcp_client.call("get_transactions", {"limit": 60})
+    items_all = sorted(txs.get("transactions", []), key=lambda t: t["date"], reverse=True)
+    items = [{"date": t["date"],
+              "title": (f"{t['description']} · +{composer.money(t['amount'])}"
+                        if t["type"] == "income"
+                        else f"{t['description']} · {composer.money(t['amount'])}"),
+              "detail": (f"{'Ingreso' if t['type'] == 'income' else 'Gasto'} en "
+                         f"{t['category']}. {composer.long_date(t['date'])}.")}
+             for t in items_all[:12]]
+    if not items:
+        return ChatResponse(message="No encontré movimientos en tus registros.",
+                            mode="demo", ui=[], tools_used=["get_transactions"])
+    ui = composer.timeline_ui("Línea de tiempo de movimientos", items)
+    return ChatResponse(
+        message=(f"Aquí tienes tu línea de tiempo con tus últimos {len(items)} movimientos, "
+                 "del más reciente al más antiguo."),
+        mode="demo", ui=[ui], tools_used=["get_transactions"])
+
+
+async def _demo_payroll(text: str) -> ChatResponse:
+    t = normalize(text)
+    with db() as conn:
+        if re.search(r"aguinaldo", t):
+            rows = conn.execute(
+                "SELECT date, description, amount FROM transactions"
+                " WHERE type='income' AND (description LIKE '%Aguinaldo%'"
+                " OR description LIKE '%Bono de%')"
+                " ORDER BY date DESC LIMIT 6",
+            ).fetchall()
+            if not rows:
+                return ChatResponse(
+                    message="No encontré depósitos de aguinaldo ni bonos en tus movimientos.",
+                    mode="demo", ui=[], tools_used=["get_transactions"])
+            total = sum(r["amount"] for r in rows)
+            parts = [f"{r['description']}: {composer.money(r['amount'])} el "
+                     f"{composer.long_date(r['date'])}" for r in rows]
+            return ChatResponse(
+                message=(f"Según tus movimientos recibiste {composer.money(total)} entre "
+                         f"aguinaldo y bonos. " + "; ".join(parts) + "."),
+                mode="demo", ui=[], tools_used=["get_transactions"])
+        rows = conn.execute(
+            "SELECT date, description, amount FROM transactions"
+            " WHERE type='income' AND (description LIKE '%nómina%'"
+            " OR description LIKE '%nomina%' OR description LIKE '%mina%')"
+            " ORDER BY date DESC LIMIT 3",
+        ).fetchall()
+    if not rows:
+        return ChatResponse(
+            message="No encontré depósitos de nómina en tus movimientos.",
+            mode="demo", ui=[], tools_used=["get_transactions"])
+    last = date.fromisoformat(rows[0]["date"])
+    next_date = last + timedelta(days=14)
+    amounts = "; ".join(f"{composer.money(r['amount'])} el {composer.long_date(r['date'])}"
+                        for r in rows)
+    return ChatResponse(
+        message=(f"Tu nómina es quincenal. Últimos depósitos: {amounts}. Si el patrón se "
+                 f"mantiene, el próximo depósito sería alrededor del "
+                 f"{composer.long_date(next_date.isoformat())}."),
+        mode="demo", ui=[], tools_used=["get_transactions"])
 
 
 async def _demo_projection(text: str) -> ChatResponse:
@@ -785,7 +947,7 @@ async def demo_response(req: ChatRequest) -> ChatResponse:
             y, m = _month_defaults()
             py, pm = _shift_month(y, m, -1)
             return await _demo_spending("", month=(py, pm),
-                                        category=_CTX.get("last_category"))
+                                        categories=_CTX.get("last_category"))
         if kind == "prev_month" and _CTX["last_intent"] == "trend":
             return await _demo_trend("el mes pasado")
         if kind == "chart_type":
@@ -800,21 +962,27 @@ async def demo_response(req: ChatRequest) -> ChatResponse:
                         mode="demo", ui=[], tools_used=[])
                 return await _demo_spending("", chart_type=ct,
                                             month=_CTX.get("last_month"),
-                                            category=_CTX.get("last_category"))
+                                            categories=_CTX.get("last_category"))
         if kind == "category":
+            display, cats = follow["cats"]
             if _CTX["last_intent"] == "trend":
-                return await _demo_trend("", )
+                return await _demo_trend("")
             return await _demo_spending("", month=_CTX.get("last_month"),
-                                        category=follow["category"])
+                                        categories=cats)
         if kind == "corrected":
             return await demo_response(ChatRequest(message=follow["text"],
                                                    history=req.history))
 
     intent = detect_intent(text)
     if intent == "spending":
-        return await _demo_spending(text)
+        ct = "bar" if re.search(r"\bbarras?\b", normalize(text)) else None
+        return await _demo_spending(text, chart_type=ct)
     if intent == "trend":
         return await _demo_trend(text)
+    if intent == "timeline":
+        return await _demo_timeline()
+    if intent == "payroll":
+        return await _demo_payroll(text)
     if intent == "movements":
         return await _demo_movements(text)
     if intent == "savings":
@@ -833,6 +1001,8 @@ async def demo_response(req: ChatRequest) -> ChatResponse:
         return await _demo_weekly()
     if intent == "recurring":
         return await _demo_recurring()
+    if intent == "duplicates":
+        return await _demo_duplicates()
     if intent == "anomalies":
         return await _demo_anomalies()
     if intent == "compare":

@@ -36,25 +36,25 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-[100dvh] overflow-hidden">
       {/* Desktop sidebar */}
-      <div className="hidden md:flex">
+      <div className="hidden h-full min-h-0 md:flex">
         <Sidebar view={view} onChange={changeView} />
       </div>
 
       {/* Mobile drawer */}
       {menuOpen && (
-        <div className="fixed inset-0 z-40 flex md:hidden" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-40 flex h-[100dvh] md:hidden" role="dialog" aria-modal="true">
           <div className="absolute inset-0 bg-black/50" onClick={() => setMenuOpen(false)}
                aria-hidden="true" />
-          <div className="relative z-50">
+          <div className="relative z-50 h-full min-h-0">
             <Sidebar view={view} onChange={changeView} onClose={() => setMenuOpen(false)} />
           </div>
         </div>
       )}
 
-      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="flex items-center gap-3 border-b border-neutral-200 bg-white px-4 py-2 md:hidden">
+      <main className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="flex shrink-0 items-center gap-3 border-b border-neutral-200 bg-white px-4 py-2 md:hidden">
           <button
             onClick={() => setMenuOpen(true)}
             aria-label="Abrir menú"

@@ -191,18 +191,33 @@ def weekly_spending(conn, weeks: int = 4) -> list[dict]:
     return out
 
 
-def recurring_charges(conn, min_occurrences: int = 3) -> list[dict]:
-    """Merchants/charges that repeat with a similar amount each month."""
+def _mx(value: float) -> str:
+    """Mexican format for detail strings: '$348.90', '$14,800', '-$1,234.50'."""
+    v = round(abs(value), 2)
+    text = f"${v:,.2f}" if v % 1 else f"${v:,.0f}"
+    return f"-${text}" if value < 0 else text
+
+
+def recurring_charges(conn, min_occurrences: int = 3, min_distinct_months: int = 6) -> list[dict]:
+    """Merchants/charges that repeat with a similar amount in most months.
+
+    A charge only counts as a fixed monthly payment if it appears in at least
+    `min_distinct_months` different months (seasonal one-offs like a December
+    gift, or repeated partial charges, are excluded).
+    """
     rows = conn.execute(
-        "SELECT description, COUNT(*) AS n, AVG(amount) AS avg_amount,"
-        " MIN(amount) AS min_amount, MAX(amount) AS max_amount,"
-        " GROUP_CONCAT(DISTINCT substr(date, 1, 7)) AS months"
+        "SELECT description, COUNT(*) AS n,"
+        " COUNT(DISTINCT substr(date, 1, 7)) AS months_count,"
+        " AVG(amount) AS avg_amount,"
+        " MIN(amount) AS min_amount, MAX(amount) AS max_amount"
         " FROM transactions WHERE type='expense'"
         " GROUP BY description HAVING n >= ?",
         (min_occurrences,),
     ).fetchall()
     out = []
     for r in rows:
+        if r["months_count"] < min_distinct_months:
+            continue
         spread = (r["max_amount"] - r["min_amount"]) / r["avg_amount"] if r["avg_amount"] else 1
         if spread <= 0.45:  # roughly stable amount → recurring
             cat_row = conn.execute(
@@ -213,51 +228,65 @@ def recurring_charges(conn, min_occurrences: int = 3) -> list[dict]:
                 "description": r["description"],
                 "category": cat_row["category"] if cat_row else "Otros",
                 "occurrences": r["n"],
+                "months_count": r["months_count"],
                 "avg_amount": round(r["avg_amount"], 2),
                 "monthly_estimate": round(r["avg_amount"], 2),
             })
     return sorted(out, key=lambda x: -x["monthly_estimate"])
 
 
-def detect_anomalies(conn) -> list[dict]:
-    """Duplicated charges (same description+amount+date) and statistical outliers."""
-    anomalies: list[dict] = []
+def detect_duplicates(conn) -> list[dict]:
+    """Same description + amount charged more than once the same day."""
     dup_rows = conn.execute(
         "SELECT date, description, amount, COUNT(*) AS n FROM transactions"
         " WHERE type='expense' GROUP BY date, description, amount HAVING n > 1"
         " ORDER BY date DESC LIMIT 10",
     ).fetchall()
-    for r in dup_rows:
-        anomalies.append({
-            "kind": "duplicado",
-            "date": r["date"],
-            "description": r["description"],
-            "amount": round(r["amount"], 2),
-            "detail": f"El cargo '{r['description']}' aparece {r['n']} veces el mismo día "
-                      f"por {round(r['amount'], 2)} cada uno.",
-        })
-    stats = conn.execute(
-        "SELECT AVG(amount) AS mean, MIN(amount) AS lo, MAX(amount) AS hi FROM transactions"
-        " WHERE type='expense'",
-    ).fetchone()
+    return [{
+        "kind": "duplicado",
+        "date": r["date"],
+        "description": r["description"],
+        "amount": round(r["amount"], 2),
+        "detail": f"El cargo '{r['description']}' aparece {r['n']} veces el mismo día "
+                  f"por {_mx(r['amount'])} cada uno.",
+    } for r in dup_rows]
+
+
+def detect_anomalies(conn) -> list[dict]:
+    """Charges unusually high *for their own category*, excluding fixed
+    recurring payments (rent etc.) and duplicated charges."""
+    recurring = {c["description"] for c in recurring_charges(conn)}
+    duplicates = {(d["date"], d["description"]) for d in detect_duplicates(conn)}
+    anomalies: list[dict] = []
     rows = conn.execute(
-        "SELECT date, description, amount FROM transactions WHERE type='expense'"
-        " ORDER BY amount DESC LIMIT 30",
+        "SELECT date, description, amount, category FROM transactions"
+        " WHERE type='expense' ORDER BY amount DESC LIMIT 60",
     ).fetchall()
-    if stats["mean"] and stats["mean"] > 0:
-        # outlier threshold: mean + 5 * mean (simple, robust enough for demo data)
-        threshold = max(stats["mean"] * 5, 5_000)
-        seen = {a["description"] for a in anomalies}
-        for r in rows:
-            if r["amount"] >= threshold and r["description"] not in seen:
-                anomalies.append({
-                    "kind": "inusual",
-                    "date": r["date"],
-                    "description": r["description"],
-                    "amount": round(r["amount"], 2),
-                    "detail": f"Cargo por {round(r['amount'], 2)}, muy por encima de tu gasto "
-                              f"típico ({round(stats['mean'], 2)}).",
-                })
+    cat_stats: dict[str, dict] = {}
+    for r in rows:
+        cat = r["category"]
+        if cat not in cat_stats:
+            s = conn.execute(
+                "SELECT AVG(amount) AS mean FROM transactions"
+                " WHERE type='expense' AND category=?",
+                (cat,),
+            ).fetchone()
+            cat_stats[cat] = s["mean"] or 0
+    for r in rows:
+        if r["description"] in recurring or (r["date"], r["description"]) in duplicates:
+            continue
+        cat_mean = cat_stats.get(r["category"], 0)
+        threshold = max(cat_mean * 4, 5_000)
+        if r["amount"] >= threshold:
+            anomalies.append({
+                "kind": "inusual",
+                "date": r["date"],
+                "description": r["description"],
+                "amount": round(r["amount"], 2),
+                "category": r["category"],
+                "detail": f"Cargo por {_mx(r['amount'])} en {r['category']}, muy por encima de "
+                          f"lo típico de esa categoría ({_mx(cat_mean)}).",
+            })
     return anomalies[:10]
 
 

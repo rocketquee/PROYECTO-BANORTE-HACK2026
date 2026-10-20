@@ -10,7 +10,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body>{children}</body>
+      {/* The app owns the viewport height (100dvh) and the page itself never
+          scrolls: only the message list, the content panel and the history
+          list scroll internally (UI-1). */}
+      <body className="h-[100dvh] overflow-hidden">{children}</body>
     </html>
   );
 }

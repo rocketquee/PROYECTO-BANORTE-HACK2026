@@ -24,12 +24,12 @@ export default function SpendingChart({
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-base font-semibold">{spec.title}</h3>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-neutral-200 px-3 py-1 text-sm text-neutral-800">
+          <span className="rounded-full bg-neutral-200 px-3 py-1 text-base text-neutral-800">
             {spec.period}
           </span>
           <button
             onClick={() => setView(view === "chart" ? "table" : "chart")}
-            className="min-h-[44px] rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-700 hover:border-brand"
+            className="min-h-[44px] rounded-lg border border-neutral-300 px-3 py-2 text-base text-neutral-700 hover:border-brand"
           >
             {view === "chart" ? "Ver como tabla" : "Ver como gráfica"}
           </button>
@@ -68,7 +68,7 @@ export default function SpendingChart({
           </ResponsiveContainer>
           <ul className="mt-3 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
             {spec.series.map((s, i) => (
-              <li key={s.category} className="flex items-center gap-2 text-sm">
+              <li key={s.category} className="flex items-center gap-2 text-base">
                 <span
                   className="inline-block h-4 w-4 shrink-0 rounded"
                   style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
@@ -111,7 +111,7 @@ export default function SpendingChart({
           </tfoot>
         </table>
       )}
-      <p className="mt-3 text-sm text-neutral-600">
+      <p className="mt-3 text-base text-neutral-600">
         Consejo: selecciona una categoría en la gráfica para pedir un plan de reducción.
       </p>
     </div>

@@ -44,15 +44,15 @@ export default function SavingsGoalForm({ spec, pending, onCreated, onConfirmPen
 
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-      <h3 className="mb-4 text-sm font-semibold">{spec.title}</h3>
+      <h3 className="mb-4 text-base font-semibold">{spec.title}</h3>
 
       {pending && onConfirmPending && (
         <div className="mb-4 rounded-xl bg-brand-soft p-4">
-          <p className="text-sm font-medium text-brand-dark">Confirmación requerida</p>
-          <p className="mt-1 text-sm text-brand-dark/80">{pending.description}</p>
+          <p className="text-base font-medium text-brand-dark">Confirmación requerida</p>
+          <p className="mt-1 text-base text-brand-dark/80">{pending.description}</p>
           <button
             onClick={() => onConfirmPending(pending.id)}
-            className="mt-3 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-dark"
+            className="mt-3 rounded-lg bg-brand px-4 py-2 text-base font-medium text-white hover:bg-brand-dark"
           >
             Confirmar creación
           </button>
@@ -60,41 +60,41 @@ export default function SavingsGoalForm({ spec, pending, onCreated, onConfirmPen
       )}
 
       <form onSubmit={submit} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <label className="text-sm">
+        <label className="text-base">
           <span className="mb-1 block font-medium text-neutral-700">Nombre de la meta</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Ej. Fondo de viaje"
-            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-base"
           />
         </label>
-        <label className="text-sm">
+        <label className="text-base">
           <span className="mb-1 block font-medium text-neutral-700">Importe objetivo</span>
           <input
             value={target}
             onChange={(e) => setTarget(e.target.value.replace(/[^\d.]/g, ""))}
             inputMode="decimal"
             placeholder="5000"
-            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-base"
           />
-          {target && <span className="mt-1 block text-xs text-neutral-500">{money(Number(target) || 0)}</span>}
+          {target && <span className="mt-1 block text-base text-neutral-700">{money(Number(target) || 0)}</span>}
         </label>
-        <label className="text-sm">
+        <label className="text-base">
           <span className="mb-1 block font-medium text-neutral-700">Fecha límite</span>
           <input
             type="date"
             value={deadline}
             onChange={(e) => setDeadline(e.target.value)}
-            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-base"
           />
         </label>
-        {error && <p className="text-sm text-brand sm:col-span-3">{error}</p>}
+        {error && <p className="text-base text-brand sm:col-span-3">{error}</p>}
         <div className="sm:col-span-3">
           <button
             type="submit"
             disabled={saving}
-            className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-dark disabled:opacity-50"
+            className="rounded-lg bg-brand px-4 py-2 text-base font-medium text-white hover:bg-brand-dark disabled:opacity-50"
           >
             {saving ? "Guardando…" : "Guardar meta"}
           </button>

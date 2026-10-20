@@ -106,7 +106,7 @@ export default function SectionView({ section, onAskAssistant, refreshKey }: Pro
             <li key={a.id} className="flex items-center justify-between rounded-2xl bg-white p-5 shadow-sm">
               <div>
                 <p className="font-semibold">{a.name}</p>
-                <p className="text-sm text-neutral-600">{a.type === "debit" ? "Débito" : a.type === "savings" ? "Ahorro" : a.type}</p>
+                <p className="text-base text-neutral-600">{a.type === "debit" ? "Débito" : a.type === "savings" ? "Ahorro" : a.type}</p>
               </div>
               <p className="text-lg font-semibold tabular-nums">{money(a.balance)}</p>
             </li>
@@ -153,7 +153,7 @@ export default function SectionView({ section, onAskAssistant, refreshKey }: Pro
                 <p className="font-semibold tabular-nums">{money(c.balance)}</p>
               </div>
               {c.credit_limit > 0 && (
-                <p className="mt-1 text-sm text-neutral-700">
+                <p className="mt-1 text-base text-neutral-700">
                   Límite de crédito: {money(c.credit_limit)}
                 </p>
               )}
@@ -189,7 +189,7 @@ export default function SectionView({ section, onAskAssistant, refreshKey }: Pro
               </div>
               <Progress pct={g.progress_pct} />
               {g.deadline && (
-                <p className="mt-1 text-sm text-neutral-700">Fecha límite: {fmtDate(g.deadline)}</p>
+                <p className="mt-1 text-base text-neutral-700">Fecha límite: {fmtDate(g.deadline)}</p>
               )}
             </li>
           ))}
@@ -203,7 +203,7 @@ export default function SectionView({ section, onAskAssistant, refreshKey }: Pro
             $250,000 a 24 meses?». Verás la mensualidad estimada, los intereses totales y
             podrás ajustar monto, plazo y tasa.
           </p>
-          <p className="mt-2 text-sm text-neutral-600">
+          <p className="mt-2 text-base text-neutral-600">
             Simulación educativa con una tasa de ejemplo. No es una oferta ni implica aprobación.
           </p>
         </div>

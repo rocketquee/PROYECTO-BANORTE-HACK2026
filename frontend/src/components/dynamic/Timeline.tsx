@@ -14,9 +14,9 @@ export default function Timeline({ spec }: { spec: TimelineSpec }) {
               className="absolute -left-[9px] mt-1.5 h-4 w-4 rounded-full border-2 border-white bg-brand"
               aria-hidden="true"
             />
-            <p className="text-sm font-semibold text-neutral-900">{item.title}</p>
-            <p className="text-sm text-neutral-600">{fmtDate(item.date)}</p>
-            <p className="mt-1 text-sm text-neutral-700">{item.detail}</p>
+            <p className="text-base font-semibold text-neutral-900">{item.title}</p>
+            <p className="text-base text-neutral-600">{fmtDate(item.date)}</p>
+            <p className="mt-1 text-base text-neutral-700">{item.detail}</p>
           </li>
         ))}
       </ol>

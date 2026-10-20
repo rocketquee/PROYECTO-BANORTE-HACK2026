@@ -137,6 +137,11 @@ async def detect_recurring_charges_impl() -> dict:
             "monthly_total": round(sum(i["monthly_estimate"] for i in items), 2)}
 
 
+async def detect_duplicates_impl() -> dict:
+    with db() as conn:
+        return {"duplicates": finance.detect_duplicates(conn)}
+
+
 async def detect_anomalies_impl() -> dict:
     with db() as conn:
         return {"anomalies": finance.detect_anomalies(conn)}
