@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 
 const SIZES = [
-  { id: "sm", label: "A-", pct: 87.5, aria: "Reducir tamaño de letra" },
-  { id: "md", label: "A", pct: 100, aria: "Tamaño de letra normal" },
-  { id: "lg", label: "A+", pct: 112.5, aria: "Aumentar tamaño de letra" },
+  { id: "sm", label: "A-", pct: 100, aria: "Reducir tamaño de letra" },
+  { id: "md", label: "A", pct: 112.5, aria: "Tamaño de letra normal" },
+  { id: "lg", label: "A+", pct: 125, aria: "Aumentar tamaño de letra" },
 ] as const;
 
 const STORAGE_KEY = "baf.fontsize";

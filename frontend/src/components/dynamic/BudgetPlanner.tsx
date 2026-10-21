@@ -88,7 +88,7 @@ export default function BudgetPlanner({
                     onChange={(e) => updateLimit(r.category, Number(e.target.value.replace(/[^\d]/g, "")) || 0)}
                     onBlur={() => saveLimit(r.category, r.limit)}
                     inputMode="numeric"
-                    className="w-20 min-h-[32px] bg-transparent px-1.5 py-1 text-right text-base text-neutral-900 outline-none"
+                    className="w-20 min-h-[32px] bg-transparent pl-0 pr-1.5 py-1 text-left text-base text-neutral-900 outline-none"
                     aria-label={`Límite mensual de ${r.category} en pesos`}
                   />
                 </span>

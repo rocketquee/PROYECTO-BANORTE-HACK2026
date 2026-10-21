@@ -115,7 +115,7 @@ export default function AgentView({
   }
 
   return (
-    <div className={`grid h-full min-h-0 grid-cols-1 ${store.detail ? "xl:grid-cols-[1fr_420px]" : ""}`}>
+    <div className={`relative grid h-full min-h-0 grid-cols-1 overflow-hidden ${store.detail ? "xl:grid-cols-[minmax(0,1fr)_420px]" : ""}`}>
       <div className="flex h-full min-h-0 flex-col">
       {/* Chat header — business language only (BUG-003) */}
       <div className="shrink-0 border-b border-neutral-200 bg-white px-6 py-4">
@@ -252,7 +252,7 @@ export default function AgentView({
       {/* Expanded-detail panel (UI-2): only rendered while a result is open,
           so it never reserves space nor shows placeholder copy when closed. */}
       {store.detail && (
-        <div className="flex h-full min-h-0 flex-col overflow-hidden border-l border-neutral-200 bg-neutral-50">
+        <div className="absolute inset-y-0 right-0 z-20 flex h-full min-h-0 w-full max-w-[420px] flex-col overflow-hidden border-l border-neutral-200 bg-neutral-50 shadow-xl xl:static xl:w-auto xl:max-w-none xl:shadow-none">
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-neutral-200 bg-neutral-50 px-5 py-4">
             <div className="min-w-0">
               <h2 className="text-base font-semibold">Detalle expandido</h2>

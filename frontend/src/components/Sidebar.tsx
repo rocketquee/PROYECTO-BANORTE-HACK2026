@@ -120,7 +120,7 @@ export default function Sidebar({ view, onChange, onClose }: Props) {
             <span aria-hidden="true">{historyOpen ? "▾" : "▸"}</span>
           </button>
           {historyOpen && (
-            <div className="mt-1 max-h-64 space-y-1 overflow-y-auto pr-1">
+            <div className="mt-1 min-h-0 max-h-64 space-y-1 overflow-y-auto pr-1">
               <button
                 onClick={() => { chatActions.newConversation(); go("asistente"); }}
                 className="flex min-h-[48px] w-full items-center gap-2 rounded-lg border border-white/20 px-3 py-2 text-base text-white hover:border-white"
