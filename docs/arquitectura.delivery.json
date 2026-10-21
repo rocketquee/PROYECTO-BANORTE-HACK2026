@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "77eb7b98-3654-4432-9ec9-ed1930e0506f",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\.archify\\architecture-banorte-20261021-151708\\candidate.json",
+  "output": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\docs\\arquitectura.html",
+  "specification": {
+    "sha256": "70ffd31e22a88983cb6e7b057ee1eb45ee0724f47e3bc52ffaa59fbcaedd0671",
+    "bytes": 6287
+  },
+  "artifact": {
+    "sha256": "f9fec24805e41277c6c3296ae1d5a5850af9af72e6e53b2c5f22c87328d4c384",
+    "bytes": 828357
+  }
+}

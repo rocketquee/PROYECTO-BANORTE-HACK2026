@@ -1,0 +1,247 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Arquitectura Banorte AI Finanzas",
+    "locale": "es",
+    "output": "docs/arquitectura.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/rocketquee/PROYECTO-BANORTE-HACK2026.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "f1aedee7526a3698d872678686c874ac56a2a51c"
+    }
+  },
+  "components": [
+    {
+      "id": "persona",
+      "type": "external",
+      "label": "Persona usuaria",
+      "sublabel": "navegador",
+      "pos": [40, 185],
+      "size": [130, 64]
+    },
+    {
+      "id": "frontend",
+      "type": "frontend",
+      "label": "Frontend",
+      "sublabel": "Next.js 15 · React · Recharts",
+      "pos": [245, 175],
+      "size": [190, 84],
+      "sources": [
+        {
+          "path": "frontend/package.json",
+          "line": 8,
+          "end_line": 16
+        },
+        {
+          "path": "frontend/src/lib/api.ts",
+          "line": 1,
+          "end_line": 19
+        },
+        {
+          "path": "frontend/src/lib/chatStore.ts",
+          "line": 57,
+          "end_line": 75
+        }
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "Backend FastAPI",
+      "sublabel": "REST · agente · contrato UI Pydantic",
+      "pos": [565, 155],
+      "size": [200, 124],
+      "sources": [
+        {
+          "path": "backend/app/main.py",
+          "line": 26,
+          "end_line": 37
+        },
+        {
+          "path": "backend/app/api/routes.py",
+          "line": 171,
+          "end_line": 175
+        },
+        {
+          "path": "backend/app/services/agent/composer.py",
+          "line": 1,
+          "end_line": 5
+        }
+      ]
+    },
+    {
+      "id": "mcp",
+      "type": "backend",
+      "label": "Servidor MCP",
+      "sublabel": "FastMCP · herramientas financieras",
+      "pos": [900, 175],
+      "size": [180, 84],
+      "sources": [
+        {
+          "path": "mcp-server/server.py",
+          "line": 33,
+          "end_line": 67
+        },
+        {
+          "path": "mcp-server/tools/finance_tools.py",
+          "line": 12,
+          "end_line": 27
+        }
+      ]
+    },
+    {
+      "id": "sqlite",
+      "type": "database",
+      "label": "SQLite",
+      "sublabel": "backend/data/banorte.db · sintética",
+      "pos": [915, 385],
+      "size": [170, 84],
+      "sources": [
+        {
+          "path": "backend/app/core/config.py",
+          "line": 5,
+          "end_line": 9
+        },
+        {
+          "path": "backend/app/core/database.py",
+          "line": 12,
+          "end_line": 15
+        },
+        {
+          "path": "backend/app/core/database.py",
+          "line": 32,
+          "end_line": 39
+        }
+      ]
+    },
+    {
+      "id": "chat-storage",
+      "type": "database",
+      "label": "localStorage",
+      "sublabel": "historial de chat del navegador",
+      "pos": [245, 380],
+      "size": [190, 76],
+      "sources": [
+        {
+          "path": "frontend/src/lib/chatStore.ts",
+          "line": 57,
+          "end_line": 75
+        }
+      ]
+    },
+    {
+      "id": "ai-provider",
+      "type": "external",
+      "label": "Proveedor de IA",
+      "sublabel": "OpenAI / Anthropic · opcional",
+      "pos": [565, 10],
+      "size": [200, 65],
+      "sources": [
+        {
+          "path": "backend/app/services/agent/providers.py",
+          "line": 32,
+          "end_line": 38
+        },
+        {
+          "path": "backend/app/services/agent/providers.py",
+          "line": 72,
+          "end_line": 77
+        },
+        {
+          "path": "backend/app/core/config.py",
+          "line": 11,
+          "end_line": 15
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "persona-frontend",
+      "from": "persona",
+      "to": "frontend",
+      "label": "usa",
+      "variant": "emphasis"
+    },
+    {
+      "id": "frontend-api",
+      "from": "frontend",
+      "to": "api",
+      "label": "HTTP · /api/*"
+    },
+    {
+      "id": "api-frontend",
+      "from": "api",
+      "to": "frontend",
+      "label": "JSON UI"
+    },
+    {
+      "id": "api-mcp",
+      "from": "api",
+      "to": "mcp",
+      "label": "MCP · stdio"
+    },
+    {
+      "id": "api-sqlite",
+      "from": "api",
+      "to": "sqlite",
+      "label": "API REST"
+    },
+    {
+      "id": "mcp-sqlite",
+      "from": "mcp",
+      "to": "sqlite",
+      "label": "herramientas"
+    },
+    {
+      "id": "frontend-chat-storage",
+      "from": "frontend",
+      "to": "chat-storage",
+      "label": "chat local"
+    },
+    {
+      "id": "api-ai-provider",
+      "from": "api",
+      "to": "ai-provider",
+      "label": "HTTPS",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Recorrido",
+      "items": [
+        "La interfaz consume el API REST; el chat usa POST /api/agent/chat y recibe ChatResponse con UI validada.",
+        "El backend inicia el servidor MCP como subproceso y usa initialize, list_tools y call_tool sobre stdio."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Datos compartidos",
+      "items": [
+        "El API consulta SQLite directamente para dashboard y operaciones financieras; el acceso no depende siempre de MCP.",
+        "Las herramientas MCP reutilizan los servicios del backend y la misma SQLite sintética."
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Agente e IA",
+      "items": [
+        "El modo demo es el predeterminado; OpenAI o Anthropic son opcionales y dependen de AI_PROVIDER y sus claves.",
+        "El compositor genera la UI en código; las escrituras MCP de metas requieren confirmación explícita."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Persistencia",
+      "items": [
+        "El historial de chat se conserva en localStorage del navegador; el prototipo no sincroniza conversaciones entre dispositivos.",
+        "SQLite contiene datos sintéticos de demostración, no datos bancarios reales."
+      ]
+    }
+  ]
+}
