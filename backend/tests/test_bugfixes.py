@@ -546,6 +546,28 @@ class TestR03PayrollAndBonus:
         assert "$22,000" in resp.message, "el aguinaldo sembrado es de $22,000"
         assert "15 de diciembre" in resp.message
 
+    def test_bonus_total_excludes_performance_bonus(self):
+        resp = ask("¿Cuánto recibí de aguinaldo?")
+        assert resp.message.startswith("Según tus movimientos recibiste $22,000 de aguinaldo")
+        assert "bono" not in resp.message.lower()
+
+    def test_next_payroll_uses_the_seeded_payday_schedule(self):
+        from calendar import monthrange
+        from app.services.agent.composer import long_date
+
+        today = date.today()
+        last_day = monthrange(today.year, today.month)[1]
+        if today.day < 15:
+            expected = date(today.year, today.month, 15)
+        elif today.day < last_day:
+            expected = date(today.year, today.month, last_day)
+        else:
+            year, month = orch._shift_month(today.year, today.month, 1)
+            expected = date(year, month, 15)
+
+        resp = ask("¿Cuándo me cae la nómina?")
+        assert long_date(expected.isoformat()) in resp.message
+
     def test_not_generic_summary(self):
         resp = ask("¿Cuánto recibí de aguinaldo?")
         assert "Tu saldo total" not in resp.message

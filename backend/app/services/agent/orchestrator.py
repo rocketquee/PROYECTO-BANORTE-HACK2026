@@ -15,7 +15,7 @@ import json
 import re
 import unicodedata
 import uuid
-from datetime import date, timedelta
+from datetime import date
 
 from app.core.config import AI_PROVIDER
 from app.core.database import db
@@ -828,20 +828,19 @@ async def _demo_payroll(text: str) -> ChatResponse:
         if re.search(r"aguinaldo", t):
             rows = conn.execute(
                 "SELECT date, description, amount FROM transactions"
-                " WHERE type='income' AND (description LIKE '%Aguinaldo%'"
-                " OR description LIKE '%Bono de%')"
+                " WHERE type='income' AND description LIKE '%Aguinaldo%'"
                 " ORDER BY date DESC LIMIT 6",
             ).fetchall()
             if not rows:
                 return ChatResponse(
-                    message="No encontré depósitos de aguinaldo ni bonos en tus movimientos.",
+                    message="No encontré depósitos de aguinaldo en tus movimientos.",
                     mode="demo", ui=[], tools_used=["get_transactions"])
             total = sum(r["amount"] for r in rows)
             parts = [f"{r['description']}: {composer.money(r['amount'])} el "
                      f"{composer.long_date(r['date'])}" for r in rows]
             return ChatResponse(
-                message=(f"Según tus movimientos recibiste {composer.money(total)} entre "
-                         f"aguinaldo y bonos. " + "; ".join(parts) + "."),
+                message=(f"Según tus movimientos recibiste {composer.money(total)} de "
+                         f"aguinaldo. " + "; ".join(parts) + "."),
                 mode="demo", ui=[], tools_used=["get_transactions"])
         rows = conn.execute(
             "SELECT date, description, amount FROM transactions"
@@ -853,8 +852,15 @@ async def _demo_payroll(text: str) -> ChatResponse:
         return ChatResponse(
             message="No encontré depósitos de nómina en tus movimientos.",
             mode="demo", ui=[], tools_used=["get_transactions"])
-    last = date.fromisoformat(rows[0]["date"])
-    next_date = last + timedelta(days=14)
+    today = date.today()
+    month_end = date.fromisoformat(finance.month_range(today.year, today.month)[1]).day
+    if today.day < 15:
+        next_date = date(today.year, today.month, 15)
+    elif today.day < month_end:
+        next_date = date(today.year, today.month, month_end)
+    else:
+        next_year, next_month = _shift_month(today.year, today.month, 1)
+        next_date = date(next_year, next_month, 15)
     amounts = "; ".join(f"{composer.money(r['amount'])} el {composer.long_date(r['date'])}"
                         for r in rows)
     return ChatResponse(
