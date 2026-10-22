@@ -30,22 +30,129 @@ from app.services.mcp_client import MCPClientError, mcp_client
 WRITE_TOOLS = {"create_savings_goal", "update_savings_goal"}
 
 IDENTITY_MESSAGE = (
-    "Soy tu asistente financiero Banorte. Soy un asistente de inteligencia artificial en "
-    "modo demostración: no soy una persona real ni el banco oficial, y todos los datos son "
-    "ficticios (prototipo educativo). Puedo ayudarte a revisar tus gastos, ahorrar, simular "
-    "un crédito y organizar tu presupuesto."
+    "Soy un asistente de inteligencia artificial en modo demostración, inspirado en Banorte; "
+    "no soy una persona real ni el banco oficial. Uso datos ficticios para ayudarte con gastos, "
+    "ahorro, nómina, crédito y presupuesto."
 )
 
 REFUSAL_MESSAGE = (
-    "Soy tu asistente financiero Banorte. No puedo compartir detalles internos, pero con gusto "
-    "te ayudo con tus gastos, ahorro, créditos o presupuesto."
+    "No puedo hacer eso. No puedo compartir detalles internos, pero con gusto te ayudo "
+    "con tus gastos, ahorro, créditos o presupuesto."
 )
 
 OUT_OF_SCOPE_MESSAGE = (
-    "Eso está fuera de lo que puedo hacer: solo reviso tus finanzas de este prototipo "
-    "(gastos, ahorro, créditos y presupuesto). Sobre lo demás no quiero inventarte información. "
-    "¿Te ayudo con algo de tus finanzas?"
+    "Ese tema está fuera de lo que puedo hacer; este prototipo solo ofrece orientación "
+    "financiera sencilla. Si quieres, elige una opción de ayuda."
 )
+
+SENSITIVE_MESSAGE = "Por tu seguridad, no escribas ese dato aquí. Nunca lo guardo ni lo necesito"
+TRANSFER_MESSAGE = (
+    "No puedo mover dinero, hacer pagos ni contratar productos reales. Soy un prototipo "
+    "educativo y solo puedo mostrar información o hacer simulaciones."
+)
+FRAUD_MESSAGE = (
+    "Si crees que hubo fraude, comunícate cuanto antes con tu banco real usando el número "
+    "oficial de tu tarjeta o su sitio oficial. No compartas claves ni códigos."
+)
+EMERGENCY_MESSAGE = (
+    "Si estás en peligro o te sientes mal, busca ayuda profesional o llama a emergencias. "
+    "Si se relaciona con tu cuenta, contacta a tu banco real por un canal oficial."
+)
+ANTIFRAUD_MESSAGE = (
+    "El banco nunca te pedirá tu NIP ni códigos por teléfono, mensaje o enlace. No compartas "
+    "datos con quien te llame; si dudas, cuelga y llama al número oficial."
+)
+
+HELP_SUGGESTIONS = [
+    "¿Cuánto dinero tengo?",
+    "¿En qué gasté este mes?",
+    "¿Cuándo me llega mi nómina?",
+    "¿Tengo cobros repetidos?",
+    "¿Cuánto puedo ahorrar?",
+    "Explícame algo de forma sencilla",
+]
+
+SUGGESTIONS_BY_INTENT = {
+    "overview": ["¿En qué gasté este mes?", "¿Cuánto puedo ahorrar?", "¿Cuándo me llega mi nómina?"],
+    "spending": ["¿Tengo cobros repetidos?", "¿Qué movimientos hice este mes?", "¿Cómo puedo ahorrar?"],
+    "payroll": ["¿Cuánto dinero tengo?", "¿En qué gasté este mes?", "¿Cuánto puedo ahorrar?"],
+    "duplicates": ["¿Qué movimientos hice este mes?", "¿En qué gasté este mes?", "¿Cómo protejo mis datos?"],
+    "recurring": ["¿Tengo cobros repetidos?", "¿En qué gasté este mes?", "¿Cuánto puedo ahorrar?"],
+    "savings": ["¿Cuánto dinero tengo?", "¿Cómo organizo mi presupuesto?", "Explícame algo de forma sencilla"],
+    "budget": ["¿En qué gasté este mes?", "¿Cuánto puedo ahorrar?", "¿Tengo cobros repetidos?"],
+    "credit": ["¿Cuánto dinero tengo?", "¿Cómo organizo mi presupuesto?", "Explícame algo de forma sencilla"],
+}
+
+UNKNOWN_MESSAGE = (
+    "No entendí bien. ¿Puedes intentarlo con otras palabras? También puedes elegir una opción:"
+)
+
+_SENSITIVE_LABEL = re.compile(
+    r"\b(?:nip|cvv|cvc|contrase(?:n|ñ)a|password|clave|"
+    r"c[oó]digo(?:\s+de)?\s+(?:verificaci[oó]n|seguridad|acceso)|token)\b",
+    re.IGNORECASE,
+)
+_LONG_NUMBER = re.compile(r"(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)")
+_ACCOUNT_NUMBER = re.compile(r"(?<!\d)(?:\d[ -]?){9,}\d(?!\d)")
+_EMAIL_ADDRESS = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNORECASE)
+
+
+def contains_sensitive_data(text: str) -> bool:
+    return bool(_SENSITIVE_LABEL.search(text) or _LONG_NUMBER.search(text)
+                or _ACCOUNT_NUMBER.search(text) or _EMAIL_ADDRESS.search(text))
+
+
+def _conversation_response(intent: str, text: str = "") -> ChatResponse:
+    if intent == "help":
+        suggestions = HELP_SUGGESTIONS
+    elif intent == "greeting":
+        suggestions = [
+            "¿Cuánto dinero tengo?",
+            "¿En qué gasté este mes?",
+            "¿Cuánto puedo ahorrar?",
+        ]
+    else:
+        suggestions = SUGGESTIONS_BY_INTENT.get(intent, HELP_SUGGESTIONS[:3])
+    if intent == "greeting":
+        message = (
+            "¡Hola! Soy una IA en modo demostración, inspirada en Banorte; no soy una persona "
+            "ni el banco oficial. ¿En qué te ayudo?"
+        )
+    elif intent == "thanks":
+        message = "¡De nada! Aquí estoy para ayudarte con tus finanzas."
+    elif intent == "goodbye":
+        message = "¡Hasta luego! Cuando quieras, seguimos revisando tus finanzas."
+    elif intent == "how_are_you":
+        message = "¡Gracias por preguntar! Estoy listo para ayudarte con tus finanzas."
+    elif intent == "confusion":
+        message = (
+            "Claro, va más fácil. Por ejemplo, si recibes $10 y gastas $7, te quedan $3. "
+            "Dime qué parte quieres revisar y te la explico con otro ejemplo."
+        )
+    elif intent == "help":
+        message = "Claro. Puedes tocar una pregunta o escribirla con tus propias palabras."
+    elif intent == "sensitive":
+        message = SENSITIVE_MESSAGE
+        suggestions = []
+    elif intent == "transfer":
+        message = TRANSFER_MESSAGE
+    elif intent == "fraud":
+        message = FRAUD_MESSAGE
+    elif intent == "emergency":
+        message = EMERGENCY_MESSAGE
+    elif intent == "antifraud":
+        message = ANTIFRAUD_MESSAGE
+    elif intent == "identity":
+        message = IDENTITY_MESSAGE
+    elif intent == "refusal":
+        message = REFUSAL_MESSAGE
+    elif intent == "out_of_scope":
+        message = OUT_OF_SCOPE_MESSAGE
+    else:
+        message = UNKNOWN_MESSAGE
+        suggestions = HELP_SUGGESTIONS[:4]
+    return ChatResponse(message=message, mode="demo", ui=[], tools_used=[],
+                        suggestions=suggestions)
 
 SYSTEM_PROMPT = """Eres el asistente financiero de "Banorte AI Finanzas", un prototipo con datos sintéticos.
 Reglas:
@@ -122,6 +229,7 @@ def _replace_slang(text: str) -> str:
     t = re.sub(r"\bq\b", "que", t)
     t = re.sub(r"\bke\b", "que", t)
     t = re.sub(r"\bxq\b", "porque", t)
+    t = re.sub(r"\bkiero\b", "quiero", t)
     # "en q gasto mas" handled above; super→supermercado for category matching
     return t
 
@@ -291,14 +399,42 @@ _NAV_TARGETS = {
 def detect_intent(text: str) -> str:
     t = normalize(text)
 
+    if contains_sensitive_data(text):
+        return "sensitive"
     if any(re.search(p, t) for p in _INJECTION_PATTERNS):
         return "refusal"
+    if re.search(r"\b(fraude|me estafaron|me robaron|cargo no reconocido|"
+                 r"me clonaron|fui victima)\b", t):
+        return "fraud"
+    if re.search(r"\b(emergencia|estoy en peligro|me siento mal|me siento muy mal)\b", t):
+        return "emergency"
+    if re.search(r"\b(nip|cvv|cvc|fraude|estafa|sospechoso)\b", t) and \
+            re.search(r"\b(consejo|consejos|proteger|seguridad|evitar|que hago)\b", t):
+        return "antifraud"
+    if re.search(r"\b(transferencia|transferir|transfiere|transfi[eé]reme|"
+                 r"manda dinero|env[ií]a dinero|haz un pago|realiza un pago|"
+                 r"paga mi tarjeta|paga mi recibo|contrata un producto)\b", t):
+        return "transfer"
+    greeting = t.strip(" \t\r\n¿¡?!.;,")
+    if re.fullmatch(r"(?:hola\s+)?(hola|holi|buenos dias|buenas tardes|buenas noches|"
+                    r"que tal|buen dia)", greeting):
+        return "greeting"
+    if re.search(r"\b(gracias|muchas gracias|te agradezco)\b", t):
+        return "thanks"
+    if re.search(r"\b(adios|hasta luego|nos vemos|bye)\b", t):
+        return "goodbye"
+    if re.search(r"\b(como estas|que tal estas)\b", t):
+        return "how_are_you"
+    if re.search(r"\b(no entiendo|no entendi|explicamelo mas facil|"
+                 r"explicame mas facil|repitelo|no comprendo)\b", t):
+        return "confusion"
+    if re.search(r"\b(no se que preguntar|no se que preguntarte|ayuda|"
+                 r"que puedes hacer|opciones)\b", t):
+        return "help"
     if any(re.search(p, t) for p in _IDENTITY_PATTERNS):
         return "identity"
     if any(re.search(p, t) for p in _OUT_OF_SCOPE_PATTERNS):
         return "out_of_scope"
-    if re.search(r"\b(ay[uú]da|qué puedes hacer|que puedes hacer|opciones)\b", t):
-        return "identity"
 
     # navigation ("llévame a mis tarjetas")
     if re.search(r"\b(ll[eé]vame|abre|ve a|mu[eé]strame la secci[oó]n|ir a)\b", t):
@@ -319,7 +455,7 @@ def detect_intent(text: str) -> str:
         return "weekly"
     if re.search(r"recurrente|suscripci|cargos? fijos|se repiten|pagos? fijos", t):
         return "recurring"
-    if re.search(r"duplicad|doble cobro|cobrado dos veces|dos veces", t):
+    if re.search(r"duplicad|doble cobro|cobrado dos veces|dos veces|cobros repetidos", t):
         return "duplicates"
     if re.search(r"inusual|extra|sospechos|raro|anomal", t):
         return "anomalies"
@@ -338,19 +474,19 @@ def detect_intent(text: str) -> str:
         return "credit"
     if re.search(r"presupuesto|organizar|limite|distribuir|planear mis gastos", t):
         return "budget"
-    if re.search(r"me alcanza", t):
+    if re.search(r"me alcanza|me quedo sin dinero|me quedo sin lana", t):
         return "afford"
     if re.search(r"tarjeta", t) and re.search(r"corte|cortan|bloquear|cu[aá]les|que tarjetas|"
                                               r"mis tarjetas|pago|debo|vence", t):
         return "cards"
     if re.search(r"movimientos|transaccion|estado de cuenta|clasificar|gastos de la tarjeta", t):
         return "movements"
-    if re.search(r"cuanto (tengo|llevo)|saldo|cuanta (lana|dinero)|mi dinero|balance|en que (me va|va)"
+    if re.search(r"cuanto (tengo|llevo|dinero tengo)|saldo|quincena|cuanta (lana|dinero)|mi dinero|balance|en que (me va|va)"
                  r"|en que gasto|gastando|gastado", t):
         return "spending" if re.search(r"gast", t) else "overview"
-    if re.search(r"\bgast|analiza|en que\b|categoria", t):
+    if re.search(r"\bgast|analiza|en que\b|categoria|kiero ver mis gastos", t):
         return "spending"
-    return "overview"
+    return "unknown"
 
 
 # ---------------------------------------------------------------- conversation context
@@ -946,6 +1082,14 @@ async def _demo_navigate(text: str) -> ChatResponse:
 async def demo_response(req: ChatRequest) -> ChatResponse:
     text = req.message
 
+    intent = detect_intent(text)
+    if intent in {
+        "greeting", "thanks", "goodbye", "how_are_you", "confusion", "help",
+        "sensitive", "transfer", "fraud", "emergency", "antifraud", "identity",
+        "refusal", "out_of_scope",
+    }:
+        return _conversation_response(intent, text)
+
     follow = _followup(text)
     if follow:
         kind = follow["kind"]
@@ -979,7 +1123,6 @@ async def demo_response(req: ChatRequest) -> ChatResponse:
             return await demo_response(ChatRequest(message=follow["text"],
                                                    history=req.history))
 
-    intent = detect_intent(text)
     if intent == "spending":
         ct = "bar" if re.search(r"\bbarras?\b", normalize(text)) else None
         return await _demo_spending(text, chart_type=ct)
@@ -1017,13 +1160,15 @@ async def demo_response(req: ChatRequest) -> ChatResponse:
         return await _demo_projection(text)
     if intent == "navigate":
         return await _demo_navigate(text)
+    if intent == "overview":
+        return await _demo_overview(text)
     if intent == "identity":
-        return ChatResponse(message=IDENTITY_MESSAGE, mode="demo", ui=[], tools_used=[])
+        return _conversation_response(intent)
     if intent == "refusal":
-        return ChatResponse(message=REFUSAL_MESSAGE, mode="demo", ui=[], tools_used=[])
+        return _conversation_response(intent)
     if intent == "out_of_scope":
-        return ChatResponse(message=OUT_OF_SCOPE_MESSAGE, mode="demo", ui=[], tools_used=[])
-    return await _demo_overview(text)
+        return _conversation_response(intent)
+    return _conversation_response("unknown")
 
 
 # ---------------------------------------------------------------- live agent
@@ -1077,17 +1222,25 @@ def _ui_from_results(tool_results: dict) -> list:
 async def live_response(req: ChatRequest) -> ChatResponse:
     # Guard rails also apply in live mode: fixed answers, never model output.
     intent = detect_intent(req.message)
-    if intent == "refusal":
-        return ChatResponse(message=REFUSAL_MESSAGE, mode="live", ui=[], tools_used=[])
-    if intent == "identity":
-        return ChatResponse(message=IDENTITY_MESSAGE, mode="live", ui=[], tools_used=[])
-    if intent == "out_of_scope":
-        return ChatResponse(message=OUT_OF_SCOPE_MESSAGE, mode="live", ui=[], tools_used=[])
+    if intent in {
+        "greeting", "thanks", "goodbye", "how_are_you", "confusion", "help",
+        "sensitive", "transfer", "fraud", "emergency", "antifraud", "identity",
+        "refusal", "out_of_scope",
+    }:
+        response = _conversation_response(intent, req.message)
+        response.mode = "live"
+        return response
 
     provider = get_provider()
     specs = mcp_client.tool_specs()
-    messages = [{"role": h["role"], "content": h["content"]} for h in req.history
-                if h.get("role") in ("user", "assistant")]
+    messages = []
+    for entry in req.history:
+        if entry.get("role") in ("user", "assistant") and isinstance(entry.get("content"), str):
+            content = entry["content"]
+            messages.append({
+                "role": entry["role"],
+                "content": "********" if contains_sensitive_data(content) else content,
+            })
     messages.append({"role": "user", "content": req.message})
 
     tool_names: list[str] = []
@@ -1151,15 +1304,52 @@ async def execute_pending(action_id: str) -> dict:
 # ---------------------------------------------------------------- entry point
 
 async def handle_chat(req: ChatRequest) -> ChatResponse:
+    intent = detect_intent(req.message)
+    if intent in {
+        "greeting", "thanks", "goodbye", "how_are_you", "confusion", "help",
+        "sensitive", "transfer", "fraud", "emergency", "antifraud", "identity",
+        "refusal", "out_of_scope",
+    }:
+        return _conversation_response(intent, req.message)
+    if intent == "unknown" and _followup(req.message) is None:
+        return _conversation_response(intent, req.message)
     if not mcp_client.available:
         raise MCPClientError("El servidor MCP no está disponible. Reinicia el backend.")
     if get_provider() is None or AI_PROVIDER == "demo":
-        return await demo_response(req)
-    try:
-        return await live_response(req)
-    except ProviderError as exc:
-        resp = await demo_response(req)
-        resp.message = (f"(No pude contactar el servicio de IA, respondí con el modo de "
-                        f"demostración.)\n\n{resp.message}")
-        resp.mode = "demo"
-        return resp
+        response = await demo_response(req)
+    else:
+        try:
+            response = await live_response(req)
+        except ProviderError:
+            response = await demo_response(req)
+            response.message = (
+                "No pude contactar el servicio de IA; te respondo con la ayuda local. "
+                + response.message
+            )
+            response.mode = "demo"
+
+    response.suggestions = SUGGESTIONS_BY_INTENT.get(intent, HELP_SUGGESTIONS[:3])
+    if response.ui and not response.interaction_context.get("navigate"):
+        if intent in {
+            "spending", "trend", "timeline", "movements", "weekly", "duplicates",
+            "recurring", "anomalies",
+        }:
+            target = "movimientos"
+        elif intent in {"budget", "afford"}:
+            target = "presupuesto"
+        elif intent == "savings":
+            target = "ahorro"
+        else:
+            target = "dashboard"
+        labels = {
+            "movimientos": "Movimientos",
+            "presupuesto": "Presupuesto",
+            "ahorro": "Metas de ahorro",
+            "dashboard": "Resumen",
+        }
+        response.interaction_context = {
+            **response.interaction_context,
+            "navigate": target,
+            "screen_label": labels[target],
+        }
+    return response

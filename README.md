@@ -92,6 +92,20 @@ Opcional: copia `.env.example` a `.env` (raíz) y configura tu proveedor de IA.
 **No hay secretos en el frontend ni en el código.** Sin API key, la app corre en
 modo demostración con el agente por reglas y las mismas herramientas MCP reales.
 
+### Asistente accesible y seguro
+
+Al abrir el chat, puedes elegir preguntas listas; después de cada respuesta hay
+sugerencias relacionadas. El asistente también puede leer sus respuestas en voz
+alta usando la voz del navegador. Su lógica de conversación funciona localmente;
+el proveedor de IA es opcional y no se necesita para la demostración. Las
+consultas usan los datos sintéticos locales.
+
+El asistente es un prototipo educativo en modo demostración, no es una persona ni
+el banco oficial. No puede hacer operaciones reales. No escribas NIP,
+contraseñas, códigos, CVV ni números completos de tarjeta o cuenta: el chat los
+enmascara en el historial y no los necesita. Si el navegador no ofrece síntesis
+de voz, el control para leer en voz alta no aparece.
+
 ## Iniciar los servicios
 
 **Un solo script:** `scripts\start-all.cmd` — levanta backend y frontend, espera a
@@ -130,16 +144,14 @@ del LLM, de modo que el modelo nunca puede saltarse la confirmación humana.
 
 ```cmd
 .venv\Scripts\python -m pytest backend\tests -v
+cd frontend && npm test
 ```
 
-152 pruebas: matemática financiera, contrato de UI (rechaza tipos no autorizados
-y props extra), servicios y persistencia, herramientas MCP (incluida una prueba
-de integración real por protocolo stdio), y la suite de correcciones del reporte
-QA: intención temporal (BUG-001), cero fugas de información (BUG-003), 40 ataques
-de inyección (BUG-004), lenguaje coloquial (BUG-006), nuevas herramientas y
-componentes (BUG-007), consistencia de datos (BUG-008), endurecimiento del
-backend (BUG-009), formato mexicano (BUG-012), recomendaciones solo si se piden
-(BUG-013), validaciones de escritura (BUG-014) e identidad (BUG-017).
+213 pruebas backend y 2 frontend: matemática financiera, contrato de UI (rechaza
+tipos no autorizados y props extra), servicios y persistencia, herramientas MCP
+(incluida una prueba de integración real por protocolo stdio), lenguaje
+coloquial, seguridad, privacidad, fallback sin proveedor y regresiones de la
+suite de QA.
 
 ## Seguridad y privacidad
 

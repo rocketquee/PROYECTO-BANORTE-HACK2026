@@ -225,6 +225,7 @@ export interface ChatResponse {
   mode: "demo" | "live";
   ui: UISpec[];
   tools_used: string[];
+  suggestions?: string[];
   pending_action?: PendingAction | null;
   interaction_context?: Record<string, unknown>;
 }

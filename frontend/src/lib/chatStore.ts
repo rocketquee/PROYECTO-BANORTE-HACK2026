@@ -9,6 +9,7 @@
  */
 import { useSyncExternalStore } from "react";
 import type { ChatResponse, UISpec } from "@/types/contract";
+import { sanitizeUserText } from "@/lib/chatSecurity.mjs";
 
 export interface ChatMsg {
   role: "user" | "assistant" | "system";
@@ -95,7 +96,24 @@ function hydrateFromStorage() {
     if (!raw) return;
     const parsed = JSON.parse(raw) as ChatState;
     if (!parsed.conversations?.length) return;
-    state = { ...state, ...parsed, loading: false, detail: null, detailKey: null };
+    state = {
+      ...state,
+      ...parsed,
+      conversations: parsed.conversations.map((conversation) => ({
+        ...conversation,
+        messages: conversation.messages.map((message) =>
+          message.role === "user" && message.text
+            ? { ...message, text: sanitizeUserText(message.text) }
+            : message),
+        history: conversation.history.map((entry) => ({
+          ...entry,
+          content: entry.role === "user" ? sanitizeUserText(entry.content) : entry.content,
+        })),
+      })),
+      loading: false,
+      detail: null,
+      detailKey: null,
+    };
     listeners.forEach((listener) => listener());
   } catch {
     return;
@@ -115,20 +133,23 @@ export const chatActions = {
 
   addMessage(msg: ChatMsg) {
     const conv = activeConversation();
+    const safeMsg = msg.role === "user" && msg.text
+      ? { ...msg, text: sanitizeUserText(msg.text) }
+      : msg;
     const conversations = state.conversations.map((c) =>
       c.id === conv.id
         ? {
             ...c,
-            messages: [...c.messages, msg],
+            messages: [...c.messages, safeMsg],
             history:
-              msg.role === "user" && msg.text
-                ? [...c.history, { role: "user" as const, content: msg.text }]
-                : msg.role === "assistant" && msg.resp
-                  ? [...c.history, { role: "assistant" as const, content: msg.resp.message }]
+              safeMsg.role === "user" && safeMsg.text
+                ? [...c.history, { role: "user" as const, content: safeMsg.text }]
+                : safeMsg.role === "assistant" && safeMsg.resp
+                  ? [...c.history, { role: "assistant" as const, content: safeMsg.resp.message }]
                   : c.history,
             title:
-              c.messages.length === 0 && msg.role === "user" && msg.text
-                ? msg.text.slice(0, 40) + (msg.text.length > 40 ? "…" : "")
+              c.messages.length === 0 && safeMsg.role === "user" && safeMsg.text
+                ? safeMsg.text.slice(0, 40) + (safeMsg.text.length > 40 ? "…" : "")
                 : c.title,
           }
         : c

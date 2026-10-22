@@ -13,7 +13,7 @@ from app.services.agent.orchestrator import detect_intent, extract_amount
     ("Muéstrame mis movimientos y clasifícalos", "movements"),
     ("¿Cómo puedo organizar mi presupuesto?", "budget"),
     ("¿Cuál es mi saldo actual?", "overview"),
-    ("hola", "overview"),
+    ("hola", "greeting"),
 ])
 def test_detect_intent(text, expected):
     assert detect_intent(text) == expected

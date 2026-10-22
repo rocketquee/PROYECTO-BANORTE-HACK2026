@@ -261,5 +261,6 @@ class ChatResponse(Strict):
     mode: Literal["demo", "live"]
     ui: list[UISpec] = []
     tools_used: list[str] = []
+    suggestions: list[str] = []
     pending_action: PendingAction | None = None
     interaction_context: dict = {}

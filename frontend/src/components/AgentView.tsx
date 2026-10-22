@@ -7,14 +7,12 @@ import DynamicRenderer from "@/components/dynamic/DynamicRenderer";
 import { activeConversation, chatActions, useChatStore, type ChatMsg } from "@/lib/chatStore";
 
 const QUICK_PROMPTS = [
-  "¿En qué estoy gastando más dinero?",
-  "¿Cómo han cambiado mis gastos en los últimos 4 meses?",
-  "Analiza mis gastos de este mes",
-  "Ayúdame a ahorrar $5,000",
-  "¿Cuánto podría pagar mensualmente por un crédito?",
-  "Muéstrame mis movimientos y clasifícalos",
-  "¿Qué cargos fijos tengo?",
-  "Recomiéndame cómo mejorar mis gastos",
+  "¿Cuánto dinero tengo?",
+  "¿En qué gasté este mes?",
+  "¿Cuándo me llega mi nómina?",
+  "¿Tengo cobros repetidos?",
+  "¿Cuánto puedo ahorrar?",
+  "Explícame algo de forma sencilla",
 ];
 
 type OnNavigate = (view: string) => void;
@@ -88,6 +86,13 @@ export default function AgentView({
     abortRef.current?.abort();
   }
 
+  function readAloud(text: string) {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "es-MX";
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  }
+
   async function confirmPending(actionId: string, msgIndex: number) {
     chatActions.setLoading(true);
     try {
@@ -117,20 +122,22 @@ export default function AgentView({
   return (
     <div className={`relative grid h-full min-h-0 grid-cols-1 overflow-hidden ${store.detail ? "xl:grid-cols-[minmax(0,1fr)_420px]" : ""}`}>
       <div className="flex h-full min-h-0 flex-col">
-      <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
+      <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-2">
         {messages.length === 0 && (
-          <div className="rounded-2xl bg-white p-6 text-base shadow-sm">
-            <p className="text-lg font-medium">¡Hola! Soy tu asistente financiero.</p>
-            <p className="mt-2 text-neutral-700">
-              Puedo mostrarte tus gastos, ayudarte a ahorrar, simular un crédito y organizar tu
-              presupuesto. Elige una opción o escribe lo que necesites:
+          <div className="rounded-2xl bg-white p-3 text-base shadow-sm">
+            <p className="text-base font-medium">
+              ¡Hola! Soy tu asistente de IA de demostración.
             </p>
-            <div className="mt-4 flex flex-wrap gap-2">
+            <p className="mt-2 text-neutral-700">
+              Prototipo educativo inspirado en Banorte. No soy una persona ni el banco oficial;
+              uso datos ficticios. Elige una pregunta:
+            </p>
+            <div className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2">
               {QUICK_PROMPTS.map((p) => (
                 <button
                   key={p}
                   onClick={() => send(p)}
-                  className="min-h-[48px] rounded-full border-2 border-neutral-300 bg-white px-4 py-2.5 text-base text-neutral-800 hover:border-brand hover:text-brand"
+                  className="min-h-[48px] rounded-xl border-2 border-neutral-300 bg-white px-4 py-2 text-left text-base text-neutral-800 hover:border-brand hover:text-brand"
                 >
                   {p}
                 </button>
@@ -167,11 +174,65 @@ export default function AgentView({
           const hasUi = (m.resp?.ui?.length ?? 0) > 0;
           const msgKey = `${conversation.id}-${i}`;
           const isDetailOpen = store.detailKey === msgKey;
+          const navigateTo = typeof m.resp?.interaction_context?.navigate === "string"
+            ? m.resp.interaction_context.navigate
+            : null;
+          const screenLabel = typeof m.resp?.interaction_context?.screen_label === "string"
+            ? m.resp.interaction_context.screen_label
+            : "la app";
           return (
             <div key={`${conversation.id}-${i}`} className="space-y-3">
               <div className="flex justify-start">
-                <div className="max-w-[92%] rounded-2xl rounded-bl-sm bg-white px-4 py-3 text-base shadow-sm">
+                <div className="max-w-[92%] rounded-2xl rounded-bl-sm bg-white px-4 py-2 text-base shadow-sm">
                   <p className="whitespace-pre-wrap">{m.resp?.message}</p>
+                  {m.resp?.suggestions && m.resp.suggestions.length > 0 && (
+                    <div className="mt-3">
+                      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-base font-medium text-neutral-800">
+                          Puedes preguntar:
+                        </p>
+                        {typeof window !== "undefined" && "speechSynthesis" in window && (
+                          <button
+                            onClick={() => readAloud(m.resp?.message ?? "")}
+                            className="min-h-[48px] rounded-xl border-2 border-neutral-300 px-4 py-2 text-base text-neutral-800 hover:border-brand"
+                            aria-label="Leer respuesta en voz alta"
+                          >
+                            Leer en voz alta
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {m.resp.suggestions.map((suggestion) => (
+                          <button
+                            key={suggestion}
+                            onClick={() => send(suggestion)}
+                            disabled={loading}
+                            className="min-h-[48px] rounded-xl border-2 border-neutral-300 bg-white px-4 py-2 text-left text-base text-neutral-800 hover:border-brand hover:text-brand disabled:opacity-60"
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {navigateTo && (
+                    <button
+                      onClick={() => onNavigate(navigateTo)}
+                      className="mt-3 min-h-[48px] rounded-xl border-2 border-brand px-4 py-2.5 text-base font-medium text-brand hover:bg-brand-soft"
+                    >
+                      Ver en {screenLabel}
+                    </button>
+                  )}
+                  {(!m.resp?.suggestions || m.resp.suggestions.length === 0) &&
+                    typeof window !== "undefined" && "speechSynthesis" in window && (
+                      <button
+                        onClick={() => readAloud(m.resp?.message ?? "")}
+                        className="mt-3 min-h-[48px] rounded-xl border-2 border-neutral-300 px-4 py-2.5 text-base text-neutral-800 hover:border-brand"
+                        aria-label="Leer respuesta en voz alta"
+                      >
+                        Leer en voz alta
+                      </button>
+                    )}
                   {hasUi && (
                     <button
                       onClick={() =>
@@ -226,8 +287,8 @@ export default function AgentView({
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Escribe tu solicitud financiera…"
-          className="min-h-[48px] min-w-0 flex-1 rounded-xl border border-neutral-300 px-4 py-3 text-base"
+            placeholder="Escribe con tus palabras, por ejemplo: ¿en qué gasté?"
+            className="min-h-[48px] min-w-0 flex-1 rounded-xl border border-neutral-300 px-4 py-3 text-base"
             aria-label="Mensaje para el asistente"
           />
           <button
