@@ -5,6 +5,8 @@ import type { DashboardData } from "@/types/contract";
 import { apiFetch } from "@/lib/api";
 import { fmtDate, money } from "@/lib/format";
 import type { ViewId } from "@/lib/navigation";
+import AnimatedProgressFill from "./AnimatedProgressFill";
+import ProgressRing from "./ProgressRing";
 
 const TITLES: Record<string, { title: string; blurb: string; ask: string }> = {
   cuentas: { title: "Mis cuentas", blurb: "Saldos de tus cuentas en este prototipo.",
@@ -40,8 +42,10 @@ function Progress({ pct }: { pct: number }) {
   return (
     <div className="h-3 w-full rounded-full bg-neutral-200" role="progressbar"
          aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}>
-      <div className={`h-3 rounded-full ${pct > 100 ? "bg-brand" : "bg-[#1F6E43]"}`}
-           style={{ width: `${clamped}%` }} />
+      <AnimatedProgressFill
+        value={clamped}
+        className={pct > 100 ? "bg-brand" : "bg-[#1F6E43]"}
+      />
     </div>
   );
 }
@@ -162,9 +166,12 @@ export default function SectionView({ section, refreshKey }: {
       {data && section === "ahorro" && (
         <ul className="mt-6 space-y-4">
           {data.goals.map((g) => (
-            <li key={g.id} className="rounded-2xl bg-white p-5 shadow-sm">
-              <div className="mb-2 flex justify-between">
-                <p className="font-semibold">{g.name}</p>
+            <li key={g.id} className="screen-stagger rounded-2xl bg-white p-5 shadow-sm">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <ProgressRing value={g.progress_pct} />
+                  <p className="font-semibold">{g.name}</p>
+                </div>
                 <p className="tabular-nums">{money(g.saved_amount)} de {money(g.target_amount)}</p>
               </div>
               <Progress pct={g.progress_pct} />

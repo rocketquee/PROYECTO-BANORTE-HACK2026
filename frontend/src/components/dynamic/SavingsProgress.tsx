@@ -4,6 +4,8 @@ import { useState } from "react";
 import type { GoalProgress } from "@/types/contract";
 import { patch } from "@/lib/api";
 import { fmtDate, money } from "@/lib/format";
+import AnimatedProgressFill from "../AnimatedProgressFill";
+import ProgressRing from "../ProgressRing";
 
 export default function SavingsProgress({
   title, goals, onChanged,
@@ -28,15 +30,18 @@ export default function SavingsProgress({
       <h3 className="mb-4 text-base font-semibold">{title}</h3>
       <div className="space-y-5">
         {local.map((g) => (
-          <div key={g.id}>
+          <div key={g.id} className="screen-stagger">
             <div className="flex flex-wrap items-center justify-between gap-2 text-base">
-              <span className="font-medium">
-                {g.name}
-                {g.status === "completada" && (
-                  <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-base font-medium text-emerald-700">
-                    Completada
-                  </span>
-                )}
+              <span className="flex items-center gap-3 font-medium">
+                <ProgressRing value={g.progress_pct} />
+                <span>
+                  {g.name}
+                  {g.status === "completada" && (
+                    <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-base font-medium text-emerald-700">
+                      Completada
+                    </span>
+                  )}
+                </span>
               </span>
               <span className="text-neutral-700">
                 {money(g.saved_amount)} / {money(g.target_amount)} · {g.progress_pct}%
@@ -44,9 +49,9 @@ export default function SavingsProgress({
               </span>
             </div>
             <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-neutral-200">
-              <div
-                className={`h-full rounded-full ${g.progress_pct >= 100 ? "bg-emerald-600" : "bg-brand"}`}
-                style={{ width: `${Math.min(g.progress_pct, 100)}%` }}
+              <AnimatedProgressFill
+                value={g.progress_pct}
+                className={g.progress_pct >= 100 ? "bg-emerald-600" : "bg-brand"}
               />
             </div>
             <button

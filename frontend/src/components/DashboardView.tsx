@@ -8,12 +8,16 @@ import {
 import type { DashboardData, GoalProgress } from "@/types/contract";
 import { apiFetch } from "@/lib/api";
 import { CHART_COLORS, fmtDate, money } from "@/lib/format";
+import AnimatedAmount from "./AnimatedAmount";
+import AnimatedProgressFill from "./AnimatedProgressFill";
+import ProgressRing from "./ProgressRing";
+import useReducedMotion from "@/hooks/useReducedMotion";
 
-function Kpi({ label, value, tone }: { label: string; value: string; tone?: string }) {
+function Kpi({ label, value, tone }: { label: string; value: number; tone?: string }) {
   return (
     <div className="rounded-2xl bg-white p-5 shadow-sm">
       <p className="text-base font-medium uppercase tracking-wide text-neutral-700">{label}</p>
-      <p className={`mt-2 text-2xl font-semibold ${tone ?? ""}`}>{value}</p>
+      <p className={`mt-2 text-2xl font-semibold ${tone ?? ""}`}><AnimatedAmount value={value} /></p>
     </div>
   );
 }
@@ -21,16 +25,17 @@ function Kpi({ label, value, tone }: { label: string; value: string; tone?: stri
 function GoalRow({ goal }: { goal: GoalProgress }) {
   return (
     <div>
-      <div className="flex items-center justify-between text-base">
-        <span className="font-medium">{goal.name}</span>
+      <div className="flex items-center gap-3 text-base">
+        <ProgressRing value={goal.progress_pct} />
+        <span className="min-w-0 flex-1 font-medium">{goal.name}</span>
         <span className="text-neutral-700">
           {money(goal.saved_amount)} / {money(goal.target_amount)} · {goal.progress_pct}%
         </span>
       </div>
       <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-neutral-200">
-        <div
-          className={`h-full rounded-full ${goal.progress_pct >= 100 ? "bg-emerald-600" : "bg-brand"}`}
-          style={{ width: `${Math.min(goal.progress_pct, 100)}%` }}
+        <AnimatedProgressFill
+          value={goal.progress_pct}
+          className={goal.progress_pct >= 100 ? "bg-emerald-600" : "bg-brand"}
         />
       </div>
     </div>
@@ -56,6 +61,7 @@ export default function DashboardView({ refreshKey }: { refreshKey: number }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const months = useMemo(monthOptions, []);
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
     let alive = true;
@@ -99,12 +105,12 @@ export default function DashboardView({ refreshKey }: { refreshKey: number }) {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi label="Saldo total" value={money(data.total_balance)} />
-        <Kpi label={`Ingresos · ${s.month_label}`} value={money(s.income)} tone="text-emerald-700" />
-        <Kpi label={`Gastos · ${s.month_label}`} value={money(s.expense)} tone="text-brand" />
+        <Kpi label="Saldo total" value={data.total_balance} />
+        <Kpi label={`Ingresos · ${s.month_label}`} value={s.income} tone="text-emerald-700" />
+        <Kpi label={`Gastos · ${s.month_label}`} value={s.expense} tone="text-brand" />
         <Kpi
           label="Balance del mes"
-          value={money(s.net)}
+          value={s.net}
           tone={s.net >= 0 ? "text-emerald-700" : "text-brand"}
         />
       </div>
@@ -151,8 +157,22 @@ export default function DashboardView({ refreshKey }: { refreshKey: number }) {
                 itemStyle={{ color: "var(--text)" }}
               />
               <Legend wrapperStyle={{ fontSize: 18, color: "var(--text)" }} />
-              <Bar dataKey="income" name="Ingresos" fill="#2E86AB" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="expense" name="Gastos" fill="#C8102E" radius={[4, 4, 0, 0]} />
+              <Bar
+                dataKey="income"
+                name="Ingresos"
+                fill="#2E86AB"
+                radius={[4, 4, 0, 0]}
+                isAnimationActive={!reducedMotion}
+                animationDuration={900}
+              />
+              <Bar
+                dataKey="expense"
+                name="Gastos"
+                fill="#C8102E"
+                radius={[4, 4, 0, 0]}
+                isAnimationActive={!reducedMotion}
+                animationDuration={900}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>

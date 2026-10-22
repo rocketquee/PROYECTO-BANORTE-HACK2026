@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import TwinklingSquares from "./TwinklingSquares";
+import AnimatedAmount from "./AnimatedAmount";
 
 type CardControls = {
   online: boolean;
@@ -208,7 +209,7 @@ export default function CardsView({
       }`}>
         <section
           aria-labelledby="your-cards-heading"
-          className={`relative min-w-0 rounded-2xl border p-5 shadow-sm sm:p-6 ${
+          className={`screen-stagger screen-stagger-1 relative min-w-0 rounded-2xl border p-5 shadow-sm sm:p-6 ${
             isHome
               ? "overflow-hidden border-[#30303A] bg-black"
               : "border-[var(--line)] bg-[var(--surface)]"
@@ -393,7 +394,7 @@ export default function CardsView({
 
         <section
           aria-labelledby="card-controls-heading"
-          className="min-w-0 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 shadow-sm sm:p-6"
+          className="screen-stagger screen-stagger-2 min-w-0 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 shadow-sm sm:p-6"
         >
           <h3 id="card-controls-heading" className="text-xl font-semibold text-[var(--text)]">
             Controles de la tarjeta
@@ -424,10 +425,10 @@ export default function CardsView({
         </section>
       </div>
       {isHome && (
-        <section className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 shadow-sm sm:p-6">
+        <section className="screen-stagger mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 shadow-sm sm:p-6" style={{ animationDelay: "120ms" }}>
           <div>
             <p className="font-medium text-[var(--muted)]">Saldo total de demostración</p>
-            <p className="mt-1 text-2xl font-semibold text-[var(--text)]">$85,921</p>
+            <p className="mt-1 text-2xl font-semibold text-[var(--text)]"><AnimatedAmount value={85921} /></p>
           </div>
           <button
             type="button"

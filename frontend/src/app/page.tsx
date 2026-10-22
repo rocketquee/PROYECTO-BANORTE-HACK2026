@@ -6,6 +6,7 @@ import DashboardView from "@/components/DashboardView";
 import AgentView from "@/components/AgentView";
 import CardsView from "@/components/CardsView";
 import SectionView from "@/components/SectionView";
+import ViewTransition from "@/components/ViewTransition";
 import { VIEW_META, type ViewId } from "@/lib/navigation";
 import { chatActions } from "@/lib/chatStore";
 
@@ -66,7 +67,7 @@ export default function Home() {
             aria-label={`Contenido: ${VIEW_META[view].title}`}
             className="h-full min-h-0 overflow-hidden rounded-3xl border border-[var(--line)] bg-[var(--surface)] shadow-sm"
           >
-            <div className="h-full min-h-0 overflow-y-auto">
+            <ViewTransition view={view}>
               {view === "dashboard" ? (
                 <DashboardView refreshKey={refreshKey} />
               ) : view === "tarjetas" || view === "inicio" ? (
@@ -89,7 +90,7 @@ export default function Home() {
                   pendingQuestion={pendingQuestion}
                 />
               )}
-            </div>
+            </ViewTransition>
           </section>
         </div>
       </div>
