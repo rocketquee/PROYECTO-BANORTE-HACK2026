@@ -98,6 +98,7 @@ export default function TopBar({
               setOpenPanel((panel) => panel === "search" ? null : "search");
             }}
             aria-label="Buscar secciones"
+            title="Buscar secciones"
             aria-expanded={openPanel === "search"}
             aria-controls="topbar-panel"
             className="flex min-h-[48px] min-w-[48px] items-center justify-center rounded-full text-[var(--accent)] hover:bg-[var(--surface-subtle)]"
@@ -109,6 +110,7 @@ export default function TopBar({
             type="button"
             onClick={() => setOpenPanel((panel) => panel === "notifications" ? null : "notifications")}
             aria-label="Notificaciones"
+            title="Notificaciones"
             aria-expanded={openPanel === "notifications"}
             aria-controls="topbar-panel"
             className="flex min-h-[48px] min-w-[48px] items-center justify-center rounded-full text-[var(--accent)] hover:bg-[var(--surface-subtle)]"
@@ -120,6 +122,7 @@ export default function TopBar({
             type="button"
             onClick={() => setOpenPanel((panel) => panel === "help" ? null : "help")}
             aria-label="Ayuda"
+            title="Ayuda"
             aria-expanded={openPanel === "help"}
             aria-controls="topbar-panel"
             className="flex min-h-[48px] min-w-[48px] items-center justify-center rounded-full text-[var(--accent)] hover:bg-[var(--surface-subtle)]"

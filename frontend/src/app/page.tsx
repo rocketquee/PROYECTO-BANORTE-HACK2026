@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useReducer, useState } from "react";
+import { useReducer, useState } from "react";
 import AppShell from "@/components/AppShell";
 import DashboardView from "@/components/DashboardView";
 import AgentView from "@/components/AgentView";
@@ -9,35 +9,19 @@ import SectionView from "@/components/SectionView";
 import { VIEW_META, type ViewId } from "@/lib/navigation";
 import { chatActions } from "@/lib/chatStore";
 
-const VIEW_KEY = "baf.view";
-
 const SECTIONS: ViewId[] = [
   "cuentas", "movimientos", "tarjetas", "pagos", "contactos", "creditos",
   "ahorro", "inversiones", "seguros", "presupuesto", "notificaciones",
   "perfil", "ayuda",
 ];
 
-function isViewId(value: string | null): value is ViewId {
-  return value !== null && [
-    "dashboard", "asistente", "cuentas", "movimientos", "tarjetas", "pagos",
-    "contactos", "creditos", "ahorro", "inversiones", "seguros",
-    "presupuesto", "notificaciones", "perfil", "ayuda",
-  ].includes(value);
-}
-
 export default function Home() {
-  const [view, setView] = useState<ViewId>("asistente");
+  const [view, setView] = useState<ViewId>("inicio");
   const [pendingQuestion, setPendingQuestion] = useState<{ text: string; nonce: number } | null>(null);
   const [refreshKey, bumpRefresh] = useReducer((x: number) => x + 1, 0);
 
-  useEffect(() => {
-    const saved = window.localStorage.getItem(VIEW_KEY);
-    if (isViewId(saved)) setView(saved);
-  }, []);
-
   function changeView(next: ViewId) {
     setView(next);
-    window.localStorage.setItem(VIEW_KEY, next);
   }
 
   function askAssistant(question: string) {
@@ -65,13 +49,15 @@ export default function Home() {
               </h1>
               <p className="mt-1 text-base text-[var(--muted)]">{VIEW_META[view].description}</p>
             </div>
-            <button
-              type="button"
-              onClick={primaryAction.run}
-              className="min-h-[48px] shrink-0 rounded-full bg-[#17171D] px-6 font-semibold text-white transition-colors hover:bg-[#33333D]"
-            >
-              {primaryAction.label}
-            </button>
+            {view !== "inicio" && (
+              <button
+                type="button"
+                onClick={primaryAction.run}
+                className="min-h-[48px] shrink-0 rounded-full bg-[#17171D] px-6 font-semibold text-white transition-colors hover:bg-[#33333D]"
+              >
+                {primaryAction.label}
+              </button>
+            )}
           </div>
         )}
 
@@ -83,8 +69,11 @@ export default function Home() {
             <div className="h-full min-h-0 overflow-y-auto">
               {view === "dashboard" ? (
                 <DashboardView refreshKey={refreshKey} />
-              ) : view === "tarjetas" ? (
-                <CardsView />
+              ) : view === "tarjetas" || view === "inicio" ? (
+                <CardsView
+                  variant={view === "inicio" ? "home" : "cards"}
+                  onOpenSummary={() => changeView("dashboard")}
+                />
               ) : view === "asistente" ? (
                 <AgentView
                   onGoalsChanged={bumpRefresh}

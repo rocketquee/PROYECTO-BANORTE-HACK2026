@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import TwinklingSquares from "./TwinklingSquares";
 
 type CardControls = {
   online: boolean;
@@ -53,7 +54,7 @@ const controlItems: {
   {
     id: "online",
     title: "Pagos en línea",
-    description: "Compras en sitios web y aplicaciones.",
+    description: "Compras web y en aplicaciones.",
     icon: "M3 5h18v14H3zM3 10h18M7 15h3",
   },
   {
@@ -65,7 +66,7 @@ const controlItems: {
   {
     id: "atm",
     title: "Retiros en cajero",
-    description: "Uso en cajeros automáticos.",
+    description: "Retiros en cajeros.",
     icon: "M4 4h16v16H4zM8 8h8v3H8zM8 15h2m4 0h2",
   },
   {
@@ -107,18 +108,18 @@ function DemoSwitch({
       aria-checked={enabled}
       aria-label={label}
       onClick={onToggle}
-      className="flex min-h-[48px] min-w-[148px] items-center justify-between gap-3 rounded-full border border-[var(--line)] bg-[var(--surface-subtle)] px-4 font-semibold text-[var(--text)]"
+      className="flex min-h-[48px] w-[176px] min-w-[176px] shrink-0 items-center justify-between gap-1 rounded-full border border-[var(--line)] bg-[var(--surface-subtle)] px-2 text-[18px] font-semibold text-[var(--text)]"
     >
-      <span>{enabled ? "Activado" : "Desactivado"}</span>
+      <span className="whitespace-nowrap">{enabled ? "Activado" : "Desactivado"}</span>
       <span
         aria-hidden="true"
-        className={`relative h-7 w-12 rounded-full transition-colors motion-reduce:transition-none ${
+        className={`relative h-6 w-10 rounded-full transition-colors motion-reduce:transition-none ${
           enabled ? "bg-[#9E321D]" : "bg-[#55545D]"
         }`}
       >
         <span
-          className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-transform motion-reduce:transition-none ${
-            enabled ? "translate-x-6" : "translate-x-1"
+          className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform motion-reduce:transition-none ${
+            enabled ? "translate-x-5" : "translate-x-1"
           }`}
         />
       </span>
@@ -126,7 +127,14 @@ function DemoSwitch({
   );
 }
 
-export default function CardsView() {
+export default function CardsView({
+  variant = "cards",
+  onOpenSummary,
+}: {
+  variant?: "home" | "cards";
+  onOpenSummary?: () => void;
+}) {
+  const isHome = variant === "home";
   const [cards, setCards] = useState<DemoCard[]>(initialCards);
   const [selectedId, setSelectedId] = useState(initialCards[0].id);
   const [flipped, setFlipped] = useState(false);
@@ -170,39 +178,55 @@ export default function CardsView() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] p-5 pt-3 sm:px-7 lg:px-9">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[var(--text)] sm:text-3xl">
-            Tarjetas
-          </h1>
-          <p className="mt-1 text-base text-[var(--muted)]">
-            Administra tarjetas de demostración. No representan productos ni cuentas reales.
-          </p>
+    <div className={`mx-auto w-full max-w-[1500px] ${
+      isHome ? "p-0" : "p-5 pt-3 sm:px-7 lg:px-9"
+    }`}>
+      {!isHome && (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-[var(--text)] sm:text-3xl">
+              Tarjetas
+            </h1>
+            <p className="mt-1 text-base text-[var(--muted)]">
+              Administra tarjetas de demostración. No representan productos ni cuentas reales.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={addCard}
+            className="min-h-[48px] rounded-full bg-[#17171D] px-6 font-semibold text-white hover:bg-[#33333D]"
+          >
+            + Nueva tarjeta
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={addCard}
-          className="min-h-[48px] rounded-full bg-[#17171D] px-6 font-semibold text-white hover:bg-[#33333D]"
-        >
-          + Nueva tarjeta
-        </button>
-      </div>
+      )}
 
-      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,.95fr)]">
+      <div className={`grid grid-cols-1 items-start gap-5 ${
+        isHome
+          ? "xl:grid-cols-[minmax(0,1.08fr)_minmax(0,.92fr)]"
+          : "xl:grid-cols-[minmax(0,1.05fr)_minmax(0,.95fr)]"
+      }`}>
         <section
           aria-labelledby="your-cards-heading"
-          className="min-w-0 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 shadow-sm sm:p-6"
+          className={`relative min-w-0 rounded-2xl border p-5 shadow-sm sm:p-6 ${
+            isHome
+              ? "overflow-hidden border-[#30303A] bg-black"
+              : "border-[var(--line)] bg-[var(--surface)]"
+          }`}
         >
-          <h3 id="your-cards-heading" className="text-xl font-semibold text-[var(--text)]">
-            Tus tarjetas
-          </h3>
-          <div className="mt-4 [perspective:1200px]">
-            <div
-              className={`relative h-[264px] w-full transition-transform duration-500 motion-reduce:transition-none [transform-style:preserve-3d] ${
-                flipped ? "[transform:rotateY(180deg)]" : ""
-              }`}
-            >
+          {isHome && <TwinklingSquares />}
+          <div className="relative z-10">
+            <h3 id="your-cards-heading" className={`w-fit text-xl font-semibold ${
+              isHome ? "bg-black px-2 text-white" : "text-[var(--text)]"
+            }`}>
+              Tus tarjetas
+            </h3>
+            <div className="mt-4 [perspective:1200px]">
+              <div
+                className={`relative h-[360px] w-full transition-transform duration-500 motion-reduce:transition-none [transform-style:preserve-3d] sm:h-[264px] ${
+                  flipped ? "[transform:rotateY(180deg)]" : ""
+                }`}
+              >
               <button
                 type="button"
                 aria-label={flipped ? "Voltear tarjeta al frente" : "Voltear tarjeta al reverso"}
@@ -210,16 +234,15 @@ export default function CardsView() {
                 aria-hidden={flipped}
                 tabIndex={flipped ? -1 : 0}
                 onClick={() => setFlipped((value) => !value)}
-                className={`absolute inset-0 flex h-full w-full flex-col justify-between overflow-hidden rounded-3xl p-6 text-left text-white shadow-xl [backface-visibility:hidden] sm:p-8 ${
+                className={`absolute inset-0 flex h-full w-full flex-col justify-between overflow-hidden rounded-3xl p-4 text-left text-white shadow-xl [backface-visibility:hidden] sm:p-8 ${
                   selected.color === "black"
                     ? "bg-[#17171D]"
                     : "bg-[#9E321D]"
                 }`}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold">Prototipo educativo</p>
-                    <p className="mt-1 text-base text-white">Sin datos reales</p>
+                <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-start">
+                  <div className="min-w-0">
+                    <p className="text-[18px] font-semibold">Prototipo educativo</p>
                   </div>
                   <span
                     className={`rounded-full px-4 py-2 font-semibold ${
@@ -232,10 +255,10 @@ export default function CardsView() {
                   </span>
                 </div>
                 <div>
-                  <p className="text-2xl font-semibold tracking-[0.12em] sm:text-3xl">
+                  <p className="whitespace-nowrap text-xl font-semibold tracking-[0.12em] sm:text-3xl">
                     **** {selected.ending}
                   </p>
-                  <div className="mt-4 flex items-end justify-between gap-4">
+                  <div className="mt-4 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
                     <div>
                       <p className="text-base text-white">Vence</p>
                       <p className="font-semibold">08/29</p>
@@ -244,7 +267,7 @@ export default function CardsView() {
                       <p className="text-base text-white">CVV</p>
                       <p className="font-semibold tracking-widest">•••</p>
                     </div>
-                    <p className="text-base font-medium text-white">Toca la tarjeta para voltearla</p>
+                    <p className="w-full text-base font-medium text-white">Toca la tarjeta para voltearla</p>
                   </div>
                 </div>
               </button>
@@ -254,7 +277,7 @@ export default function CardsView() {
                 aria-hidden={!flipped}
                 tabIndex={flipped ? 0 : -1}
                 onClick={() => setFlipped(false)}
-                className="absolute inset-0 flex h-full w-full flex-col justify-between rounded-3xl bg-[#24242D] p-6 text-left text-white shadow-xl [backface-visibility:hidden] [transform:rotateY(180deg)] sm:p-8"
+                className="absolute inset-0 flex h-full w-full flex-col justify-between rounded-3xl bg-[#24242D] p-4 text-left text-white shadow-xl [backface-visibility:hidden] [transform:rotateY(180deg)] sm:p-8"
               >
                 <p className="font-semibold">Prototipo educativo</p>
                 <p className="text-base text-white">
@@ -262,11 +285,11 @@ export default function CardsView() {
                 </p>
                 <p className="text-base font-medium text-white">Toca para volver al frente</p>
               </button>
+              </div>
             </div>
-          </div>
 
-          <div className="mt-5 flex flex-wrap items-center gap-3" aria-label="Seleccionar tarjeta">
-            {cards.map((card) => (
+            <div className="mt-5 flex flex-wrap items-center gap-3" aria-label="Seleccionar tarjeta">
+              {cards.map((card) => (
               <button
                 key={card.id}
                 type="button"
@@ -274,8 +297,12 @@ export default function CardsView() {
                 onClick={() => selectCard(card.id)}
                 className={`flex min-h-[48px] items-center gap-3 rounded-full border px-5 font-medium ${
                   selected.id === card.id
-                    ? "border-[#9E321D] bg-[#FCE8E2] text-[#742515]"
-                    : "border-[var(--line)] text-[var(--text)] hover:bg-[var(--surface-subtle)]"
+                    ? isHome
+                      ? "border-white bg-[#ffffff] text-[#17171D]"
+                      : "border-[#9E321D] bg-[#FCE8E2] text-[#742515]"
+                    : isHome
+                      ? "border-white/50 bg-black text-white hover:bg-[#24242D]"
+                      : "border-[var(--line)] text-[var(--text)] hover:bg-[var(--surface-subtle)]"
                 }`}
               >
                 <span
@@ -286,18 +313,22 @@ export default function CardsView() {
                 />
                 {card.name} •• {card.ending}
               </button>
-            ))}
-            <button
+              ))}
+              <button
               type="button"
               onClick={addCard}
               aria-label="Agregar tarjeta ficticia"
-              className="flex min-h-[48px] min-w-[48px] items-center justify-center rounded-full border border-dashed border-[#9E321D] text-2xl font-semibold text-[#742515] hover:bg-[#FCE8E2]"
+              className={`flex min-h-[48px] min-w-[48px] items-center justify-center rounded-full border border-dashed text-2xl font-semibold ${
+                isHome
+                  ? "border-white bg-black text-white hover:bg-[#24242D]"
+                  : "border-[#9E321D] text-[#742515] hover:bg-[#FCE8E2]"
+              }`}
             >
               +
-            </button>
-          </div>
+              </button>
+            </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <button
               type="button"
               aria-pressed={selected.frozen}
@@ -305,7 +336,11 @@ export default function CardsView() {
                 updateSelected((card) => ({ ...card, frozen: !card.frozen }));
                 setStatus(selected.frozen ? "Tarjeta descongelada (demostración)." : "Tarjeta congelada (demostración).");
               }}
-              className="min-h-[48px] rounded-xl border border-[var(--line)] px-3 font-medium text-[var(--text)] hover:bg-[var(--surface-subtle)]"
+              className={`min-h-[48px] rounded-xl border px-3 font-medium ${
+                isHome
+                  ? "border-white/50 bg-black text-white hover:bg-[#24242D]"
+                  : "border-[var(--line)] text-[var(--text)] hover:bg-[var(--surface-subtle)]"
+              }`}
             >
               {selected.frozen ? "Descongelar" : "Congelar"}
             </button>
@@ -316,14 +351,22 @@ export default function CardsView() {
                 setNumberRequested((value) => !value);
                 setStatus("El número completo no se muestra en este prototipo.");
               }}
-              className="min-h-[48px] rounded-xl border border-[var(--line)] px-3 font-medium text-[var(--text)] hover:bg-[var(--surface-subtle)]"
+              className={`min-h-[48px] rounded-xl border px-3 font-medium ${
+                isHome
+                  ? "border-white/50 bg-black text-white hover:bg-[#24242D]"
+                  : "border-[var(--line)] text-[var(--text)] hover:bg-[var(--surface-subtle)]"
+              }`}
             >
               {numberRequested ? "Ocultar número" : "Mostrar número"}
             </button>
             <button
               type="button"
               onClick={() => setStatus("Copia simulada: no se copió ningún número real.")}
-              className="min-h-[48px] rounded-xl border border-[var(--line)] px-3 font-medium text-[var(--text)] hover:bg-[var(--surface-subtle)]"
+              className={`min-h-[48px] rounded-xl border px-3 font-medium ${
+                isHome
+                  ? "border-white/50 bg-black text-white hover:bg-[#24242D]"
+                  : "border-[var(--line)] text-[var(--text)] hover:bg-[var(--surface-subtle)]"
+              }`}
             >
               Copiar número
             </button>
@@ -331,14 +374,21 @@ export default function CardsView() {
               type="button"
               aria-pressed={flipped}
               onClick={() => setFlipped((value) => !value)}
-              className="min-h-[48px] rounded-xl border border-[var(--line)] px-3 font-medium text-[var(--text)] hover:bg-[var(--surface-subtle)]"
+              className={`min-h-[48px] rounded-xl border px-3 font-medium ${
+                isHome
+                  ? "border-white/50 bg-black text-white hover:bg-[#24242D]"
+                  : "border-[var(--line)] text-[var(--text)] hover:bg-[var(--surface-subtle)]"
+              }`}
             >
               Voltear
             </button>
-          </div>
-          <p className="mt-4 min-h-6 text-base font-medium text-[#742515]" aria-live="polite">
+            </div>
+            <p className={`mt-4 min-h-6 text-base font-medium ${
+              isHome ? "bg-black text-white" : "text-[#742515]"
+            }`} aria-live="polite">
             {status}
-          </p>
+            </p>
+          </div>
         </section>
 
         <section
@@ -373,6 +423,21 @@ export default function CardsView() {
           </div>
         </section>
       </div>
+      {isHome && (
+        <section className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 shadow-sm sm:p-6">
+          <div>
+            <p className="font-medium text-[var(--muted)]">Saldo total de demostración</p>
+            <p className="mt-1 text-2xl font-semibold text-[var(--text)]">$85,921</p>
+          </div>
+          <button
+            type="button"
+            onClick={onOpenSummary}
+            className="min-h-[48px] rounded-full bg-[#17171D] px-6 font-semibold text-white hover:bg-[#33333D]"
+          >
+            Ver resumen completo
+          </button>
+        </section>
+      )}
     </div>
   );
 }

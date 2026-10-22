@@ -11,6 +11,7 @@
   --text: #17171d;
   --muted: #50505b;
   --accent: #f26a4b;
+  --squares-color: #EB0029;
 }
 
 html[data-theme="dark"] {
@@ -22,6 +23,7 @@ html[data-theme="dark"] {
   --text: #f7f6fa;
   --muted: #c5c3cf;
   --accent: #ff896e;
+  --squares-color: #EB0029;
 }
 
 html {

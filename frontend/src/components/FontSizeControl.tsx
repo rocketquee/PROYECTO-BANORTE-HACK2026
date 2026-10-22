@@ -3,15 +3,15 @@
 import { useEffect, useState } from "react";
 
 const SIZES = [
-  { id: "sm", label: "A-", pct: 100, aria: "Reducir tamaño de letra" },
-  { id: "md", label: "A", pct: 112.5, aria: "Tamaño de letra normal" },
-  { id: "lg", label: "A+", pct: 125, aria: "Aumentar tamaño de letra" },
+  { id: "sm", label: "A-", pct: 112.5, aria: "Reducir tamaño de letra a 18 px" },
+  { id: "md", label: "A", pct: 125, aria: "Tamaño de letra normal, 20 px" },
+  { id: "lg", label: "A+", pct: 137.5, aria: "Aumentar tamaño de letra a 22 px" },
 ] as const;
 
 const STORAGE_KEY = "baf.fontsize";
 
 /**
- * Adjusts the root font size so the whole interface scales from 16px to 20px.
+ * Adjusts the root font size while keeping the smallest preset at 18px.
  */
 export default function FontSizeControl({ vertical = false }: { vertical?: boolean }) {
   const [size, setSize] = useState<(typeof SIZES)[number]["id"]>("md");
