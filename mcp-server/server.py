@@ -10,6 +10,7 @@ from mcp.server.fastmcp import FastMCP
 
 from tools.finance_tools import (
     analyze_spending_impl,
+    apply_savings_contribution_impl,
     budget_vs_actual_impl,
     calculate_credit_simulation_impl,
     compare_credit_terms_impl,
@@ -48,6 +49,7 @@ mcp.tool(name="get_savings_goals", description="Obtiene las metas de ahorro y su
 mcp.tool(name="create_savings_goal", description="Crea una meta de ahorro. Requiere confirm=True (confirmación del usuario) "
                      "para escribir; sin él devuelve 'requires_confirmation'.")(create_savings_goal_impl)
 mcp.tool(name="update_savings_goal", description="Actualiza una meta de ahorro existente. Requiere confirm=True.")(update_savings_goal_impl)
+mcp.tool(name="apply_savings_contribution", description="Aplica un abono a una meta. Valida saldo y monto restante, registra el movimiento sintético, y requiere confirm=True e idempotency_key.")(apply_savings_contribution_impl)
 mcp.tool(name="analyze_spending", description="Analiza gastos por categoría en un periodo (year+month o date_from+date_to).")(analyze_spending_impl)
 mcp.tool(name="calculate_credit_simulation", description="Calcula la simulación de un crédito (método 'frances' o 'aleman'). "
                      "Simulación educativa; no es una oferta real.")(calculate_credit_simulation_impl)

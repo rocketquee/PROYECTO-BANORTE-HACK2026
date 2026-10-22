@@ -17,6 +17,7 @@ las herramientas financieras del prototipo sobre la base de datos SQLite sintét
 | `get_budgets` | lectura | Presupuesto: gasto vs límites por categoría |
 | `create_savings_goal` | **escritura** | Crear meta; requiere `confirm=True` |
 | `update_savings_goal` | **escritura** | Actualizar meta; requiere `confirm=True` |
+| `apply_savings_contribution` | **escritura** | Abonar a una meta; valida saldo/restante, registra movimiento y requiere confirmación + clave idempotente |
 
 Las herramientas de escritura devuelven `{"status": "requires_confirmation", ...}`
 si no se pasa `confirm=True`. El backend convierte eso en una acción pendiente que

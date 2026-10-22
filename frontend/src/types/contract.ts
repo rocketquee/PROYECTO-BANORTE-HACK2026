@@ -71,6 +71,29 @@ export interface SavingsProgressSpec {
   goals: GoalProgress[];
 }
 
+export interface SavingsContributionCandidate {
+  goal_id: number;
+  goal_name: string;
+  target_amount: number;
+  saved_amount: number;
+}
+
+export interface SavingsContributionSpec {
+  type: "savings_contribution";
+  status: "select_goal" | "confirm_required" | "completed";
+  goal_id?: number | null;
+  goal_name?: string | null;
+  target_amount?: number | null;
+  saved_amount?: number | null;
+  remaining_before?: number | null;
+  contribution_amount?: number | null;
+  remaining_after?: number | null;
+  available_balance?: number | null;
+  confirmation_token?: string | null;
+  idempotency_key?: string | null;
+  candidates: SavingsContributionCandidate[];
+}
+
 export interface CreditParams {
   amount: number;
   months: number;
@@ -221,6 +244,7 @@ export type UISpec =
   | TransactionsTableSpec
   | SavingsGoalFormSpec
   | SavingsProgressSpec
+  | SavingsContributionSpec
   | CreditSimulatorSpec
   | PurchasePlanSpec
   | BudgetPlannerSpec
@@ -236,6 +260,7 @@ export const AUTHORIZED_COMPONENTS = [
   "transactions_table",
   "savings_goal_form",
   "savings_progress",
+  "savings_contribution",
   "credit_simulator",
   "purchase_plan",
   "budget_planner",
@@ -283,6 +308,29 @@ export type UIEvent =
       type: "purchase_goal_confirmed";
       payload: {
         option_id: "savings_12";
+        confirmation_token: string;
+        idempotency_key: string;
+      };
+      trace_id: string;
+    }
+  | {
+      id: string;
+      type: "savings_goal_selected";
+      payload: { goal_id: number };
+      trace_id: string;
+    }
+  | {
+      id: string;
+      type: "savings_contribution_amount_changed";
+      payload: { amount: number };
+      trace_id: string;
+    }
+  | {
+      id: string;
+      type: "savings_contribution_confirmed";
+      payload: {
+        goal_id: number;
+        amount: number;
         confirmation_token: string;
         idempotency_key: string;
       };

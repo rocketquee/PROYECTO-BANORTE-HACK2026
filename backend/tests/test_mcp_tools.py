@@ -77,6 +77,87 @@ async def test_create_goal_idempotency_prevents_duplicate_writes(tmp_db):
 
 
 @pytest.mark.asyncio
+async def test_savings_contribution_requires_confirmation_and_is_idempotent(tmp_db):
+    from app.core.database import db
+    from tools.finance_tools import (
+        apply_savings_contribution_impl,
+        create_savings_goal_impl,
+        get_balance_impl,
+        get_savings_goals_impl,
+        get_transactions_impl,
+    )
+
+    created = await create_savings_goal_impl(
+        "Meta abono idempotente", 8_000, confirm=True,
+        idempotency_key=str(uuid.uuid4()),
+    )
+    goal_id = created["goal"]["id"]
+    key = str(uuid.uuid4())
+    before_balance = (await get_balance_impl())["total_balance"]
+    before_transactions = (await get_transactions_impl(limit=200))["total_count"]
+
+    unconfirmed = await apply_savings_contribution_impl(
+        goal_id, 2_000, confirm=False, idempotency_key=key,
+    )
+    assert unconfirmed["status"] == "requires_confirmation"
+    assert (await get_savings_goals_impl())["goals"][-1]["saved_amount"] == 0
+
+    first = await apply_savings_contribution_impl(
+        goal_id, 2_000, confirm=True, idempotency_key=key,
+    )
+    replay = await apply_savings_contribution_impl(
+        goal_id, 2_000, confirm=True, idempotency_key=key,
+    )
+    assert first["goal"]["saved_amount"] == 2_000
+    assert replay["goal"]["saved_amount"] == 2_000
+    assert replay["idempotent_replay"] is True
+    assert (await get_balance_impl())["total_balance"] == before_balance - 2_000
+    assert (await get_transactions_impl(limit=200))["total_count"] == before_transactions + 1
+
+    with pytest.raises(ValueError, match="lo que falta"):
+        await apply_savings_contribution_impl(
+            goal_id, 6_001, confirm=True, idempotency_key=str(uuid.uuid4()),
+        )
+    with pytest.raises(ValueError, match="idempotencia"):
+        await apply_savings_contribution_impl(
+            goal_id, 1_000, confirm=True, idempotency_key=key,
+        )
+
+
+@pytest.mark.asyncio
+async def test_savings_contribution_rejects_amount_above_available_balance(tmp_db):
+    from app.core.database import db
+    from tools.finance_tools import apply_savings_contribution_impl, create_savings_goal_impl
+
+    created = await create_savings_goal_impl(
+        "Meta sin saldo suficiente", 10_000, confirm=True,
+        idempotency_key=str(uuid.uuid4()),
+    )
+    with db() as conn:
+        conn.execute("UPDATE accounts SET balance=0")
+    with pytest.raises(ValueError, match="saldo disponible"):
+        await apply_savings_contribution_impl(
+            created["goal"]["id"], 100, confirm=True,
+            idempotency_key=str(uuid.uuid4()),
+        )
+
+
+@pytest.mark.asyncio
+async def test_savings_contribution_can_resolve_approximate_goal_name(tmp_db):
+    from tools.finance_tools import apply_savings_contribution_impl, create_savings_goal_impl
+
+    created = await create_savings_goal_impl(
+        "Compra planeada", 10_000, confirm=True,
+        idempotency_key=str(uuid.uuid4()),
+    )
+    result = await apply_savings_contribution_impl(
+        None, 500, confirm=True, idempotency_key=str(uuid.uuid4()),
+        goal_name="compra planead",
+    )
+    assert result["goal"]["id"] == created["goal"]["id"]
+
+
+@pytest.mark.asyncio
 async def test_update_goal_validation(tmp_db):
     from tools.finance_tools import update_savings_goal_impl
     with pytest.raises(ValueError):
@@ -100,6 +181,7 @@ async def test_real_mcp_protocol_discovery():
             result = await session.list_tools()
             names = {t.name for t in result.tools}
             expected = {"get_balance", "get_transactions", "get_cards", "get_savings_goals",
-                        "create_savings_goal", "update_savings_goal", "analyze_spending",
+                        "create_savings_goal", "update_savings_goal",
+                        "apply_savings_contribution", "analyze_spending",
                         "calculate_credit_simulation", "get_monthly_summary", "get_budgets"}
             assert expected <= names

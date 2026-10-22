@@ -21,10 +21,12 @@ export default function AgentView({
   onGoalsChanged,
   onNavigate,
   pendingQuestion,
+  onClose,
 }: {
   onGoalsChanged: () => void;
   onNavigate: OnNavigate;
   pendingQuestion?: { text: string; nonce: number } | null;
+  onClose: () => void;
 }) {
   const store = useChatStore();
   const conversation = activeConversation(store);
@@ -70,9 +72,6 @@ export default function AgentView({
           resp.ui.some((spec) => spec.type === "savings_progress")) {
         onGoalsChanged();
       }
-      // Assistant-driven navigation ("llévame a mis tarjetas").
-      const nav = resp.interaction_context?.navigate;
-      if (typeof nav === "string" && nav) onNavigate(nav);
     } catch (err) {
       if ((err as Error).name !== "AbortError") {
         setLastFailed(message);
@@ -126,6 +125,44 @@ export default function AgentView({
     });
   }
 
+  function selectContributionGoal(goalId: number, traceId: string) {
+    send("Quiero abonar a esta meta.", {
+      id: crypto.randomUUID(),
+      type: "savings_goal_selected",
+      payload: { goal_id: goalId },
+      trace_id: traceId,
+    });
+  }
+
+  function changeContributionAmount(amount: number, traceId: string) {
+    send("Quiero cambiar el monto del abono.", {
+      id: crypto.randomUUID(),
+      type: "savings_contribution_amount_changed",
+      payload: { amount },
+      trace_id: traceId,
+    });
+  }
+
+  function confirmContribution(
+    goalId: number,
+    amount: number,
+    confirmationToken: string,
+    idempotencyKey: string,
+    traceId: string,
+  ) {
+    send("Confirmo el abono a mi meta.", {
+      id: crypto.randomUUID(),
+      type: "savings_contribution_confirmed",
+      payload: {
+        goal_id: goalId,
+        amount,
+        confirmation_token: confirmationToken,
+        idempotency_key: idempotencyKey,
+      },
+      trace_id: traceId,
+    });
+  }
+
   function cancel() {
     abortRef.current?.abort();
   }
@@ -164,7 +201,23 @@ export default function AgentView({
   }
 
   return (
-    <div className={`relative grid h-full min-h-0 grid-cols-1 overflow-hidden ${store.detail ? "xl:grid-cols-[minmax(0,1fr)_420px]" : ""}`}>
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+      <header className="flex min-h-[56px] shrink-0 items-center justify-between gap-2 border-b border-neutral-200 px-3 py-2">
+        <div className="min-w-0">
+          <h2 className="truncate text-[18px] font-semibold">Asistente financiero</h2>
+          <p className="truncate text-base text-neutral-700">Prototipo educativo · datos ficticios</p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Contraer asistente (Alt+A)"
+          title="Contraer asistente (Alt+A)"
+          className="min-h-[48px] min-w-[48px] shrink-0 rounded-lg border border-neutral-400 px-3 text-[18px] font-semibold text-neutral-800 hover:border-brand focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        >
+          ×
+        </button>
+      </header>
+    <div className={`relative grid min-h-0 flex-1 grid-cols-1 overflow-hidden ${store.detail ? "xl:grid-cols-[minmax(0,1fr)_420px]" : ""}`}>
       <div className="flex h-full min-h-0 flex-col">
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-2">
         {messages.length === 0 && (
@@ -234,6 +287,11 @@ export default function AgentView({
                       Respuesta con ayuda local; no requiere conexión con un proveedor de IA.
                     </p>
                   )}
+                  {m.resp?.mode === "live" && (
+                    <p className="mt-2 text-[18px] text-neutral-600" role="status">
+                      Respuesta con apoyo del proveedor de IA.
+                    </p>
+                  )}
                   {m.resp?.suggestions && m.resp.suggestions.length > 0 && (
                     <div className="mt-3">
                       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
@@ -269,7 +327,7 @@ export default function AgentView({
                       onClick={() => onNavigate(navigateTo)}
                       className="mt-3 min-h-[48px] rounded-xl border-2 border-brand px-4 py-2.5 text-base font-medium text-brand hover:bg-brand-soft"
                     >
-                      Ver en {screenLabel}
+                      Abrir en {screenLabel}
                     </button>
                   )}
                   {(!m.resp?.suggestions || m.resp.suggestions.length === 0) &&
@@ -314,6 +372,9 @@ export default function AgentView({
                   onPurchaseOptionSelect={selectPurchaseOption}
                   onPurchaseGoalRequest={requestPurchaseGoal}
                   onPurchaseGoalConfirm={confirmPurchaseGoal}
+                  onContributionGoalSelect={selectContributionGoal}
+                  onContributionAmountChange={changeContributionAmount}
+                  onContributionConfirm={confirmContribution}
                 />
               ))}
             </div>
@@ -387,11 +448,15 @@ export default function AgentView({
                 onPurchaseOptionSelect={selectPurchaseOption}
                 onPurchaseGoalRequest={requestPurchaseGoal}
                 onPurchaseGoalConfirm={confirmPurchaseGoal}
+                onContributionGoalSelect={selectContributionGoal}
+                onContributionAmountChange={changeContributionAmount}
+                onContributionConfirm={confirmContribution}
               />
             ))}
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

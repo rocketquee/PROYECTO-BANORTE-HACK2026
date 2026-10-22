@@ -41,7 +41,7 @@ flowchart LR
 
 - **Frontend**: Next.js 15 + TypeScript + Tailwind CSS + Recharts.
 - **Backend**: FastAPI + Pydantic v2 + SQLite (datos sintéticos persistentes).
-- **MCP**: SDK oficial de Python (`mcp`), transporte stdio, 18 herramientas.
+- **MCP**: SDK oficial de Python (`mcp`), transporte stdio, 19 herramientas.
 - **IA**: proveedor configurable (OpenAI / Anthropic) o **modo demostración**
   sin API key (agente basado en reglas que usa las mismas herramientas MCP reales).
 
@@ -144,7 +144,7 @@ persona debe revisar el resumen y confirmar en un segundo paso. La meta solo
 se guarda en SQLite local y una clave idempotente evita duplicados por reintento
 o doble clic; no se mueve dinero real.
 
-## Herramientas MCP (18)
+## Herramientas MCP (19)
 
 Consulta: `get_balance`, `get_transactions`, `get_cards`, `get_savings_goals`,
 `analyze_spending`, `calculate_credit_simulation`, `get_monthly_summary`,
@@ -152,12 +152,15 @@ Consulta: `get_balance`, `get_transactions`, `get_cards`, `get_savings_goals`,
 `detect_recurring_charges`, `detect_anomalies`, `compare_credit_terms`,
 `budget_vs_actual`, `project_savings`.
 
-Escritura: `create_savings_goal`*, `update_savings_goal`*.
+Escritura: `create_savings_goal`*, `update_savings_goal`*,
+`apply_savings_contribution`*.
 
 \* Escritura: devuelven `requires_confirmation` sin `confirm=True`; el backend
 convierte eso en una acción pendiente que la UI confirma con el usuario. Además,
 el backend **fuerza `confirm=False`** en cualquier llamada de escritura que venga
 del LLM, de modo que el modelo nunca puede saltarse la confirmación humana.
+Los abonos a metas también validan el saldo y lo que falta, guardan el movimiento
+sintético y son idempotentes ante reintentos o doble clic.
 
 ## Pruebas
 

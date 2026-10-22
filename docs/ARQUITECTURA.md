@@ -25,7 +25,7 @@ flowchart TB
         RL[Límite de peticiones 30/10s]
     end
     subgraph MCP["Servidor MCP — FastMCP (stdio)"]
-        T[18 herramientas financieras]
+        T[19 herramientas financieras]
     end
     DB[("SQLite sintética")]
 
@@ -74,12 +74,18 @@ lógica de datos. Dashboard, secciones, gráficas y chat leen la misma SQLite:
 **una sola fuente de verdad** (regresión: `TestBug008RealisticSeed`).
 
 ### 5. Confirmación humana en escrituras
-`create_savings_goal` / `update_savings_goal` exigen `confirm=True`. Sin él,
+`create_savings_goal` / `update_savings_goal` / `apply_savings_contribution`
+exigen `confirm=True`. Sin él,
 devuelven `requires_confirmation`; el backend lo transforma en una acción
 pendiente para la UI. El orquestador **sobrescribe** `confirm=False` cuando quien
 llama es el LLM: el modelo no puede autorizar escrituras. Validaciones del
 servicio/API: duplicados rechazados (409), montos 0/negativos/absurdos
 (≤ $10,000,000), fechas pasadas, nombres con HTML/script sanitizados.
+
+El abono valida la meta, el monto pendiente y el saldo disponible dentro de una
+transacción SQLite; actualiza el progreso, descuenta saldo sintético, registra
+el movimiento y escribe el resultado idempotente. La confirmación UI se verifica
+con tokens conservados por el servidor.
 
 ### 6. Modo demostración y lenguaje natural por reglas
 Sin API key el agente funciona por reglas sobre las **mismas herramientas MCP

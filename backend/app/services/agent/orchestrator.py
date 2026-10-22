@@ -12,6 +12,7 @@ prompts or architecture details. Prompt-injection attempts receive a kind,
 fixed refusal.
 """
 import asyncio
+import difflib
 import json
 import logging
 import math
@@ -27,16 +28,17 @@ from app.core import config
 from app.core.database import db
 from app.schemas.api import ChatRequest, UIEventIn
 from app.schemas.ui import ChatResponse, CreditParams, CreditResult, CreditSimulatorSpec, \
-    PendingAction, PurchaseOption, PurchasePlanSpec, ScheduleRow
+    PendingAction, PurchaseOption, PurchasePlanSpec, SavingsContributionCandidate, \
+    SavingsContributionSpec, ScheduleRow
 from app.services import finance
 from app.services.agent import composer
 from app.services.agent.providers import ProviderError, ProviderTurn, get_provider
 from app.services.mcp_client import MCPClientError, mcp_client
 
-WRITE_TOOLS = {"create_savings_goal", "update_savings_goal"}
+WRITE_TOOLS = {"create_savings_goal", "update_savings_goal", "apply_savings_contribution"}
 MCP_ALLOWED_TOOLS = {
     "get_balance", "get_transactions", "get_cards", "get_savings_goals",
-    "create_savings_goal", "update_savings_goal", "analyze_spending",
+    "create_savings_goal", "update_savings_goal", "apply_savings_contribution", "analyze_spending",
     "calculate_credit_simulation", "get_monthly_summary", "get_budgets",
     "get_spending_trend", "compare_months", "get_weekly_spending",
     "detect_recurring_charges", "detect_duplicates", "detect_anomalies",
@@ -466,6 +468,13 @@ def detect_intent(text: str) -> str:
     # temporal / trend analysis
     if re.search(r"linea del tiempo|l[ií]nea (del )?(de )?tiempo|cronolog[ií]a|timeline", t):
         return "timeline"
+    if re.search(r"\b(abono|abonar|aportar|aporte)\b", t) and (
+        re.search(r"\b(meta|ahorro|compra|falta|dinero)\b", t)
+        or extract_amount(text) is not None
+    ):
+        return "savings_contribution"
+    if re.search(r"\bestad[ií]sticas?\b", t):
+        return "spending"
     if re.search(r"nomina|aguinaldo|bono de desempe", t):
         return "payroll"
     if re.search(r"cambiado|cambio de|tendencia|evoluci|mes a mes|histori|comportamiento|"
@@ -522,6 +531,11 @@ _CTX: dict = {
     "last_months": None,
     "last_category": None,
     "last_month": None,   # (year, month) for single-month flows
+    "active_goal_id": None,
+    "active_goal_name": None,
+    "last_amount": None,
+    "last_contribution_amount": None,
+    "pending_actions": {},
 }
 
 
@@ -618,6 +632,7 @@ async def _purchase_plan_response(
             message="Puedo comparar compras de $1,000 a $10,000,000. Dime un monto dentro de ese rango.",
             mode="demo", trace_id=trace_id,
         )
+    _CTX["last_amount"] = amount
 
     known_results = known_results or {}
     year, month = _month_defaults()
@@ -902,6 +917,8 @@ async def _purchase_ui_event_response(event: UIEventIn) -> ChatResponse:
         state["spec"] = updated_spec.model_dump()
         state["tools_used"] = response.tools_used
         state["goal_response"] = response.model_dump()
+        _CTX["active_goal_id"] = created_goal["id"]
+        _CTX["active_goal_name"] = created_goal["name"]
         logger.info("purchase_goal_created", extra={"trace_id": event.trace_id})
         _cache_purchase_event(state, event, response)
         return response
@@ -1091,6 +1108,414 @@ async def _demo_savings(text: str) -> ChatResponse:
                "Puedes abonar a una meta desde aquí o pedirme crear una nueva, por ejemplo: "
                "«ayúdame a ahorrar $5,000».")
     return ChatResponse(message=message, mode="demo", ui=[ui], tools_used=["get_savings_goals"])
+
+
+_CONTRIBUTION_STATES: dict[str, dict] = {}
+
+
+def _prune_contribution_states() -> None:
+    now = time.monotonic()
+    pending_actions = _CTX.setdefault("pending_actions", {})
+    expired = [
+        trace for trace, state in _CONTRIBUTION_STATES.items()
+        if now - state["created_at"] > PURCHASE_PLAN_TTL_SECONDS
+    ]
+    for trace in expired:
+        _CONTRIBUTION_STATES.pop(trace, None)
+        pending_actions.pop(trace, None)
+    while len(_CONTRIBUTION_STATES) > MAX_PURCHASE_PLANS:
+        oldest = min(
+            _CONTRIBUTION_STATES,
+            key=lambda trace: _CONTRIBUTION_STATES[trace]["created_at"],
+        )
+        _CONTRIBUTION_STATES.pop(oldest, None)
+        pending_actions.pop(oldest, None)
+
+
+def _goal_match_score(query: str, name: str) -> float:
+    query = " ".join(normalize(query).split())
+    name = " ".join(normalize(name).split())
+    if query == name:
+        return 1.0
+    if query and (query in name or name in query):
+        return 0.9
+    return difflib.SequenceMatcher(None, query, name).ratio()
+
+
+def _contribution_spec(
+    goal: dict,
+    amount: float,
+    available: float,
+    status: str = "confirm_required",
+    token: str | None = None,
+    idempotency_key: str | None = None,
+) -> SavingsContributionSpec:
+    missing = round(max(0, goal["target_amount"] - goal["saved_amount"]), 2)
+    return SavingsContributionSpec(
+        type="savings_contribution",
+        status=status,
+        goal_id=goal["id"],
+        goal_name=goal["name"],
+        target_amount=goal["target_amount"],
+        saved_amount=goal["saved_amount"],
+        remaining_before=missing,
+        contribution_amount=amount,
+        remaining_after=round(missing - amount, 2),
+        available_balance=available,
+        confirmation_token=token,
+        idempotency_key=idempotency_key,
+    )
+
+
+def _contribution_amount(text: str, missing: float) -> float | None:
+    normalized = normalize(text)
+    if re.search(r"\b(la mitad|mitad)\b", normalized):
+        return round(missing / 2, 2)
+    if re.search(r"\b(todo|todo lo que falta|completo|completar)\b", normalized):
+        return round(missing, 2)
+    if re.search(r"\b(el doble|doble)\b", normalized):
+        previous = _CTX.get("last_contribution_amount") or _CTX.get("last_amount")
+        return round(float(previous) * 2, 2) if previous else None
+    return extract_amount(text)
+
+
+def _goal_reference(text: str) -> str | None:
+    normalized = normalize(text)
+    match = re.search(
+        r"\b(?:a|para)\s+(?:la\s+meta\s+)?(.+?)"
+        r"(?=\s+(?:la mitad|mitad|todo|el doble|lo que falta|por)\b|[,.;!?]|$)",
+        normalized,
+    )
+    if not match:
+        return None
+    reference = match.group(1).strip()
+    if reference in {"esa meta", "esta meta", "la meta", "mi meta"}:
+        return None
+    return reference.removeprefix("la meta ").strip() or None
+
+
+async def _prepare_contribution(
+    state: dict,
+    goal: dict,
+    amount: float | None,
+    trace_id: str,
+    known_balance: dict | None = None,
+    mode: str = "demo",
+) -> ChatResponse:
+    missing = round(max(0, goal["target_amount"] - goal["saved_amount"]), 2)
+    available_data = known_balance or await _call_mcp_tool(
+        "get_balance", {}, trace_id, 1, retryable=True,
+    )
+    if not _valid_tool_data(available_data, ("total_balance",)):
+        return ChatResponse(
+            message="No pude verificar tu saldo disponible. Inténtalo de nuevo en un momento.",
+            mode=mode, trace_id=trace_id,
+        )
+    available = _numeric_value(available_data, "total_balance")
+    if missing <= 0:
+        return ChatResponse(
+            message=f"La meta «{goal['name']}» ya está completa; no le falta dinero.",
+            mode=mode, trace_id=trace_id, tools_used=["get_balance"],
+        )
+    if amount is None:
+        state.update({"goal": goal, "available": available, "amount": None})
+        state["selected_goal_id"] = goal["id"]
+        _CTX.setdefault("pending_actions", {})[trace_id] = {
+            "action": "apply_savings_contribution",
+            "goal_id": goal["id"],
+        }
+        return ChatResponse(
+            message=f"Entendí que quieres abonar a «{goal['name']}». Faltan "
+                    f"{composer.money(missing)}. ¿Qué monto quieres abonar?",
+            mode=mode, trace_id=trace_id, tools_used=["get_balance"],
+        )
+    if amount <= 0:
+        return ChatResponse(message="El abono debe ser mayor que cero.", mode=mode,
+                            trace_id=trace_id)
+    if amount > missing:
+        return ChatResponse(
+            message=f"El abono supera lo que falta en «{goal['name']}»: "
+                    f"faltan {composer.money(missing)}. Puedes cambiar el monto.",
+            mode=mode, trace_id=trace_id, tools_used=["get_balance"],
+        )
+    if amount > available:
+        return ChatResponse(
+            message=f"El abono supera tu saldo disponible de {composer.money(available)}. "
+                    "Puedes cambiar el monto.",
+            mode=mode, trace_id=trace_id, tools_used=["get_balance"],
+        )
+
+    token = str(uuid.uuid4())
+    idempotency_key = str(uuid.uuid4())
+    state.update({
+        "goal": goal,
+        "available": available,
+        "amount": round(amount, 2),
+        "token": token,
+        "idempotency_key": idempotency_key,
+        "selected_goal_id": goal["id"],
+    })
+    _CTX.setdefault("pending_actions", {})[trace_id] = {
+        "action": "apply_savings_contribution",
+        "goal_id": goal["id"],
+        "amount": round(amount, 2),
+    }
+    spec = _contribution_spec(
+        goal, round(amount, 2), available, token=token,
+        idempotency_key=idempotency_key,
+    )
+    return ChatResponse(
+        message=(f"Faltan {composer.money(missing)} en «{goal['name']}». "
+                 f"Abonarás {composer.money(amount)} y quedarán "
+                 f"{composer.money(missing - amount)}. Revisa y confirma si estás de acuerdo."),
+        mode=mode, ui=[spec], trace_id=trace_id, tools_used=["get_balance"],
+        suggestions=["¿En qué gasté este mes?", "¿Cuánto dinero tengo?"],
+    )
+
+
+async def _demo_savings_contribution(
+    text: str,
+    trace_id: str,
+    known_results: dict | None = None,
+    mode: str = "demo",
+) -> ChatResponse:
+    _prune_contribution_states()
+    known_results = known_results or {}
+    goals_result = known_results.get("get_savings_goals")
+    if not isinstance(goals_result, dict) or not isinstance(goals_result.get("goals"), list):
+        goals_result = await _call_mcp_tool(
+            "get_savings_goals", {}, trace_id, 1, retryable=True,
+        )
+    if not isinstance(goals_result, dict) or not isinstance(goals_result.get("goals"), list):
+        return ChatResponse(
+            message="No pude verificar tus metas en este momento. Inténtalo de nuevo.",
+            mode=mode, trace_id=trace_id,
+        )
+    goals = [
+        goal for goal in goals_result["goals"]
+        if isinstance(goal, dict)
+        and isinstance(goal.get("id"), int)
+        and isinstance(goal.get("name"), str)
+        and isinstance(goal.get("target_amount"), (int, float))
+        and isinstance(goal.get("saved_amount"), (int, float))
+        and math.isfinite(goal["target_amount"])
+        and math.isfinite(goal["saved_amount"])
+        and goal["target_amount"] > 0
+    ]
+    if not goals:
+        return ChatResponse(
+            message="Todavía no hay metas de ahorro. Primero crea una meta y después te ayudo con el abono.",
+            mode=mode, trace_id=trace_id, tools_used=["get_savings_goals"],
+        )
+
+    reference = _goal_reference(text)
+    if reference is None and _CTX.get("active_goal_id"):
+        active = next((g for g in goals if g["id"] == _CTX["active_goal_id"]), None)
+        matched = [active] if active else goals
+    elif reference is None:
+        matched = goals
+    else:
+        ranked = sorted(
+            ((_goal_match_score(reference, goal["name"]), goal) for goal in goals),
+            key=lambda pair: pair[0],
+            reverse=True,
+        )
+        if not ranked or ranked[0][0] < 0.48:
+            matched = []
+        elif len(ranked) > 1 and ranked[0][0] - ranked[1][0] < 0.12:
+            matched = [
+                goal for score, goal in ranked
+                if score >= 0.48 and ranked[0][0] - score < 0.12
+            ]
+        else:
+            matched = [ranked[0][1]]
+
+    if not matched:
+        return ChatResponse(
+            message="Entendí que quieres hacer un abono, pero no pude identificar la meta. "
+                    "Dime el nombre de la meta o elige una desde Metas.",
+            mode=mode, trace_id=trace_id, tools_used=["get_savings_goals"],
+        )
+
+    state = {
+        "events": {},
+        "goals": goals,
+        "source_text": text,
+        "created_at": time.monotonic(),
+        "goal_response": None,
+        "mode": mode,
+        "known_balance": (
+            known_results.get("get_balance")
+            if _valid_tool_data(known_results.get("get_balance"), ("total_balance",))
+            else None
+        ),
+    }
+    if len(matched) > 1:
+        state["candidates"] = matched
+        _CONTRIBUTION_STATES[trace_id] = state
+        return ChatResponse(
+            message="Encontré más de una meta parecida. Elige a cuál quieres abonar:",
+            mode=mode,
+            trace_id=trace_id,
+            tools_used=["get_savings_goals"],
+            ui=[SavingsContributionSpec(
+                type="savings_contribution",
+                status="select_goal",
+                candidates=[
+                    SavingsContributionCandidate(
+                        goal_id=g["id"], goal_name=g["name"],
+                        target_amount=g["target_amount"], saved_amount=g["saved_amount"],
+                    )
+                    for g in matched
+                ],
+            )],
+        )
+
+    goal = matched[0]
+    _CTX["active_goal_id"] = goal["id"]
+    _CTX["active_goal_name"] = goal["name"]
+    explicit_amount = extract_amount(text)
+    if explicit_amount is not None:
+        _CTX["last_amount"] = explicit_amount
+    amount = _contribution_amount(text, max(0, goal["target_amount"] - goal["saved_amount"]))
+    state["goal"] = goal
+    _CONTRIBUTION_STATES[trace_id] = state
+    return await _prepare_contribution(
+        state, goal, amount, trace_id, known_balance=state["known_balance"], mode=mode,
+    )
+
+
+async def _savings_contribution_event_response(event: UIEventIn) -> ChatResponse:
+    _prune_contribution_states()
+    state = _CONTRIBUTION_STATES.get(event.trace_id)
+    if not state:
+        return ChatResponse(
+            message="Esta confirmación ya venció. Vuelve a pedir el abono para revisar los datos.",
+            mode="demo", trace_id=event.trace_id,
+        )
+    cached = state["events"].get(event.id)
+    if cached:
+        return ChatResponse.model_validate(cached)
+    if event.type == "savings_contribution_confirmed" and state.get("goal_response"):
+        payload = event.payload.model_dump()
+        if payload["confirmation_token"] == state.get("token") and \
+                payload["idempotency_key"] == state.get("idempotency_key"):
+            return ChatResponse.model_validate(state["goal_response"])
+
+    payload = event.payload.model_dump()
+    if event.type == "savings_goal_selected":
+        goal = next(
+            (item for item in state.get("candidates", [])
+             if item["id"] == payload.get("goal_id")),
+            None,
+        )
+        if not goal:
+            return ChatResponse(
+                message="No pude verificar esa meta. Vuelve a elegirla.",
+                mode=state["mode"], trace_id=event.trace_id,
+            )
+        _CTX["active_goal_id"] = goal["id"]
+        _CTX["active_goal_name"] = goal["name"]
+        amount = _contribution_amount(
+            state["source_text"], goal["target_amount"] - goal["saved_amount"],
+        )
+        response = await _prepare_contribution(
+            state, goal, amount, event.trace_id, mode=state["mode"],
+        )
+    elif event.type == "savings_contribution_amount_changed":
+        goal = state.get("goal")
+        response = await _prepare_contribution(
+            state, goal, float(payload["amount"]), event.trace_id,
+            mode=state["mode"],
+        ) if goal else ChatResponse(
+            message="No pude encontrar la meta para actualizar el monto.",
+            mode=state["mode"], trace_id=event.trace_id,
+        )
+    elif event.type == "savings_contribution_confirmed":
+        goal = state.get("goal")
+        if not goal or (
+            payload.get("goal_id") != goal["id"]
+            or round(float(payload["amount"]), 2) != state.get("amount")
+            or payload.get("confirmation_token") != state.get("token")
+            or payload.get("idempotency_key") != state.get("idempotency_key")
+        ):
+            return ChatResponse(
+                message="No pude verificar los datos del abono. Revisa la tarjeta y vuelve a confirmar.",
+                mode=state["mode"], trace_id=event.trace_id,
+            )
+        result = await _call_mcp_tool(
+            "apply_savings_contribution",
+            {
+                "goal_id": goal["id"],
+                "amount": state["amount"],
+                "confirm": True,
+                "idempotency_key": state["idempotency_key"],
+            },
+            event.trace_id, 1, retryable=False,
+        )
+        if result.get("status") != "applied":
+            response = ChatResponse(
+                message=result.get("message") or
+                        "No pude registrar el abono. Revisa el saldo y el monto restante.",
+                mode=state["mode"], trace_id=event.trace_id,
+            )
+        else:
+            goals_result = await _call_mcp_tool(
+                "get_savings_goals", {}, event.trace_id, 2, retryable=True,
+            )
+            fresh_goal = next(
+                (g for g in goals_result.get("goals", [])
+                 if g["id"] == goal["id"]),
+                result["goal"],
+            )
+            amount = float(result["amount"])
+            response = ChatResponse(
+                message=(f"Listo. Registré un abono de {composer.money(amount)} a "
+                         f"«{fresh_goal['name']}». Ahora llevas "
+                         f"{composer.money(fresh_goal['saved_amount'])} de "
+                         f"{composer.money(fresh_goal['target_amount'])}. "
+                         "¿Quieres revisar otra meta o tus movimientos?"),
+                mode=state["mode"],
+                trace_id=event.trace_id,
+                tools_used=["apply_savings_contribution", "get_savings_goals"],
+                ui=[
+                    SavingsContributionSpec(
+                        type="savings_contribution",
+                        status="completed",
+                        goal_id=fresh_goal["id"],
+                        goal_name=fresh_goal["name"],
+                        target_amount=fresh_goal["target_amount"],
+                        saved_amount=fresh_goal["saved_amount"],
+                        remaining_before=round(
+                            fresh_goal["target_amount"] -
+                            (fresh_goal["saved_amount"] - amount), 2,
+                        ),
+                        contribution_amount=amount,
+                        remaining_after=round(
+                            fresh_goal["target_amount"] - fresh_goal["saved_amount"], 2,
+                        ),
+                        available_balance=result["available_balance"],
+                    ),
+                    composer.savings_progress_ui(goals_result.get("goals", [])),
+                ],
+                suggestions=["¿Cómo voy con mis metas?", "¿Qué movimientos hice hoy?"],
+            )
+            state["goal_response"] = response.model_dump()
+            _CTX["last_contribution_amount"] = amount
+            _CTX["active_goal_id"] = fresh_goal["id"]
+            _CTX["active_goal_name"] = fresh_goal["name"]
+            _CTX["last_amount"] = amount
+            _CTX.setdefault("pending_actions", {}).pop(event.trace_id, None)
+    else:
+        response = ChatResponse(
+            message="No entendí esa acción. Vuelve a solicitar el abono desde el chat.",
+            mode=state["mode"], trace_id=event.trace_id,
+        )
+
+    state["events"][event.id] = response.model_dump()
+    if len(state["events"]) > MAX_PURCHASE_EVENTS_PER_PLAN:
+        state["events"].pop(next(iter(state["events"])))
+    return ChatResponse.model_validate(response.model_dump())
 
 
 async def _demo_credit(text: str) -> ChatResponse:
@@ -1521,6 +1946,8 @@ async def demo_response(req: ChatRequest, trace_id: str | None = None) -> ChatRe
         return await _demo_movements(text)
     if intent == "savings":
         return await _demo_savings(text)
+    if intent == "savings_contribution":
+        return await _demo_savings_contribution(text, trace_id or uuid.uuid4().hex)
     if intent == "credit":
         return await _demo_credit(text)
     if intent == "budget":
@@ -1619,6 +2046,9 @@ async def live_response(req: ChatRequest, trace_id: str | None = None) -> ChatRe
     provider = get_provider()
     specs = [spec for spec in mcp_client.tool_specs()
              if spec["name"] in MCP_ALLOWED_TOOLS]
+    if intent == "savings_contribution":
+        read_tools = {"get_savings_goals", "get_balance"}
+        specs = [spec for spec in specs if spec["name"] in read_tools]
     allowed_tools = {spec["name"] for spec in specs}
     trace_id = trace_id or uuid.uuid4().hex
     messages = []
@@ -1637,6 +2067,12 @@ async def live_response(req: ChatRequest, trace_id: str | None = None) -> ChatRe
             "detect_recurring_charges, y simula el monto exacto a 12, 18 y 24 meses con "
             "calculate_credit_simulation. No inventes cifras. El componente final lo valida "
             "y calcula el servidor."
+        )
+    elif intent == "savings_contribution":
+        system_prompt += (
+            "\nPara preparar un abono a una meta, usa get_savings_goals y get_balance "
+            "para verificar los datos. No llames herramientas de escritura ni confirmes "
+            "el abono; el servidor mostrará el cálculo y esperará un evento UI confirmado."
         )
 
     tool_names: list[str] = []
@@ -1699,6 +2135,12 @@ async def live_response(req: ChatRequest, trace_id: str | None = None) -> ChatRe
         )
         response.tools_used = list(dict.fromkeys([*tool_names, *response.tools_used]))
         return ChatResponse.model_validate(response.model_dump())
+    if intent == "savings_contribution":
+        response = await _demo_savings_contribution(
+            req.message, trace_id, known_results=tool_results, mode="live",
+        )
+        response.tools_used = list(dict.fromkeys([*tool_names, *response.tools_used]))
+        return response
 
     uis = _ui_from_results(tool_results)
     return ChatResponse(
@@ -1809,6 +2251,8 @@ async def handle_chat(req: ChatRequest) -> ChatResponse:
         },
     )
     if req.ui_event is not None:
+        if req.ui_event.type.startswith("savings_"):
+            return await _savings_contribution_event_response(req.ui_event)
         return ChatResponse.model_validate(
             (await _purchase_ui_event_response(req.ui_event)).model_dump(),
         )
@@ -1851,28 +2295,5 @@ async def handle_chat(req: ChatRequest) -> ChatResponse:
                 response.mode = "demo"
 
     response.suggestions = SUGGESTIONS_BY_INTENT.get(intent, HELP_SUGGESTIONS[:3])
-    if response.ui and not response.interaction_context.get("navigate"):
-        if intent in {
-            "spending", "trend", "timeline", "movements", "weekly", "duplicates",
-            "recurring", "anomalies",
-        }:
-            target = "movimientos"
-        elif intent in {"budget", "afford"}:
-            target = "presupuesto"
-        elif intent == "savings":
-            target = "ahorro"
-        else:
-            target = "dashboard"
-        labels = {
-            "movimientos": "Movimientos",
-            "presupuesto": "Presupuesto",
-            "ahorro": "Metas de ahorro",
-            "dashboard": "Resumen",
-        }
-        response.interaction_context = {
-            **response.interaction_context,
-            "navigate": target,
-            "screen_label": labels[target],
-        }
     response.trace_id = trace_id
     return ChatResponse.model_validate(response.model_dump())

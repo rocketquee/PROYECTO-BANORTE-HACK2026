@@ -94,6 +94,49 @@ class SavingsProgressSpec(Strict):
     goals: list[GoalProgress]
 
 
+class SavingsContributionCandidate(Strict):
+    goal_id: int
+    goal_name: str
+    target_amount: float
+    saved_amount: float
+
+
+class SavingsContributionSpec(Strict):
+    type: Literal["savings_contribution"]
+    status: Literal["select_goal", "confirm_required", "completed"]
+    goal_id: int | None = None
+    goal_name: str | None = None
+    target_amount: float | None = Field(default=None, ge=0)
+    saved_amount: float | None = Field(default=None, ge=0)
+    remaining_before: float | None = Field(default=None, ge=0)
+    contribution_amount: float | None = Field(default=None, gt=0)
+    remaining_after: float | None = Field(default=None, ge=0)
+    available_balance: float | None = Field(default=None, ge=0)
+    confirmation_token: str | None = Field(default=None, min_length=36, max_length=64)
+    idempotency_key: str | None = Field(default=None, min_length=36, max_length=36)
+    candidates: list[SavingsContributionCandidate] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_contribution_state(self):
+        if self.status == "select_goal" and not self.candidates:
+            raise ValueError("La selección debe incluir al menos una meta.")
+        if self.status in ("confirm_required", "completed") and not all((
+            self.goal_id, self.goal_name, self.target_amount is not None,
+            self.saved_amount is not None, self.remaining_before is not None,
+            self.contribution_amount is not None, self.remaining_after is not None,
+        )):
+            raise ValueError("El abono debe incluir el cálculo completo.")
+        if self.status == "confirm_required" and not all((
+            self.confirmation_token, self.idempotency_key,
+        )):
+            raise ValueError("El abono requiere una confirmación verificable.")
+        if self.status == "completed" and (
+            self.confirmation_token or self.idempotency_key
+        ):
+            raise ValueError("Un abono completado no debe conservar claves de confirmación.")
+        return self
+
+
 # ---------- credit simulator ----------
 
 class CreditParams(Strict):
@@ -272,6 +315,7 @@ UISpec = Annotated[
         TransactionsTableSpec,
         SavingsGoalFormSpec,
         SavingsProgressSpec,
+        SavingsContributionSpec,
         CreditSimulatorSpec,
         PurchasePlanSpec,
         BudgetPlannerSpec,
@@ -288,6 +332,7 @@ AUTHORIZED_COMPONENTS = [
     "financial_summary", "spending_chart", "transactions_table", "savings_goal_form",
     "savings_progress", "credit_simulator", "budget_planner", "recommendation_list",
     "trend_chart", "comparison", "timeline", "alert_list", "purchase_plan",
+    "savings_contribution",
 ]
 
 

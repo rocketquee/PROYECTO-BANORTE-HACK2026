@@ -41,28 +41,62 @@ class PurchaseOptionSelectedPayload(Strict):
     idempotency_key: str | None = Field(default=None, min_length=36, max_length=36)
 
 
+class SavingsGoalSelectedPayload(Strict):
+    goal_id: int = Field(gt=0)
+
+
+class SavingsContributionAmountPayload(Strict):
+    amount: float = Field(gt=0, le=10_000_000)
+
+
+class SavingsContributionConfirmedPayload(Strict):
+    goal_id: int = Field(gt=0)
+    amount: float = Field(gt=0, le=10_000_000)
+    confirmation_token: str = Field(min_length=36, max_length=64)
+    idempotency_key: str = Field(min_length=36, max_length=36)
+
+
 class UIEventIn(Strict):
     id: str = Field(min_length=8, max_length=128)
     type: Literal[
         "purchase_option_selected",
         "purchase_goal_create_requested",
         "purchase_goal_confirmed",
+        "savings_goal_selected",
+        "savings_contribution_amount_changed",
+        "savings_contribution_confirmed",
     ]
-    payload: PurchaseOptionSelectedPayload
+    payload: PurchaseOptionSelectedPayload | SavingsGoalSelectedPayload | \
+        SavingsContributionAmountPayload | SavingsContributionConfirmedPayload
     trace_id: str = Field(min_length=8, max_length=128)
 
     @model_validator(mode="after")
     def validate_event_payload(self):
         if self.type == "purchase_goal_create_requested" and \
-                self.payload.option_id != "savings_12":
+                (not isinstance(self.payload, PurchaseOptionSelectedPayload)
+                 or self.payload.option_id != "savings_12"):
             raise ValueError("Solo puede solicitarse una meta desde la opción de ahorro.")
         if self.type == "purchase_goal_confirmed":
-            if self.payload.option_id != "savings_12" or not all((
+            if not isinstance(self.payload, PurchaseOptionSelectedPayload) or \
+                    self.payload.option_id != "savings_12" or not all((
                 self.payload.confirmation_token, self.payload.idempotency_key,
             )):
                 raise ValueError("La confirmación requiere la opción y sus claves.")
-        elif self.payload.confirmation_token or self.payload.idempotency_key:
+        elif isinstance(self.payload, PurchaseOptionSelectedPayload) and \
+                (self.payload.confirmation_token or self.payload.idempotency_key):
             raise ValueError("Este evento no puede incluir claves de confirmación.")
+        if self.type == "savings_goal_selected" and not isinstance(
+            self.payload, SavingsGoalSelectedPayload
+        ):
+            raise ValueError("La selección de meta requiere su identificador.")
+        if self.type == "savings_contribution_amount_changed" and not isinstance(
+            self.payload, SavingsContributionAmountPayload
+        ):
+            raise ValueError("El cambio de monto requiere un importe válido.")
+        if self.type == "savings_contribution_confirmed" and not isinstance(
+            self.payload, SavingsContributionConfirmedPayload
+        ):
+            raise ValueError("La confirmación requiere los datos del abono.")
         return self
 
 

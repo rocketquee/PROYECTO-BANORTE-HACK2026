@@ -15,6 +15,7 @@ import Comparison from "./Comparison";
 import Timeline from "./Timeline";
 import AlertList from "./AlertList";
 import PurchasePlan from "./PurchasePlan";
+import SavingsContribution from "./SavingsContribution";
 
 interface RendererProps {
   spec: UISpec;
@@ -26,6 +27,9 @@ interface RendererProps {
   onPurchaseOptionSelect?: (optionId: PurchaseOption["option_id"], label: string, traceId: string) => void;
   onPurchaseGoalRequest?: (traceId: string) => void;
   onPurchaseGoalConfirm?: (traceId: string, confirmationToken: string, idempotencyKey: string) => void;
+  onContributionGoalSelect?: (goalId: number, traceId: string) => void;
+  onContributionAmountChange?: (amount: number, traceId: string) => void;
+  onContributionConfirm?: (goalId: number, amount: number, token: string, key: string, traceId: string) => void;
   traceId?: string | null;
   loading?: boolean;
 }
@@ -80,6 +84,22 @@ export default function DynamicRenderer(props: RendererProps) {
             props.traceId && props.onPurchaseGoalConfirm?.(
               props.traceId, confirmationToken, idempotencyKey,
             )
+          }
+        />
+      );
+    case "savings_contribution":
+      return (
+        <SavingsContribution
+          spec={spec}
+          loading={props.loading ?? false}
+          onSelectGoal={(goalId) =>
+            props.traceId && props.onContributionGoalSelect?.(goalId, props.traceId)
+          }
+          onChangeAmount={(amount) =>
+            props.traceId && props.onContributionAmountChange?.(amount, props.traceId)
+          }
+          onConfirm={(goalId, amount, token, key) =>
+            props.traceId && props.onContributionConfirm?.(goalId, amount, token, key, props.traceId)
           }
         />
       );
