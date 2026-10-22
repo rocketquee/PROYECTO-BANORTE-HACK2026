@@ -80,7 +80,8 @@ export interface SavingsContributionCandidate {
 
 export interface SavingsContributionSpec {
   type: "savings_contribution";
-  status: "select_goal" | "confirm_required" | "completed";
+  status: "select_goal" | "goal_not_found" | "confirm_required" | "completed";
+  requested_goal_name?: string | null;
   goal_id?: number | null;
   goal_name?: string | null;
   target_amount?: number | null;

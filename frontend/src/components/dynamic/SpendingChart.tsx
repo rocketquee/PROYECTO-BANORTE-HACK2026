@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import type { SpendingChartSpec } from "@/types/contract";
 import { CHART_COLORS, money } from "@/lib/format";
@@ -14,10 +14,22 @@ export default function SpendingChart({
   spec, onAsk,
 }: { spec: SpendingChartSpec; onAsk: (message: string) => void }) {
   const [view, setView] = useState<"chart" | "table">("chart");
+  const [compact, setCompact] = useState(false);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
   const total = spec.series.reduce((acc, s) => acc + s.amount, 0);
   const summary = spec.series
     .map((s) => `${s.category}: ${money(s.amount)} (${s.pct}%)`)
     .join("; ");
+
+  useEffect(() => {
+    const container = chartContainerRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setCompact(entry.contentRect.width < 500);
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
@@ -38,6 +50,7 @@ export default function SpendingChart({
 
       {view === "chart" ? (
         <>
+          <div ref={chartContainerRef} className="min-w-0">
           <ResponsiveContainer width="100%" height={320}>
             <PieChart role="img"
                       aria-label={`Gráfica de gastos: ${summary}. Total ${money(total)}.`}>
@@ -48,10 +61,11 @@ export default function SpendingChart({
                 innerRadius={70}
                 outerRadius={110}
                 paddingAngle={2}
-                label={(props: { name?: string; percent?: number }) =>
-                  `${props.name ?? ""} ${Math.round((props.percent ?? 0) * 100)}%`
-                }
-                labelLine
+                label={compact
+                  ? false
+                  : (props: { name?: string; percent?: number }) =>
+                    `${props.name ?? ""} ${Math.round((props.percent ?? 0) * 100)}%`}
+                labelLine={!compact}
                 onClick={(entry: unknown) => {
                   const category = (entry as { category?: string })?.category;
                   if (category) onAsk(`¿Cómo puedo reducir mis gastos en ${category}?`);
@@ -66,7 +80,10 @@ export default function SpendingChart({
               <Tooltip formatter={(v, name) => [money(Number(v)), String(name)]} />
             </PieChart>
           </ResponsiveContainer>
-          <ul className="mt-3 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+          </div>
+          <ul className={`mt-3 grid grid-cols-1 gap-1.5 ${
+            compact ? "" : "sm:grid-cols-2"
+          }`}>
             {spec.series.map((s, i) => (
               <li key={s.category} className="flex items-center gap-2 text-base">
                 <span
@@ -74,7 +91,7 @@ export default function SpendingChart({
                   style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
                   aria-hidden="true"
                 />
-                <span className="min-w-0 flex-1 truncate text-neutral-800">{s.category}</span>
+                <span className="min-w-0 flex-1 break-words text-neutral-800">{s.category}</span>
                 <span className="tabular-nums text-neutral-900">{money(s.amount)}</span>
                 <span className="tabular-nums text-neutral-600">({s.pct}%)</span>
               </li>

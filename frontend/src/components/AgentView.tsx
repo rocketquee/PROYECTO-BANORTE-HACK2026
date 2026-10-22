@@ -21,12 +21,10 @@ export default function AgentView({
   onGoalsChanged,
   onNavigate,
   pendingQuestion,
-  onClose,
 }: {
   onGoalsChanged: () => void;
   onNavigate: OnNavigate;
   pendingQuestion?: { text: string; nonce: number } | null;
-  onClose: () => void;
 }) {
   const store = useChatStore();
   const conversation = activeConversation(store);
@@ -202,23 +200,14 @@ export default function AgentView({
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-      <header className="flex min-h-[56px] shrink-0 items-center justify-between gap-2 border-b border-neutral-200 px-3 py-2">
+      <header className="flex min-h-[56px] shrink-0 items-center gap-2 border-b border-[var(--line)] px-3 py-2">
         <div className="min-w-0">
           <h2 className="truncate text-[18px] font-semibold">Asistente financiero</h2>
-          <p className="truncate text-base text-neutral-700">Prototipo educativo · datos ficticios</p>
+          <p className="truncate text-base text-[var(--muted)]">Prototipo educativo · datos ficticios</p>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Contraer asistente (Alt+A)"
-          title="Contraer asistente (Alt+A)"
-          className="min-h-[48px] min-w-[48px] shrink-0 rounded-lg border border-neutral-400 px-3 text-[18px] font-semibold text-neutral-800 hover:border-brand focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-brand"
-        >
-          ×
-        </button>
       </header>
-    <div className={`relative grid min-h-0 flex-1 grid-cols-1 overflow-hidden ${store.detail ? "xl:grid-cols-[minmax(0,1fr)_420px]" : ""}`}>
-      <div className="flex h-full min-h-0 flex-col">
+    <div className="relative flex min-h-0 flex-1 overflow-hidden">
+      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-2">
         {messages.length === 0 && (
           <div className="rounded-2xl bg-white p-3 text-base shadow-sm">
@@ -226,8 +215,7 @@ export default function AgentView({
               ¡Hola! Soy tu asistente de IA de demostración.
             </p>
             <p className="mt-2 text-neutral-700">
-              Prototipo educativo inspirado en Banorte. No soy una persona ni el banco oficial;
-              uso datos ficticios. Elige una pregunta:
+              Prototipo educativo inspirado en Banorte. No soy una persona ni el banco oficial; uso datos ficticios. Elige una pregunta:
             </p>
             <div className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2">
               {QUICK_PROMPTS.map((p) => (
@@ -418,10 +406,8 @@ export default function AgentView({
       </form>
       </div>
 
-      {/* Expanded-detail panel (UI-2): only rendered while a result is open,
-          so it never reserves space nor shows placeholder copy when closed. */}
       {store.detail && (
-        <div className="absolute inset-y-0 right-0 z-20 flex h-full min-h-0 w-full max-w-[420px] flex-col overflow-hidden border-l border-neutral-200 bg-neutral-50 shadow-xl xl:static xl:w-auto xl:max-w-none xl:shadow-none">
+        <div className="absolute inset-0 z-20 ml-auto flex h-full min-h-0 w-full max-w-[min(100%,520px)] flex-col overflow-hidden border-l border-[var(--line)] bg-[var(--surface)] shadow-xl">
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-neutral-200 bg-neutral-50 px-5 py-4">
             <div className="min-w-0">
               <h2 className="text-base font-semibold">Detalle expandido</h2>

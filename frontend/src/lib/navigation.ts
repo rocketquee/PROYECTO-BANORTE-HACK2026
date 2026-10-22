@@ -5,11 +5,11 @@ export type ViewId =
 
 export const NAV_ITEMS: { id: ViewId; label: string; icon: string; group: "principal" | "productos" | "soporte" }[] = [
   { id: "inicio", label: "Inicio", icon: "M3 10.5 12 3l9 7.5M5 9v12h14V9m-9 12v-7h4v7", group: "principal" },
+  { id: "asistente", label: "Asistente", icon: "M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z", group: "principal" },
   { id: "dashboard", label: "Resumen", icon: "M3 3h8v8H3zM13 3h8v5h-8zM13 10h8v11h-8zM3 13h8v8H3z", group: "principal" },
   { id: "movimientos", label: "Movimientos", icon: "M4 6h16M4 12h16M4 18h10", group: "principal" },
   { id: "presupuesto", label: "Presupuesto", icon: "M12 8v8m-4-4h8M3 12a9 9 0 1018 0 9 9 0 00-18 0z", group: "principal" },
   { id: "ahorro", label: "Metas", icon: "M12 3v2m0 14v2M5 12H3m18 0h-2M6.3 6.3L4.9 4.9m12.8 1.4l1.4-1.4M7 17a5 5 0 1110 0 5 5 0 01-10 0z", group: "principal" },
-  { id: "asistente", label: "Asistente", icon: "M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z", group: "principal" },
   { id: "tarjetas", label: "Tarjetas", icon: "M2 8h20M2 6a2 2 0 012-2h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2z", group: "principal" },
   { id: "cuentas", label: "Mis cuentas", icon: "M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6", group: "productos" },
   { id: "pagos", label: "Pagos y transferencias", icon: "M7 10h10M7 14h4m9-2a9 9 0 11-18 0 9 9 0 0118 0z", group: "productos" },

@@ -103,7 +103,8 @@ class SavingsContributionCandidate(Strict):
 
 class SavingsContributionSpec(Strict):
     type: Literal["savings_contribution"]
-    status: Literal["select_goal", "confirm_required", "completed"]
+    status: Literal["select_goal", "goal_not_found", "confirm_required", "completed"]
+    requested_goal_name: str | None = None
     goal_id: int | None = None
     goal_name: str | None = None
     target_amount: float | None = Field(default=None, ge=0)
@@ -120,6 +121,8 @@ class SavingsContributionSpec(Strict):
     def validate_contribution_state(self):
         if self.status == "select_goal" and not self.candidates:
             raise ValueError("La selección debe incluir al menos una meta.")
+        if self.status == "goal_not_found" and not self.requested_goal_name:
+            raise ValueError("La meta solicitada debe incluir su nombre.")
         if self.status in ("confirm_required", "completed") and not all((
             self.goal_id, self.goal_name, self.target_amount is not None,
             self.saved_amount is not None, self.remaining_before is not None,

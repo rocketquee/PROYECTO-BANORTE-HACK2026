@@ -1194,6 +1194,18 @@ def _goal_reference(text: str) -> str | None:
     return reference.removeprefix("la meta ").strip() or None
 
 
+def _goal_reference_label(text: str, fallback: str) -> str:
+    match = re.search(
+        r"\b(?:a|para)\s+(?:la\s+meta\s+)?(.+?)"
+        r"(?=\s+(?:la mitad|mitad|todo|el doble|lo que falta|por)\b|[,.;!?]|$)",
+        text,
+        re.IGNORECASE,
+    )
+    if not match:
+        return fallback[:1].upper() + fallback[1:]
+    return re.sub(r"^la meta\s+", "", match.group(1).strip(), flags=re.IGNORECASE)
+
+
 async def _prepare_contribution(
     state: dict,
     goal: dict,
@@ -1302,13 +1314,25 @@ async def _demo_savings_contribution(
         and math.isfinite(goal["saved_amount"])
         and goal["target_amount"] > 0
     ]
+    reference = _goal_reference(text)
+    reference_label = (
+        _goal_reference_label(text, reference) if reference else None
+    )
     if not goals:
+        message = (
+            f"No encuentro una meta llamada {reference_label}. "
+            "Puedes crearla con el formulario de abajo."
+            if reference_label
+            else "Todavía no hay metas de ahorro. Crea una meta y después te ayudo con el abono."
+        )
         return ChatResponse(
-            message="Todavía no hay metas de ahorro. Primero crea una meta y después te ayudo con el abono.",
-            mode=mode, trace_id=trace_id, tools_used=["get_savings_goals"],
+            message=message,
+            mode=mode,
+            trace_id=trace_id,
+            tools_used=["get_savings_goals"],
+            ui=[composer.savings_goal_form_ui(name=reference_label)],
         )
 
-    reference = _goal_reference(text)
     if reference is None and _CTX.get("active_goal_id"):
         active = next((g for g in goals if g["id"] == _CTX["active_goal_id"]), None)
         matched = [active] if active else goals
@@ -1331,10 +1355,35 @@ async def _demo_savings_contribution(
             matched = [ranked[0][1]]
 
     if not matched:
+        assert reference_label is not None
+        suggestions = sorted(
+            goals,
+            key=lambda goal: _goal_match_score(reference, goal["name"]),
+            reverse=True,
+        )
         return ChatResponse(
-            message="Entendí que quieres hacer un abono, pero no pude identificar la meta. "
-                    "Dime el nombre de la meta o elige una desde Metas.",
-            mode=mode, trace_id=trace_id, tools_used=["get_savings_goals"],
+            message=f"No encuentro una meta llamada {reference_label}. "
+                    "Elige una meta existente o puedes crearla con el formulario de abajo.",
+            mode=mode,
+            trace_id=trace_id,
+            tools_used=["get_savings_goals"],
+            ui=[
+                SavingsContributionSpec(
+                    type="savings_contribution",
+                    status="goal_not_found",
+                    requested_goal_name=reference_label,
+                    candidates=[
+                        SavingsContributionCandidate(
+                            goal_id=goal["id"],
+                            goal_name=goal["name"],
+                            target_amount=goal["target_amount"],
+                            saved_amount=goal["saved_amount"],
+                        )
+                        for goal in suggestions
+                    ],
+                ),
+                composer.savings_goal_form_ui(name=reference_label),
+            ],
         )
 
     state = {

@@ -20,23 +20,38 @@ export default function SavingsContribution({
   const [editing, setEditing] = useState(false);
   const [amount, setAmount] = useState(spec.contribution_amount?.toString() ?? "");
 
-  if (spec.status === "select_goal") {
+  if (spec.status === "select_goal" || spec.status === "goal_not_found") {
     return (
       <section className="rounded-2xl border border-neutral-300 bg-white p-4" aria-labelledby="goal-select-title">
-        <h3 id="goal-select-title" className="text-[18px] font-semibold">¿A cuál meta te refieres?</h3>
-        <div className="mt-3 grid gap-2">
-          {spec.candidates.map((goal) => (
-            <button
-              key={goal.goal_id}
-              type="button"
-              disabled={loading}
-              onClick={() => onSelectGoal(goal.goal_id)}
-              className="min-h-[48px] rounded-xl border-2 border-neutral-300 px-4 py-2 text-left text-[18px] hover:border-brand focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:opacity-60"
-            >
-              {goal.goal_name} · faltan {money(Math.max(0, goal.target_amount - goal.saved_amount))}
-            </button>
-          ))}
-        </div>
+        {spec.status === "goal_not_found" ? (
+          <>
+            <h3 id="goal-select-title" className="text-[18px] font-semibold">
+              No encuentro una meta llamada {spec.requested_goal_name}
+            </h3>
+            <p className="mt-2 text-[18px]">
+              {spec.candidates.length
+                ? "Puedes elegir una meta existente o crearla abajo."
+                : "Puedes crearla con el formulario de abajo."}
+            </p>
+          </>
+        ) : (
+          <h3 id="goal-select-title" className="text-[18px] font-semibold">¿A cuál meta te refieres?</h3>
+        )}
+        {spec.candidates.length > 0 && (
+          <div className="mt-3 grid gap-2">
+            {spec.candidates.map((goal) => (
+              <button
+                key={goal.goal_id}
+                type="button"
+                disabled={loading}
+                onClick={() => onSelectGoal(goal.goal_id)}
+                className="min-h-[48px] rounded-xl border-2 border-neutral-300 px-4 py-2 text-left text-[18px] hover:border-brand focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:opacity-60"
+              >
+                {goal.goal_name} · faltan {money(Math.max(0, goal.target_amount - goal.saved_amount))}
+              </button>
+            ))}
+          </div>
+        )}
       </section>
     );
   }

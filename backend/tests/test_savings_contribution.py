@@ -143,6 +143,37 @@ async def test_half_of_remaining_contribution_calculates_and_waits_for_confirmat
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("goals", [[], [{
+    "id": 920, "name": "Ahorro de viaje", "target_amount": 20_000,
+    "saved_amount": 5_000, "progress_pct": 25, "deadline": None, "status": "activa",
+}]])
+async def test_typo_abono_to_missing_goal_offers_existing_goals_and_create_form(
+    monkeypatch, goals,
+):
+    async def call_tool(name, _arguments):
+        if name == "get_savings_goals":
+            return {"goals": goals}
+        if name == "get_balance":
+            return {"total_balance": 50_000}
+        raise AssertionError(f"Unexpected write or tool: {name}")
+
+    monkeypatch.setattr(orch.mcp_client, "session", object())
+    monkeypatch.setattr(orch.mcp_client, "call", call_tool)
+    response = await orch.handle_chat(ChatRequest(
+        message="quiero hacer una abono a Compra planeada, la mitad de lo que falta",
+    ))
+
+    assert response.message.startswith("No encuentro una meta llamada Compra planeada")
+    assert response.ui[-1].type == "savings_goal_form"
+    assert response.ui[-1].suggested_name == "Compra planeada"
+    if goals:
+        assert response.ui[0].status == "goal_not_found"
+        assert [candidate.goal_id for candidate in response.ui[0].candidates] == [920]
+    else:
+        assert [component.type for component in response.ui] == ["savings_goal_form"]
+
+
+@pytest.mark.asyncio
 async def test_contribution_confirmation_is_verified_and_replay_does_not_duplicate(monkeypatch):
     calls = []
     before = {

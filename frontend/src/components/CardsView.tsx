@@ -97,10 +97,12 @@ function DemoSwitch({
   label,
   enabled,
   onToggle,
+  compact = false,
 }: {
   label: string;
   enabled: boolean;
   onToggle: () => void;
+  compact?: boolean;
 }) {
   return (
     <button
@@ -109,7 +111,9 @@ function DemoSwitch({
       aria-checked={enabled}
       aria-label={label}
       onClick={onToggle}
-      className="flex min-h-[48px] w-[176px] min-w-[176px] shrink-0 items-center justify-between gap-1 rounded-full border border-[var(--line)] bg-[var(--surface-subtle)] px-2 text-[18px] font-semibold text-[var(--text)]"
+      className={`flex min-h-[48px] shrink-0 items-center justify-between gap-1 rounded-full border border-[var(--line)] bg-[var(--surface-subtle)] px-2 text-[18px] font-semibold text-[var(--text)] ${
+        compact ? "w-full min-w-0" : "w-[176px] min-w-[176px]"
+      }`}
     >
       <span className="whitespace-nowrap">{enabled ? "Activado" : "Desactivado"}</span>
       <span
@@ -179,8 +183,8 @@ export default function CardsView({
   }
 
   return (
-    <div className={`mx-auto w-full max-w-[1500px] ${
-      isHome ? "p-0" : "p-5 pt-3 sm:px-7 lg:px-9"
+    <div className={`mx-auto h-full min-h-0 w-full max-w-[1500px] ${
+      isHome ? "overflow-y-auto p-0" : "p-5 pt-3 sm:px-7 lg:px-9"
     }`}>
       {!isHome && (
         <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
@@ -202,17 +206,17 @@ export default function CardsView({
         </div>
       )}
 
-      <div className={`grid grid-cols-1 items-start gap-5 ${
+      <div className={`min-h-0 items-stretch gap-2 ${
         isHome
-          ? "xl:grid-cols-[minmax(0,1.08fr)_minmax(0,.92fr)]"
-          : "xl:grid-cols-[minmax(0,1.05fr)_minmax(0,.95fr)]"
+          ? "grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,.92fr)]"
+          : "grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,.95fr)]"
       }`}>
         <section
           aria-labelledby="your-cards-heading"
-          className={`screen-stagger screen-stagger-1 relative min-w-0 rounded-2xl border p-5 shadow-sm sm:p-6 ${
+          className={`screen-stagger screen-stagger-1 relative min-h-0 min-w-0 rounded-2xl border shadow-sm ${
             isHome
-              ? "overflow-hidden border-[#30303A] bg-black"
-              : "border-[var(--line)] bg-[var(--surface)]"
+              ? "overflow-hidden border-[#30303A] bg-black p-5 sm:p-6"
+              : "border-[var(--line)] bg-[var(--surface)] p-5 sm:p-6"
           }`}
         >
           {isHome && <TwinklingSquares />}
@@ -230,7 +234,7 @@ export default function CardsView({
               >
               <button
                 type="button"
-                aria-label={flipped ? "Voltear tarjeta al frente" : "Voltear tarjeta al reverso"}
+                aria-label={flipped ? "Ver frente de la tarjeta" : "Ver reverso de la tarjeta"}
                 aria-pressed={flipped}
                 aria-hidden={flipped}
                 tabIndex={flipped ? -1 : 0}
@@ -268,13 +272,13 @@ export default function CardsView({
                       <p className="text-base text-white">CVV</p>
                       <p className="font-semibold tracking-widest">•••</p>
                     </div>
-                    <p className="w-full text-base font-medium text-white">Toca la tarjeta para voltearla</p>
+                    <p className="w-full text-base font-medium text-white">Toca la tarjeta para ver el reverso</p>
                   </div>
                 </div>
               </button>
               <button
                 type="button"
-                aria-label="Voltear tarjeta al frente"
+                aria-label="Ver frente de la tarjeta"
                 aria-hidden={!flipped}
                 tabIndex={flipped ? 0 : -1}
                 onClick={() => setFlipped(false)}
@@ -381,13 +385,13 @@ export default function CardsView({
                   : "border-[var(--line)] text-[var(--text)] hover:bg-[var(--surface-subtle)]"
               }`}
             >
-              Voltear
+              {flipped ? "Ver frente" : "Ver reverso"}
             </button>
             </div>
             <p className={`mt-4 min-h-6 text-base font-medium ${
               isHome ? "bg-black text-white" : "text-[#742515]"
             }`} aria-live="polite">
-            {status}
+              {status}
             </p>
           </div>
         </section>
@@ -428,12 +432,12 @@ export default function CardsView({
         <section className="screen-stagger mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 shadow-sm sm:p-6" style={{ animationDelay: "120ms" }}>
           <div>
             <p className="font-medium text-[var(--muted)]">Saldo total de demostración</p>
-            <p className="mt-1 text-2xl font-semibold text-[var(--text)]"><AnimatedAmount value={85921} /></p>
+            <p className="mt-1 text-xl font-semibold text-[var(--text)]"><AnimatedAmount value={85921} /></p>
           </div>
           <button
             type="button"
             onClick={onOpenSummary}
-            className="min-h-[48px] rounded-full bg-[#17171D] px-6 font-semibold text-white hover:bg-[#33333D]"
+            className="min-h-[48px] rounded-full bg-[#17171D] px-6 text-center font-semibold text-white hover:bg-[#33333D]"
           >
             Ver resumen completo
           </button>

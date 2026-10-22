@@ -68,20 +68,28 @@ banorte-ai-finanzas/
 └── scripts/           # start-all.cmd / stop-all.cmd / run-tests.cmd
 ```
 
-## Instalación (Windows, sin Anaconda)
+## Instalación desde cero
 
-Requisitos: **Python 3.11+** y **Node.js 18+**.
+En Windows necesitas **Python 3.11 o posterior** (con el lanzador `py`) y
+**Node.js 18.18 o posterior**. Descárgalos desde
+[python.org](https://www.python.org/downloads/windows/) y
+[nodejs.org](https://nodejs.org/), respectivamente.
+
+Desde la carpeta raíz del proyecto, ejecuta:
 
 ```cmd
-:: 1. Entorno virtual + dependencias Python
-python -m venv .venv
-.venv\Scripts\python -m pip install -r backend\requirements.txt -r mcp-server\requirements.txt
-
-:: 2. Dependencias del frontend
-cd frontend && npm install && cd ..
+scripts\setup.cmd
 ```
 
-Opcional: copia `.env.example` a `.env` (raíz) y configura tu proveedor de IA.
+El script verifica las versiones instaladas, crea `.venv`, instala los
+requisitos de `backend` y `mcp-server`, ejecuta `npm.cmd install` en
+`frontend` y copia `.env.example` a `.env` solo si todavía no existe. Si un
+paso falla, muestra el problema y termina con un código de error. Al concluir,
+ejecuta `scripts\start-all.cmd` para iniciar la aplicación.
+
+El archivo `.env` inicial mantiene `AI_PROVIDER=demo`, por lo que la
+demostración funciona sin una clave ni conexión a un proveedor de IA. Para
+configurar un proveedor opcional, edita `.env` localmente; no publiques claves.
 
 ## Variables de entorno
 
