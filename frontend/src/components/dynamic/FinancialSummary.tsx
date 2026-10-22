@@ -14,7 +14,7 @@ export default function FinancialSummary({
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
       <h3 className="mb-4 text-base font-semibold">{title}</h3>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
         {metrics.map((m, i) => (
           <div key={i} className="rounded-xl bg-neutral-50 p-4">
             <p className="text-base font-medium uppercase tracking-wide text-neutral-700">{m.label}</p>

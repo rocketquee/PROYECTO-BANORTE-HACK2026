@@ -46,24 +46,21 @@ function newConversation(): Conversation {
 }
 
 function initialState(): ChatState {
+  const initialConversation: Conversation = {
+    id: "initial",
+    title: "Nueva conversación",
+    createdAt: 0,
+    messages: [],
+    history: [],
+  };
   const fallback: ChatState = {
-    conversations: [newConversation()],
-    activeId: "",
+    conversations: [initialConversation],
+    activeId: initialConversation.id,
     loading: false,
     detail: null,
     detailKey: null,
   };
-  fallback.activeId = fallback.conversations[0].id;
-  if (typeof window === "undefined") return fallback;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw) as ChatState;
-    if (!parsed.conversations?.length) return fallback;
-    return { ...fallback, ...parsed, loading: false, detail: null, detailKey: null };
-  } catch {
-    return fallback;
-  }
+  return fallback;
 }
 
 let state: ChatState = initialState();
@@ -91,6 +88,20 @@ function getSnapshot() {
   return state;
 }
 
+function hydrateFromStorage() {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as ChatState;
+    if (!parsed.conversations?.length) return;
+    state = { ...state, ...parsed, loading: false, detail: null, detailKey: null };
+    listeners.forEach((listener) => listener());
+  } catch {
+    return;
+  }
+}
+
 export function useChatStore(): ChatState {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
@@ -100,6 +111,8 @@ export function activeConversation(s: ChatState = state): Conversation {
 }
 
 export const chatActions = {
+  hydrate: hydrateFromStorage,
+
   addMessage(msg: ChatMsg) {
     const conv = activeConversation();
     const conversations = state.conversations.map((c) =>

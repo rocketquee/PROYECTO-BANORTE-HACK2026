@@ -117,14 +117,6 @@ export default function AgentView({
   return (
     <div className={`relative grid h-full min-h-0 grid-cols-1 overflow-hidden ${store.detail ? "xl:grid-cols-[minmax(0,1fr)_420px]" : ""}`}>
       <div className="flex h-full min-h-0 flex-col">
-      {/* Chat header — business language only (BUG-003) */}
-      <div className="shrink-0 border-b border-neutral-200 bg-white px-6 py-4">
-        <h1 className="text-lg font-semibold">Asistente financiero</h1>
-        <p className="text-base text-neutral-700">
-          Te ayudo a revisar tus gastos, ahorro, créditos y presupuesto con tus propios datos.
-        </p>
-      </div>
-
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
         {messages.length === 0 && (
           <div className="rounded-2xl bg-white p-6 text-base shadow-sm">
@@ -235,7 +227,7 @@ export default function AgentView({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Escribe tu solicitud financiera…"
-            className="min-h-[48px] flex-1 rounded-xl border border-neutral-300 px-4 py-3 text-base"
+          className="min-h-[48px] min-w-0 flex-1 rounded-xl border border-neutral-300 px-4 py-3 text-base"
             aria-label="Mensaje para el asistente"
           />
           <button

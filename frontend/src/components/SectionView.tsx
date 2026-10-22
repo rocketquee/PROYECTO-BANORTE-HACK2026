@@ -4,13 +4,7 @@ import { useEffect, useState } from "react";
 import type { DashboardData } from "@/types/contract";
 import { apiFetch } from "@/lib/api";
 import { fmtDate, money } from "@/lib/format";
-import type { ViewId } from "./Sidebar";
-
-interface Props {
-  section: ViewId;
-  onAskAssistant: (question: string) => void;
-  refreshKey: number;
-}
+import type { ViewId } from "@/lib/navigation";
 
 const TITLES: Record<string, { title: string; blurb: string; ask: string }> = {
   cuentas: { title: "Mis cuentas", blurb: "Saldos de tus cuentas en este prototipo.",
@@ -41,17 +35,6 @@ const TITLES: Record<string, { title: string; blurb: string; ask: string }> = {
            ask: "¿Qué puedes hacer?" },
 };
 
-function AskButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="min-h-[48px] rounded-xl border-2 border-brand px-4 py-2.5 text-base font-medium text-brand hover:bg-brand-soft"
-    >
-      Preguntar al asistente sobre esto
-    </button>
-  );
-}
-
 function Progress({ pct }: { pct: number }) {
   const clamped = Math.min(pct, 100);
   return (
@@ -63,7 +46,10 @@ function Progress({ pct }: { pct: number }) {
   );
 }
 
-export default function SectionView({ section, onAskAssistant, refreshKey }: Props) {
+export default function SectionView({ section, refreshKey }: {
+  section: ViewId;
+  refreshKey: number;
+}) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const meta = TITLES[section] ?? TITLES.ayuda;
@@ -79,19 +65,13 @@ export default function SectionView({ section, onAskAssistant, refreshKey }: Pro
   }, [refreshKey]);
 
   return (
-    <div className="mx-auto max-w-4xl p-6">
-      <h1 className="text-2xl font-semibold">{meta.title}</h1>
-      <p className="mt-1 text-base text-neutral-700">{meta.blurb}</p>
-      <div className="mt-3">
-        <AskButton onClick={() => onAskAssistant(meta.ask)} />
-      </div>
-
+    <div className="w-full p-6 pt-2">
       {error && (
         <div className="mt-6 rounded-xl bg-amber-50 p-4 text-base text-amber-900">
           <p>{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="mt-3 min-h-[44px] rounded-lg border border-amber-500 px-3 py-2"
+            className="mt-3 min-h-[48px] rounded-lg border border-amber-500 px-3 py-2"
           >
             Reintentar
           </button>
@@ -135,7 +115,7 @@ export default function SectionView({ section, onAskAssistant, refreshKey }: Pro
                 <td className="py-2">{fmtDate(t.date)}</td>
                 <td className="py-2">{t.description}</td>
                 <td className="py-2">{t.category}</td>
-                <td className={`py-2 text-right tabular-nums ${t.type === "income" ? "text-[#1F6E43]" : "text-neutral-900"}`}>
+                <td className={`py-2 text-right tabular-nums ${t.type === "income" ? "text-emerald-700" : "text-neutral-900"}`}>
                   {t.type === "income" ? "+" : "−"}{money(t.amount)}
                 </td>
               </tr>

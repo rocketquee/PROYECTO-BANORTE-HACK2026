@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useReducer, useState } from "react";
-import Sidebar, { type ViewId } from "@/components/Sidebar";
+import AppShell from "@/components/AppShell";
 import DashboardView from "@/components/DashboardView";
 import AgentView from "@/components/AgentView";
+import CardsView from "@/components/CardsView";
 import SectionView from "@/components/SectionView";
+import { VIEW_META, type ViewId } from "@/lib/navigation";
+import { chatActions } from "@/lib/chatStore";
 
 const VIEW_KEY = "baf.view";
 
@@ -14,15 +17,22 @@ const SECTIONS: ViewId[] = [
   "perfil", "ayuda",
 ];
 
+function isViewId(value: string | null): value is ViewId {
+  return value !== null && [
+    "dashboard", "asistente", "cuentas", "movimientos", "tarjetas", "pagos",
+    "contactos", "creditos", "ahorro", "inversiones", "seguros",
+    "presupuesto", "notificaciones", "perfil", "ayuda",
+  ].includes(value);
+}
+
 export default function Home() {
   const [view, setView] = useState<ViewId>("asistente");
-  const [menuOpen, setMenuOpen] = useState(false);
   const [pendingQuestion, setPendingQuestion] = useState<{ text: string; nonce: number } | null>(null);
   const [refreshKey, bumpRefresh] = useReducer((x: number) => x + 1, 0);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem(VIEW_KEY) as ViewId | null;
-    if (saved) setView(saved);
+    const saved = window.localStorage.getItem(VIEW_KEY);
+    if (isViewId(saved)) setView(saved);
   }, []);
 
   function changeView(next: ViewId) {
@@ -35,56 +45,65 @@ export default function Home() {
     changeView("asistente");
   }
 
+  const primaryAction = view === "dashboard"
+    ? { label: "Actualizar resumen", run: bumpRefresh }
+    : view === "asistente"
+      ? { label: "+ Nueva conversación", run: chatActions.newConversation }
+      : {
+          label: "Consultar al asistente",
+          run: () => askAssistant(VIEW_META[view].question),
+        };
+
   return (
-    <div className="flex h-[100dvh] overflow-hidden">
-      {/* Desktop sidebar */}
-      <div className="hidden h-full min-h-0 md:flex">
-        <Sidebar view={view} onChange={changeView} />
-      </div>
-
-      {/* Mobile drawer */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-40 flex h-[100dvh] md:hidden" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setMenuOpen(false)}
-               aria-hidden="true" />
-          <div className="relative z-50 h-full min-h-0">
-            <Sidebar view={view} onChange={changeView} onClose={() => setMenuOpen(false)} />
+    <AppShell view={view} onChange={changeView}>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {view !== "tarjetas" && (
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 px-5 pb-4 pt-3 sm:px-7 lg:px-9">
+            <div className="min-w-0">
+              <h1 className="text-2xl font-semibold tracking-tight text-[var(--text)] sm:text-3xl">
+                {VIEW_META[view].title}
+              </h1>
+              <p className="mt-1 text-base text-[var(--muted)]">{VIEW_META[view].description}</p>
+            </div>
+            <button
+              type="button"
+              onClick={primaryAction.run}
+              className="min-h-[48px] shrink-0 rounded-full bg-[#17171D] px-6 font-semibold text-white transition-colors hover:bg-[#33333D]"
+            >
+              {primaryAction.label}
+            </button>
           </div>
-        </div>
-      )}
+        )}
 
-      <main className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="flex shrink-0 items-center gap-3 border-b border-neutral-200 bg-white px-4 py-2 md:hidden">
-          <button
-            onClick={() => setMenuOpen(true)}
-            aria-label="Abrir menú"
-            className="min-h-[48px] min-w-[48px] rounded-lg border border-neutral-300 text-xl"
+        <div className="min-h-0 flex-1 overflow-hidden px-5 pb-5 sm:px-7 lg:px-9">
+          <section
+            aria-label={`Contenido: ${VIEW_META[view].title}`}
+            className="h-full min-h-0 overflow-hidden rounded-3xl border border-[var(--line)] bg-[var(--surface)] shadow-sm"
           >
-            ☰
-          </button>
-          <p className="font-semibold">Banorte AI Finanzas</p>
+            <div className="h-full min-h-0 overflow-y-auto">
+              {view === "dashboard" ? (
+                <DashboardView refreshKey={refreshKey} />
+              ) : view === "tarjetas" ? (
+                <CardsView />
+              ) : view === "asistente" ? (
+                <AgentView
+                  onGoalsChanged={bumpRefresh}
+                  onNavigate={(v) => changeView(v as ViewId)}
+                  pendingQuestion={pendingQuestion}
+                />
+              ) : SECTIONS.includes(view) ? (
+                <SectionView section={view} refreshKey={refreshKey} />
+              ) : (
+                <AgentView
+                  onGoalsChanged={bumpRefresh}
+                  onNavigate={(v) => changeView(v as ViewId)}
+                  pendingQuestion={pendingQuestion}
+                />
+              )}
+            </div>
+          </section>
         </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {view === "dashboard" ? (
-            <DashboardView refreshKey={refreshKey} />
-          ) : view === "asistente" ? (
-            <AgentView
-              onGoalsChanged={bumpRefresh}
-              onNavigate={(v) => changeView(v as ViewId)}
-              pendingQuestion={pendingQuestion}
-            />
-          ) : SECTIONS.includes(view) ? (
-            <SectionView section={view} onAskAssistant={askAssistant} refreshKey={refreshKey} />
-          ) : (
-            <AgentView
-              onGoalsChanged={bumpRefresh}
-              onNavigate={(v) => changeView(v as ViewId)}
-              pendingQuestion={pendingQuestion}
-            />
-          )}
-        </div>
-      </main>
-    </div>
+      </div>
+    </AppShell>
   );
 }

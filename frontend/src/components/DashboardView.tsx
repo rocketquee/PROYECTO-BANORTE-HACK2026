@@ -86,17 +86,11 @@ export default function DashboardView({ refreshKey }: { refreshKey: number }) {
   return (
     <div className="space-y-6 p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">Dashboard financiero</h1>
-          <p className="text-base text-neutral-700">
-            Datos sintéticos · no es una aplicación oficial de Banorte
-          </p>
-        </div>
         <select
           value={month}
           onChange={(e) => setMonth(e.target.value)}
           className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-base"
-          aria-label="Filtrar por mes"
+          aria-label="Filtrar resumen por mes"
         >
           {months.map((m) => (
             <option key={m.value} value={m.value}>{m.label}</option>
@@ -132,8 +126,13 @@ export default function DashboardView({ refreshKey }: { refreshKey: number }) {
                   <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip formatter={(v) => money(Number(v))} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Tooltip
+                formatter={(v) => money(Number(v))}
+                contentStyle={{ backgroundColor: "var(--surface)", borderColor: "var(--line)", color: "var(--text)" }}
+                labelStyle={{ color: "var(--text)" }}
+                itemStyle={{ color: "var(--text)" }}
+              />
+              <Legend wrapperStyle={{ fontSize: 18, color: "var(--text)" }} />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -143,10 +142,15 @@ export default function DashboardView({ refreshKey }: { refreshKey: number }) {
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={data.monthly_series}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="label" fontSize={12} />
-              <YAxis fontSize={12} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
-              <Tooltip formatter={(v) => money(Number(v))} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <XAxis dataKey="label" fontSize={18} tick={{ fill: "var(--muted)" }} />
+              <YAxis fontSize={18} tick={{ fill: "var(--muted)" }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+              <Tooltip
+                formatter={(v) => money(Number(v))}
+                contentStyle={{ backgroundColor: "var(--surface)", borderColor: "var(--line)", color: "var(--text)" }}
+                labelStyle={{ color: "var(--text)" }}
+                itemStyle={{ color: "var(--text)" }}
+              />
+              <Legend wrapperStyle={{ fontSize: 18, color: "var(--text)" }} />
               <Bar dataKey="income" name="Ingresos" fill="#2E86AB" radius={[4, 4, 0, 0]} />
               <Bar dataKey="expense" name="Gastos" fill="#C8102E" radius={[4, 4, 0, 0]} />
             </BarChart>

@@ -33,7 +33,7 @@ export default function TrendChart({ spec }: { spec: TrendChartSpec }) {
               key={t}
               onClick={() => setChartType(t)}
               aria-pressed={chartType === t}
-              className={`min-h-[44px] rounded-lg border px-3 py-2 text-base ${
+              className={`min-h-[48px] rounded-lg border px-3 py-2 text-base ${
                 chartType === t
                   ? "border-brand bg-brand-soft font-medium text-brand-dark"
                   : "border-neutral-300 text-neutral-700 hover:border-brand"
@@ -44,7 +44,7 @@ export default function TrendChart({ spec }: { spec: TrendChartSpec }) {
           ))}
           <button
             onClick={() => setView(view === "chart" ? "table" : "chart")}
-            className="min-h-[44px] rounded-lg border border-neutral-300 px-3 py-2 text-base text-neutral-700 hover:border-brand"
+            className="min-h-[48px] rounded-lg border border-neutral-300 px-3 py-2 text-base text-neutral-700 hover:border-brand"
           >
             {view === "chart" ? "Ver como tabla" : "Ver como gráfica"}
           </button>
@@ -55,9 +55,9 @@ export default function TrendChart({ spec }: { spec: TrendChartSpec }) {
         <ResponsiveContainer width="100%" height={320}>
           <Chart data={data} role="img" aria-label={`Gráfica de ${spec.title}. ${summary}`}>
             <CartesianGrid strokeDasharray="3 3" stroke="#D4D4D4" />
-            <XAxis dataKey="name" tick={{ fontSize: 14, fill: "#404040" }} />
+            <XAxis dataKey="name" tick={{ fontSize: 18, fill: "var(--muted)" }} />
             <YAxis
-              tick={{ fontSize: 14, fill: "#404040" }}
+              tick={{ fontSize: 18, fill: "var(--muted)" }}
               tickFormatter={(v: number) => money(v, 0)}
             />
             <Tooltip formatter={(v) => money(Number(v))} />

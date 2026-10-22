@@ -11,10 +11,9 @@ const SIZES = [
 const STORAGE_KEY = "baf.fontsize";
 
 /**
- * WCAG 2.2 AA text-size control. Adjusts the root font size so the whole
- * interface scales. Default is the middle size (18px base).
+ * Adjusts the root font size so the whole interface scales from 16px to 20px.
  */
-export default function FontSizeControl() {
+export default function FontSizeControl({ vertical = false }: { vertical?: boolean }) {
   const [size, setSize] = useState<(typeof SIZES)[number]["id"]>("md");
 
   useEffect(() => {
@@ -31,17 +30,17 @@ export default function FontSizeControl() {
   }
 
   return (
-    <div className="flex gap-1" role="group" aria-label="Tamaño de letra">
+    <div className={`flex shrink-0 gap-1 ${vertical ? "flex-col lg:flex-row" : ""}`} role="group" aria-label="Tamaño de letra">
       {SIZES.map((s) => (
         <button
           key={s.id}
           aria-label={s.aria}
           aria-pressed={size === s.id}
           onClick={() => { setSize(s.id); apply(s.id); }}
-          className={`min-h-[44px] min-w-[44px] rounded-lg border text-base font-semibold ${
+          className={`min-h-[48px] min-w-[48px] shrink-0 rounded-full border text-base font-semibold ${
             size === s.id
               ? "border-brand bg-brand-soft text-brand-dark"
-              : "border-white/30 text-white hover:border-white"
+              : "border-[var(--line)] text-[var(--text)] hover:bg-[var(--surface-subtle)]"
           }`}
         >
           {s.label}

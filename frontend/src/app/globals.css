@@ -4,23 +4,133 @@
 
 :root {
   color-scheme: light;
+  --app-bg: #f3f2f8;
+  --surface: #ffffff;
+  --surface-subtle: #f7f6fa;
+  --line: #e5e3ec;
+  --text: #17171d;
+  --muted: #50505b;
+  --accent: #f26a4b;
 }
 
-/* WCAG 2.2 AA: 18px base font size (FontSizeControl can adjust it). */
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --app-bg: #17171d;
+  --surface: #24242d;
+  --surface-subtle: #30303a;
+  --line: #454550;
+  --text: #f7f6fa;
+  --muted: #c5c3cf;
+  --accent: #ff896e;
+}
+
 html {
   font-size: 112.5%;
 }
 
 body {
-  @apply bg-neutral-100 text-ink antialiased;
+  @apply antialiased;
+  background: var(--app-bg);
+  color: var(--text);
 }
 
-/* The document never scrolls; each panel scrolls on its own (UI-1). */
 html,
 body {
   height: 100%;
   overflow: hidden;
   overscroll-behavior: none;
+}
+
+html[data-theme="dark"] .bg-white {
+  background-color: var(--surface);
+}
+html[data-theme="dark"] .bg-neutral-50 {
+  background-color: var(--surface-subtle);
+}
+html[data-theme="dark"] .bg-neutral-100 {
+  background-color: var(--app-bg);
+}
+html[data-theme="dark"] .bg-neutral-200 {
+  background-color: #393943;
+}
+html[data-theme="dark"] .border-neutral-200,
+html[data-theme="dark"] .border-neutral-300,
+html[data-theme="dark"] .border-neutral-400 {
+  border-color: var(--line);
+}
+html[data-theme="dark"] .text-neutral-100,
+html[data-theme="dark"] .text-neutral-200 {
+  color: #f7f6fa;
+}
+html[data-theme="dark"] .text-neutral-300,
+html[data-theme="dark"] .text-neutral-400,
+html[data-theme="dark"] .text-neutral-500,
+html[data-theme="dark"] .text-neutral-600,
+html[data-theme="dark"] .text-neutral-700,
+html[data-theme="dark"] .text-neutral-800,
+html[data-theme="dark"] .text-neutral-900 {
+  color: #d2d0da;
+}
+html[data-theme="dark"] .text-emerald-700,
+html[data-theme="dark"] .text-emerald-800 {
+  color: #86efac;
+}
+html[data-theme="dark"] .bg-amber-50 {
+  background-color: #3d3224;
+}
+html[data-theme="dark"] .text-amber-800,
+html[data-theme="dark"] .text-amber-900 {
+  color: #f5d6a6;
+}
+html[data-theme="dark"] .bg-brand-soft {
+  background-color: #492b2a;
+}
+html[data-theme="dark"] .text-brand,
+html[data-theme="dark"] .text-brand-dark {
+  color: #ffb4a3;
+}
+html[data-theme="dark"] .border-white\/20,
+html[data-theme="dark"] .border-white\/30 {
+  border-color: var(--line);
+}
+html[data-theme="dark"] .shadow-sm {
+  box-shadow: 0 14px 40px rgb(0 0 0 / 28%);
+}
+
+.rounded-xl {
+  border-radius: 20px;
+}
+.rounded-2xl {
+  border-radius: 24px;
+}
+.shadow-sm {
+  box-shadow: 0 14px 40px rgb(29 22 53 / 10%);
+}
+
+.recharts-legend-item-text {
+  color: var(--text) !important;
+}
+
+.recharts-default-tooltip,
+.recharts-tooltip-label,
+.recharts-tooltip-item,
+.recharts-tooltip-item-name,
+.recharts-tooltip-item-value {
+  color: var(--text) !important;
+}
+
+.recharts-default-tooltip {
+  background-color: var(--surface) !important;
+  border-color: var(--line) !important;
+}
+
+.scrollbar-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
 }
 
 ::-webkit-scrollbar {

@@ -29,7 +29,7 @@ export default function SpendingChart({
           </span>
           <button
             onClick={() => setView(view === "chart" ? "table" : "chart")}
-            className="min-h-[44px] rounded-lg border border-neutral-300 px-3 py-2 text-base text-neutral-700 hover:border-brand"
+            className="min-h-[48px] rounded-lg border border-neutral-300 px-3 py-2 text-base text-neutral-700 hover:border-brand"
           >
             {view === "chart" ? "Ver como tabla" : "Ver como gráfica"}
           </button>
