@@ -344,7 +344,7 @@ class TestConversationBasics:
             async def chat_with_tools(self, *_args, **_kwargs):
                 raise orch.ProviderError("offline")
 
-        monkeypatch.setattr(orch, "AI_PROVIDER", "openai")
+        monkeypatch.setattr(orch.config, "AI_PROVIDER", "openai")
         monkeypatch.setattr(orch, "get_provider", lambda: OfflineProvider())
         monkeypatch.setattr(orch.mcp_client, "session", object())
         response = asyncio.run(orch.handle_chat(ChatRequest(message="¿cuánto tengo?")))
@@ -360,7 +360,7 @@ class TestConversationBasics:
                 captured["messages"] = messages
                 raise orch.ProviderError("offline")
 
-        monkeypatch.setattr(orch, "AI_PROVIDER", "openai")
+        monkeypatch.setattr(orch.config, "AI_PROVIDER", "openai")
         monkeypatch.setattr(orch, "get_provider", lambda: OfflineProvider())
         monkeypatch.setattr(orch.mcp_client, "session", object())
         request = ChatRequest(

@@ -1,5 +1,9 @@
 # Arquitectura y decisiones técnicas — Banorte AI Finanzas
 
+El flujo versionado de Plan de compra y las decisiones de proveedor, A2UI,
+MCP/stdio, SQLite y fallback están detallados en
+[ARCHITECTURE.md](./ARCHITECTURE.md) y [DECISIONS.md](./DECISIONS.md).
+
 ## Diagrama de arquitectura
 
 ```mermaid
@@ -42,7 +46,8 @@ flowchart TB
 
 ### 1. Contrato de interfaz tipo A2UI con validación estricta
 El agente no genera HTML/JS; genera un **selector de componentes** + props desde
-un catálogo cerrado de 12 tipos. Pydantic valida con `extra="forbid"` (rechaza
+un catálogo cerrado de 13 tipos, incluido `purchase_plan`. Pydantic valida con
+`schema_version: "1.0"` y `extra="forbid"` (rechaza
 cualquier campo no esperado, p. ej. un `onClick` inyectado) y el frontend repite
 la validación de tipo con un registro fijo. **Trade-off:** la UI es menos
 "libre" que HTML generado por LLM, pero es segura, accesible, consistente y

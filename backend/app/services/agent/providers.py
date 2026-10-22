@@ -7,12 +7,29 @@ runs the explicit demo agent (rule-based, no network calls, real MCP tools).
 import json
 
 import httpx
+from pydantic import BaseModel, ConfigDict, Field, Field
 
 from app.core import config
 
 
 class ProviderError(RuntimeError):
     pass
+
+
+class StrictProviderModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class ProviderToolCall(StrictProviderModel):
+    id: str = Field(min_length=1, max_length=128)
+    name: str = Field(min_length=1, max_length=100)
+    arguments: str = Field(max_length=10_000)
+
+
+class ProviderTurn(StrictProviderModel):
+    content: str | None = None
+    tool_calls: list[ProviderToolCall] = Field(default_factory=list, max_length=8)
+    raw_message: dict
 
 
 class OpenAIProvider:
@@ -26,32 +43,43 @@ class OpenAIProvider:
         ]
         body = {
             "model": config.OPENAI_MODEL,
+            "temperature": config.AI_TEMPERATURE,
             "messages": [{"role": "system", "content": system}, *messages],
             "tools": payload_tools,
         }
-        async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(
-                f"{config.OPENAI_BASE_URL}/chat/completions",
-                json=body,
-                headers={"Authorization": f"Bearer {config.OPENAI_API_KEY}"},
-            )
+        async with httpx.AsyncClient(timeout=config.AI_TIMEOUT_SECONDS) as client:
+            try:
+                resp = await client.post(
+                    f"{config.OPENAI_BASE_URL}/chat/completions",
+                    json=body,
+                    headers={"Authorization": f"Bearer {config.OPENAI_API_KEY}"},
+                )
+            except httpx.HTTPError as exc:
+                raise ProviderError("No se pudo contactar el proveedor OpenAI.") from exc
         if resp.status_code != 200:
-            raise ProviderError(f"OpenAI HTTP {resp.status_code}: {resp.text[:200]}")
-        msg = resp.json()["choices"][0]["message"]
-        return {
-            "content": msg.get("content"),
-            "tool_calls": [
-                {"id": tc["id"], "name": tc["function"]["name"], "arguments": tc["function"]["arguments"]}
-                for tc in msg.get("tool_calls") or []
-            ],
-            "raw_message": msg,
-        }
+            raise ProviderError(f"OpenAI devolvió HTTP {resp.status_code}.")
+        try:
+            msg = resp.json()["choices"][0]["message"]
+            out = {
+                "content": msg.get("content"),
+                "tool_calls": [
+                    {"id": tc["id"], "name": tc["function"]["name"],
+                     "arguments": tc["function"]["arguments"]}
+                    for tc in msg.get("tool_calls") or []
+                ],
+                "raw_message": msg,
+            }
+            ProviderTurn.model_validate(out)
+            return out
+        except (ValueError, KeyError, IndexError, TypeError) as exc:
+            raise ProviderError("OpenAI devolvió una respuesta inválida.") from exc
 
     def assistant_message(self, out: dict) -> dict:
         return out["raw_message"]
 
     def tool_result_message(self, call: dict, result: dict) -> dict:
-        return {"role": "tool", "tool_call_id": call["id"], "content": json.dumps(result, ensure_ascii=False)}
+        return {"role": "tool", "tool_call_id": call["id"],
+                "content": json.dumps(result, ensure_ascii=False)}
 
 
 class AnthropicProvider:
@@ -65,26 +93,41 @@ class AnthropicProvider:
         body = {
             "model": config.ANTHROPIC_MODEL,
             "max_tokens": 1500,
+            "temperature": config.AI_TEMPERATURE,
             "system": system,
             "messages": messages,
             "tools": payload_tools,
         }
-        async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(
-                "https://api.anthropic.com/v1/messages",
-                json=body,
-                headers={"x-api-key": config.ANTHROPIC_API_KEY,
-                         "anthropic-version": "2023-06-01"},
-            )
+        async with httpx.AsyncClient(timeout=config.AI_TIMEOUT_SECONDS) as client:
+            try:
+                resp = await client.post(
+                    "https://api.anthropic.com/v1/messages",
+                    json=body,
+                    headers={"x-api-key": config.ANTHROPIC_API_KEY,
+                             "anthropic-version": "2023-06-01"},
+                )
+            except httpx.HTTPError as exc:
+                raise ProviderError("No se pudo contactar el proveedor Anthropic.") from exc
         if resp.status_code != 200:
-            raise ProviderError(f"Anthropic HTTP {resp.status_code}: {resp.text[:200]}")
-        data = resp.json()
-        text = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
-        tool_calls = [
-            {"id": b["id"], "name": b["name"], "arguments": json.dumps(b.get("input", {}), ensure_ascii=False)}
-            for b in data.get("content", []) if b.get("type") == "tool_use"
-        ]
-        return {"content": text, "tool_calls": tool_calls, "raw_message": {"role": "assistant", "content": data.get("content", [])}}
+            raise ProviderError(f"Anthropic devolvió HTTP {resp.status_code}.")
+        try:
+            data = resp.json()
+            content = data.get("content", [])
+            text = "".join(b.get("text", "") for b in content if b.get("type") == "text")
+            tool_calls = [
+                {"id": b["id"], "name": b["name"],
+                 "arguments": json.dumps(b.get("input", {}), ensure_ascii=False)}
+                for b in content if b.get("type") == "tool_use"
+            ]
+            out = {
+                "content": text,
+                "tool_calls": tool_calls,
+                "raw_message": {"role": "assistant", "content": content},
+            }
+            ProviderTurn.model_validate(out)
+            return out
+        except (ValueError, KeyError, TypeError) as exc:
+            raise ProviderError("Anthropic devolvió una respuesta inválida.") from exc
 
     def assistant_message(self, out: dict) -> dict:
         return out["raw_message"]

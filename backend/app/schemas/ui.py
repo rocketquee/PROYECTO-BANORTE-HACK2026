@@ -8,7 +8,7 @@ fixed registry of React components.
 """
 from typing import Annotated, Literal, Union
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class Strict(BaseModel):
@@ -107,6 +107,54 @@ class CreditResult(Strict):
     monthly_payment: float
     total_interest: float
     total_paid: float
+
+
+class PurchaseOption(Strict):
+    option_id: Literal["cash", "savings_12", "credit_12", "credit_18", "credit_24"]
+    kind: Literal["cash", "savings", "credit"]
+    label: str
+    amount: float = Field(ge=0, le=10_000_000)
+    months: int | None = Field(default=None, ge=1, le=120)
+    monthly_payment: float = Field(ge=0)
+    total_cost: float = Field(ge=0, le=20_000_000)
+    monthly_balance_after: float
+
+
+class PurchasePlanSpec(Strict):
+    type: Literal["purchase_plan"]
+    title: str
+    purchase_amount: float = Field(ge=1_000, le=10_000_000)
+    current_balance: float
+    balance_after_cash_purchase: float
+    monthly_balance: float
+    fixed_payments_monthly: float = Field(ge=0)
+    annual_rate: float = Field(ge=0, le=200)
+    options: list[PurchaseOption] = Field(min_length=5, max_length=5)
+    selected_option_id: Literal["cash", "savings_12", "credit_12", "credit_18", "credit_24"] | None = None
+    goal_status: Literal["not_requested", "confirm_required", "created"] = "not_requested"
+    goal_name: str | None = None
+    goal_deadline: str | None = None
+    goal_confirmation_token: str | None = Field(default=None, min_length=36, max_length=64)
+    goal_idempotency_key: str | None = Field(default=None, min_length=36, max_length=36)
+    goal_created_id: int | None = Field(default=None, gt=0)
+    disclaimer: str
+
+    @model_validator(mode="after")
+    def validate_option_set(self):
+        expected = {"cash", "savings_12", "credit_12", "credit_18", "credit_24"}
+        actual = {option.option_id for option in self.options}
+        if actual != expected:
+            raise ValueError("El plan debe incluir una vez cada opción de compra.")
+        if self.selected_option_id is not None and self.selected_option_id not in actual:
+            raise ValueError("La opción seleccionada debe pertenecer al plan.")
+        if self.goal_status == "confirm_required" and not all((
+            self.goal_name, self.goal_deadline, self.goal_confirmation_token,
+            self.goal_idempotency_key,
+        )):
+            raise ValueError("La confirmación de meta debe incluir los datos pendientes.")
+        if self.goal_status == "created" and self.goal_created_id is None:
+            raise ValueError("La meta creada debe incluir su identificador.")
+        return self
 
 
 class ScheduleRow(Strict):
@@ -225,6 +273,7 @@ UISpec = Annotated[
         SavingsGoalFormSpec,
         SavingsProgressSpec,
         CreditSimulatorSpec,
+        PurchasePlanSpec,
         BudgetPlannerSpec,
         RecommendationListSpec,
         TrendChartSpec,
@@ -238,11 +287,14 @@ UISpec = Annotated[
 AUTHORIZED_COMPONENTS = [
     "financial_summary", "spending_chart", "transactions_table", "savings_goal_form",
     "savings_progress", "credit_simulator", "budget_planner", "recommendation_list",
-    "trend_chart", "comparison", "timeline", "alert_list",
+    "trend_chart", "comparison", "timeline", "alert_list", "purchase_plan",
 ]
 
 
 # ---------- agent response envelope ----------
+
+UI_SCHEMA_VERSION = "1.0"
+
 
 class PendingAction(Strict):
     id: str
@@ -257,6 +309,8 @@ class ChatMessageIn(Strict):
 
 
 class ChatResponse(Strict):
+    schema_version: Literal["1.0"] = UI_SCHEMA_VERSION
+    trace_id: str | None = None
     message: str
     mode: Literal["demo", "live"]
     ui: list[UISpec] = []

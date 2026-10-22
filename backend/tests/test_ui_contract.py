@@ -3,7 +3,7 @@ no executable code can slip through."""
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
-from app.schemas.ui import ChatResponse, UISpec
+from app.schemas.ui import ChatResponse, PurchasePlanSpec, UISpec
 
 UISpecAdapter = TypeAdapter(UISpec)
 
@@ -50,10 +50,37 @@ def test_chat_response_round_trip_with_multiple_components():
         ],
         "tools_used": ["analyze_spending"],
     })
+    assert resp.schema_version == "1.0"
     assert [u.type for u in resp.ui] == ["spending_chart", "recommendation_list"]
     # serializes cleanly for the frontend
     payload = resp.model_dump()
     assert payload["ui"][0]["type"] == "spending_chart"
+    assert payload["schema_version"] == "1.0"
+
+
+def test_unsupported_schema_version_is_rejected():
+    with pytest.raises(ValidationError):
+        ChatResponse.model_validate({
+            "schema_version": "2.0",
+            "message": "Respuesta",
+            "mode": "demo",
+        })
+
+
+def test_purchase_plan_contract_rejects_incomplete_options():
+    with pytest.raises(ValidationError):
+        PurchasePlanSpec.model_validate({
+            "type": "purchase_plan",
+            "title": "Plan de compra",
+            "purchase_amount": 45000,
+            "current_balance": 80000,
+            "balance_after_cash_purchase": 35000,
+            "monthly_balance": 10000,
+            "fixed_payments_monthly": 5000,
+            "annual_rate": 15.9,
+            "options": [],
+            "disclaimer": "Simulación educativa",
+        })
 
 
 def test_pending_action_shape():

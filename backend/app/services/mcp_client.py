@@ -5,12 +5,14 @@ the Model Context Protocol — tool discovery (list_tools) and execution
 (call_tool) go through the protocol, not HTTP wrappers.
 """
 import json
+import os
 import sys
 from contextlib import AsyncExitStack
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+from app.core import database
 from app.core.config import MCP_SERVER_PATH
 
 
@@ -33,6 +35,7 @@ class MCPFinanceClient:
         params = StdioServerParameters(
             command=sys.executable,
             args=[str(MCP_SERVER_PATH)],
+            env={**os.environ, "BANORTE_DB_PATH": str(database.DB_PATH)},
         )
         try:
             read, write = await self._stack.enter_async_context(stdio_client(params))

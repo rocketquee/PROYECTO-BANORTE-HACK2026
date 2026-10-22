@@ -1,6 +1,7 @@
 """Tests for the MCP tool implementations (the same functions the FastMCP
 server exposes over the protocol) + a real protocol-level integration check."""
 import asyncio
+import uuid
 
 import pytest
 
@@ -49,6 +50,30 @@ async def test_create_goal_requires_confirmation(tmp_db):
     goals = (await get_savings_goals_impl())["goals"]
     assert len(goals) == before + 1
     assert any(g["name"] == "Vacaciones" and g["target_amount"] == 8_000 for g in goals)
+
+
+@pytest.mark.asyncio
+async def test_create_goal_idempotency_prevents_duplicate_writes(tmp_db):
+    from tools.finance_tools import create_savings_goal_impl, get_savings_goals_impl
+
+    key = str(uuid.uuid4())
+    first = await create_savings_goal_impl(
+        "Meta idempotente", 12_000, "2027-10-22", confirm=True,
+        idempotency_key=key,
+    )
+    replay = await create_savings_goal_impl(
+        "Meta idempotente", 12_000, "2027-10-22", confirm=True,
+        idempotency_key=key,
+    )
+    goals = (await get_savings_goals_impl())["goals"]
+    assert first["goal"]["id"] == replay["goal"]["id"]
+    assert replay["idempotent_replay"] is True
+    assert sum(goal["name"] == "Meta idempotente" for goal in goals) == 1
+    with pytest.raises(ValueError, match="idempotencia"):
+        await create_savings_goal_impl(
+            "Otra meta", 12_000, "2027-10-22", confirm=True,
+            idempotency_key=key,
+        )
 
 
 @pytest.mark.asyncio

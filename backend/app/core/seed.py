@@ -46,6 +46,13 @@ CREATE TABLE IF NOT EXISTS savings_goals (
     status TEXT NOT NULL DEFAULT 'activa',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+CREATE TABLE IF NOT EXISTS idempotency_records (
+    idempotency_key TEXT PRIMARY KEY,
+    action TEXT NOT NULL,
+    request_hash TEXT NOT NULL,
+    result_json TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 CREATE TABLE IF NOT EXISTS budgets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     category TEXT NOT NULL UNIQUE,

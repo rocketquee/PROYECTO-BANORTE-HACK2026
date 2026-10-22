@@ -24,6 +24,10 @@ produce nuevas acciones (ciclo cerrado).
 
 ## Arquitectura
 
+La documentación vigente del flujo Plan de compra y sus decisiones está en
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) y
+[docs/DECISIONS.md](docs/DECISIONS.md).
+
 ```mermaid
 flowchart LR
     U[Usuario] -->|solicitud| FE["Frontend Next.js (React + Recharts)"]
@@ -84,13 +88,18 @@ Opcional: copia `.env.example` a `.env` (raíz) y configura tu proveedor de IA.
 | Variable | Descripción |
 |---|---|
 | `AI_PROVIDER` | `demo` (default, sin API key) · `openai` · `anthropic` |
-| `OPENAI_API_KEY` / `OPENAI_MODEL` | Para proveedor OpenAI |
-| `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` | Para proveedor Anthropic |
+| `OPENAI_API_KEY` / `OPENAI_MODEL` / `OPENAI_BASE_URL` | Para proveedor OpenAI; modelo predeterminado `gpt-4o-mini` |
+| `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` | Para proveedor Anthropic; modelo predeterminado `claude-sonnet-4-20250514` |
+| `AI_TEMPERATURE` / `AI_TIMEOUT_SECONDS` | Temperatura baja y tiempo límite para llamadas al proveedor |
+| `AGENT_MAX_STEPS` / `AGENT_MAX_RETRIES` | Máximo de pasos del agente y reintentos |
+| `AGENT_RETRY_DELAY_SECONDS` / `AGENT_TOOL_TIMEOUT_SECONDS` | Espera entre reintentos y tiempo límite de cada herramienta MCP |
 | `FRONTEND_ORIGIN` | CORS restrictivo (default `http://localhost:3000`) |
 | `DEV_MODE` | `1` habilita `/docs`, `/openapi.json` y detalles técnicos. **Desactivado por defecto**; nunca se activa desde la interfaz pública. |
 
 **No hay secretos en el frontend ni en el código.** Sin API key, la app corre en
 modo demostración con el agente por reglas y las mismas herramientas MCP reales.
+Desde cero, crea `.env` a partir de `.env.example` solo si necesitas configurar
+el proveedor; deja `AI_PROVIDER=demo` para ejecutar completamente en local.
 
 ### Asistente accesible y seguro
 
@@ -125,6 +134,16 @@ cd frontend && npm run dev
 :: Para probarlo aislado, ver mcp-server\README.md
 ```
 
+## Plan de compra
+
+Pregunta, por ejemplo, **"¿Puedo comprar una PC de 45 mil?"**. El asistente
+consulta los datos sintéticos locales y presenta opciones de contado, ahorro y
+crédito. Al seleccionar una opción, la interfaz vuelve a enviar un evento
+tipado al agente y recibe el impacto actualizado. Para crear una meta, la
+persona debe revisar el resumen y confirmar en un segundo paso. La meta solo
+se guarda en SQLite local y una clave idempotente evita duplicados por reintento
+o doble clic; no se mueve dinero real.
+
 ## Herramientas MCP (18)
 
 Consulta: `get_balance`, `get_transactions`, `get_cards`, `get_savings_goals`,
@@ -145,13 +164,14 @@ del LLM, de modo que el modelo nunca puede saltarse la confirmación humana.
 ```cmd
 .venv\Scripts\python -m pytest backend\tests -v
 cd frontend && npm test
+cd frontend && npm run build
 ```
 
-213 pruebas backend y 2 frontend: matemática financiera, contrato de UI (rechaza
-tipos no autorizados y props extra), servicios y persistencia, herramientas MCP
-(incluida una prueba de integración real por protocolo stdio), lenguaje
-coloquial, seguridad, privacidad, fallback sin proveedor y regresiones de la
-suite de QA.
+La suite cubre matemática financiera, contrato versionado, proveedor/fallback,
+límite y reintentos, ciclo de eventos del Plan de compra, confirmación e
+idempotencia MCP, inyección, enmascaramiento de datos, logs estructurados,
+integración por stdio y pruebas de frontend. El build comprueba compilación y
+tipos de TypeScript.
 
 ## Seguridad y privacidad
 

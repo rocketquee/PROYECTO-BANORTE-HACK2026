@@ -84,6 +84,37 @@ export interface CreditResult {
   total_paid: number;
 }
 
+export interface PurchaseOption {
+  option_id: "cash" | "savings_12" | "credit_12" | "credit_18" | "credit_24";
+  kind: "cash" | "savings" | "credit";
+  label: string;
+  amount: number;
+  months?: number | null;
+  monthly_payment: number;
+  total_cost: number;
+  monthly_balance_after: number;
+}
+
+export interface PurchasePlanSpec {
+  type: "purchase_plan";
+  title: string;
+  purchase_amount: number;
+  current_balance: number;
+  balance_after_cash_purchase: number;
+  monthly_balance: number;
+  fixed_payments_monthly: number;
+  annual_rate: number;
+  options: PurchaseOption[];
+  selected_option_id?: PurchaseOption["option_id"] | null;
+  goal_status: "not_requested" | "confirm_required" | "created";
+  goal_name?: string | null;
+  goal_deadline?: string | null;
+  goal_confirmation_token?: string | null;
+  goal_idempotency_key?: string | null;
+  goal_created_id?: number | null;
+  disclaimer: string;
+}
+
 export interface ScheduleRow {
   n: number;
   payment: number;
@@ -191,6 +222,7 @@ export type UISpec =
   | SavingsGoalFormSpec
   | SavingsProgressSpec
   | CreditSimulatorSpec
+  | PurchasePlanSpec
   | BudgetPlannerSpec
   | RecommendationListSpec
   | TrendChartSpec
@@ -205,6 +237,7 @@ export const AUTHORIZED_COMPONENTS = [
   "savings_goal_form",
   "savings_progress",
   "credit_simulator",
+  "purchase_plan",
   "budget_planner",
   "recommendation_list",
   "trend_chart",
@@ -221,6 +254,8 @@ export interface PendingAction {
 }
 
 export interface ChatResponse {
+  schema_version: "1.0";
+  trace_id?: string | null;
   message: string;
   mode: "demo" | "live";
   ui: UISpec[];
@@ -229,6 +264,30 @@ export interface ChatResponse {
   pending_action?: PendingAction | null;
   interaction_context?: Record<string, unknown>;
 }
+
+export type UIEvent =
+  | {
+      id: string;
+      type: "purchase_option_selected";
+      payload: { option_id: PurchaseOption["option_id"] };
+      trace_id: string;
+    }
+  | {
+      id: string;
+      type: "purchase_goal_create_requested";
+      payload: { option_id: "savings_12" };
+      trace_id: string;
+    }
+  | {
+      id: string;
+      type: "purchase_goal_confirmed";
+      payload: {
+        option_id: "savings_12";
+        confirmation_token: string;
+        idempotency_key: string;
+      };
+      trace_id: string;
+    };
 
 export interface DashboardData {
   total_balance: number;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { ChatResponse, UISpec } from "@/types/contract";
+import type { ChatResponse, PurchaseOption, UIEvent, UISpec } from "@/types/contract";
 import { post } from "@/lib/api";
 import DynamicRenderer from "@/components/dynamic/DynamicRenderer";
 import { activeConversation, chatActions, useChatStore, type ChatMsg } from "@/lib/chatStore";
@@ -50,7 +50,7 @@ export default function AgentView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingQuestion?.nonce]);
 
-  async function send(text: string) {
+  async function send(text: string, uiEvent?: UIEvent) {
     const message = text.trim();
     if (!message || loading) return;
     setInput("");
@@ -63,8 +63,13 @@ export default function AgentView({
       const resp = await post<ChatResponse>("/api/agent/chat", {
         message,
         history: conversation.history.slice(-6),
+        ui_event: uiEvent,
       }, controller.signal);
       chatActions.addMessage({ role: "assistant", resp });
+      if (uiEvent?.type === "purchase_goal_confirmed" &&
+          resp.ui.some((spec) => spec.type === "savings_progress")) {
+        onGoalsChanged();
+      }
       // Assistant-driven navigation ("llévame a mis tarjetas").
       const nav = resp.interaction_context?.navigate;
       if (typeof nav === "string" && nav) onNavigate(nav);
@@ -80,6 +85,45 @@ export default function AgentView({
       chatActions.setLoading(false);
       abortRef.current = null;
     }
+  }
+
+  function selectPurchaseOption(
+    optionId: PurchaseOption["option_id"],
+    label: string,
+    traceId: string,
+  ) {
+    send(`Elegí la opción: ${label}.`, {
+      id: crypto.randomUUID(),
+      type: "purchase_option_selected",
+      payload: { option_id: optionId },
+      trace_id: traceId,
+    });
+  }
+
+  function requestPurchaseGoal(traceId: string) {
+    send("Quiero preparar la meta de ahorro de este plan.", {
+      id: crypto.randomUUID(),
+      type: "purchase_goal_create_requested",
+      payload: { option_id: "savings_12" },
+      trace_id: traceId,
+    });
+  }
+
+  function confirmPurchaseGoal(
+    traceId: string,
+    confirmationToken: string,
+    idempotencyKey: string,
+  ) {
+    send("Confirmo crear la meta de ahorro de este plan.", {
+      id: crypto.randomUUID(),
+      type: "purchase_goal_confirmed",
+      payload: {
+        option_id: "savings_12",
+        confirmation_token: confirmationToken,
+        idempotency_key: idempotencyKey,
+      },
+      trace_id: traceId,
+    });
   }
 
   function cancel() {
@@ -113,7 +157,7 @@ export default function AgentView({
       role: "assistant",
       resp: {
         message: `Meta "${name}" guardada con objetivo de $${target.toLocaleString("es-MX")}. Ya aparece en tu panel de metas.`,
-        mode: "demo", ui: [], tools_used: ["create_savings_goal"],
+        schema_version: "1.0", mode: "demo", ui: [], tools_used: ["create_savings_goal"],
       },
     });
     onGoalsChanged();
@@ -185,6 +229,11 @@ export default function AgentView({
               <div className="flex justify-start">
                 <div className="max-w-[92%] rounded-2xl rounded-bl-sm bg-white px-4 py-2 text-base shadow-sm">
                   <p className="whitespace-pre-wrap">{m.resp?.message}</p>
+                  {m.resp?.mode === "demo" && (
+                    <p className="mt-2 text-[18px] text-neutral-600" role="status">
+                      Respuesta con ayuda local; no requiere conexión con un proveedor de IA.
+                    </p>
+                  )}
                   {m.resp?.suggestions && m.resp.suggestions.length > 0 && (
                     <div className="mt-3">
                       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
@@ -238,7 +287,8 @@ export default function AgentView({
                       onClick={() =>
                         chatActions.setDetail(
                           isDetailOpen ? null : (m.resp!.ui as UISpec[]),
-                          isDetailOpen ? null : msgKey
+                          isDetailOpen ? null : msgKey,
+                          isDetailOpen ? null : (m.resp?.trace_id ?? null)
                         )
                       }
                       className="mt-3 min-h-[48px] rounded-xl border-2 border-brand px-4 py-2.5 text-base font-medium text-brand hover:bg-brand-soft"
@@ -259,6 +309,11 @@ export default function AgentView({
                     ? { id: m.resp.pending_action.id, description: m.resp.pending_action.description }
                     : null}
                   onConfirmPending={(actionId) => confirmPending(actionId, i)}
+                  traceId={m.resp?.trace_id}
+                  loading={loading}
+                  onPurchaseOptionSelect={selectPurchaseOption}
+                  onPurchaseGoalRequest={requestPurchaseGoal}
+                  onPurchaseGoalConfirm={confirmPurchaseGoal}
                 />
               ))}
             </div>
@@ -327,6 +382,11 @@ export default function AgentView({
                 onAsk={send}
                 onGoalCreated={goalCreatedFromForm}
                 onGoalsChanged={onGoalsChanged}
+                traceId={store.detailTraceId}
+                loading={loading}
+                onPurchaseOptionSelect={selectPurchaseOption}
+                onPurchaseGoalRequest={requestPurchaseGoal}
+                onPurchaseGoalConfirm={confirmPurchaseGoal}
               />
             ))}
           </div>

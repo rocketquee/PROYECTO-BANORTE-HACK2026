@@ -7,7 +7,10 @@ so the MCP server and the API always see the same data.
 Write operations require `confirm=True` (user authorization) and never move
 real money — this is a prototype with synthetic data.
 """
+import hashlib
+import json
 import sys
+import uuid
 from datetime import date
 from pathlib import Path
 
@@ -186,7 +189,8 @@ async def budget_vs_actual_impl(year: int | None = None, month: int | None = Non
 # Always require explicit user confirmation (`confirm=True`).
 
 async def create_savings_goal_impl(name: str, target_amount: float, deadline: str | None = None,
-                                   confirm: bool = False) -> dict:
+                                   confirm: bool = False,
+                                   idempotency_key: str | None = None) -> dict:
     if not confirm:
         return {
             "status": "requires_confirmation",
@@ -197,6 +201,41 @@ async def create_savings_goal_impl(name: str, target_amount: float, deadline: st
         raise ValueError("El nombre debe tener entre 2 y 80 caracteres.")
     if not (1 <= target_amount <= 100_000_000):
         raise ValueError("El importe objetivo debe estar entre $1 y $100,000,000.")
+    if idempotency_key:
+        try:
+            uuid.UUID(idempotency_key)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("La clave de idempotencia no es válida.") from exc
+        target_amount = round(float(target_amount), 2)
+        request_json = json.dumps(
+            {"name": name, "target_amount": target_amount, "deadline": deadline},
+            ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        )
+        request_hash = hashlib.sha256(request_json.encode("utf-8")).hexdigest()
+        with db() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            existing = conn.execute(
+                "SELECT action, request_hash, result_json FROM idempotency_records "
+                "WHERE idempotency_key=?",
+                (idempotency_key,),
+            ).fetchone()
+            if existing:
+                if existing["action"] != "create_savings_goal" or \
+                        existing["request_hash"] != request_hash:
+                    raise ValueError("La clave de idempotencia ya se usó con otros datos.")
+                result = json.loads(existing["result_json"])
+                result["idempotent_replay"] = True
+                return result
+            goal = finance.create_goal(conn, name, target_amount, deadline)
+            result = {"status": "created", "goal": goal,
+                      "message": f"Meta '{name}' creada."}
+            conn.execute(
+                "INSERT INTO idempotency_records "
+                "(idempotency_key, action, request_hash, result_json) VALUES (?,?,?,?)",
+                (idempotency_key, "create_savings_goal", request_hash,
+                 json.dumps(result, ensure_ascii=False)),
+            )
+        return result
     with db() as conn:
         goal = finance.create_goal(conn, name, target_amount, deadline)
     return {"status": "created", "goal": goal,

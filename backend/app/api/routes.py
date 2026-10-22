@@ -216,6 +216,7 @@ def ui_schema():
     from app.schemas.ui import AUTHORIZED_COMPONENTS
     return {
         "protocol": "A2UI-equivalent JSON contract (validated with Pydantic, extra=forbid)",
+        "schema_version": "1.0",
         "authorized_components": AUTHORIZED_COMPONENTS,
         "note": "The agent never produces executable code; the frontend renders only these types.",
     }

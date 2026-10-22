@@ -13,7 +13,8 @@ from app.schemas.ui import (
     AlertItem, AlertListSpec, BudgetCategory, BudgetPlannerSpec, CategorySlice,
     ComparisonRow, ComparisonSpec, CreditParams, CreditResult, CreditSimulatorSpec,
     FinancialSummarySpec, GoalProgress, Metric, RecommendationItem,
-    RecommendationListSpec, SavingsGoalFormSpec, SavingsProgressSpec, ScheduleRow,
+    PurchaseOption, PurchasePlanSpec, RecommendationListSpec, SavingsGoalFormSpec,
+    SavingsProgressSpec, ScheduleRow,
     SpendingChartSpec, TimelineItem, TimelineSpec, TransactionItem,
     TransactionsTableSpec, TrendChartSpec, TrendPoint,
 )
@@ -160,6 +161,34 @@ def credit_simulator_ui(amount: float, months: int, annual_rate: float,
                             total_paid=result["total_paid"]),
         schedule=[ScheduleRow(**r) for r in result["schedule"]],
         disclaimer=result["disclaimer"],
+    )
+
+
+def purchase_plan_ui(
+    amount: float,
+    current_balance: float,
+    monthly_balance: float,
+    fixed_payments_monthly: float,
+    annual_rate: float,
+    options: list[PurchaseOption],
+    selected_option_id: str | None = None,
+) -> PurchasePlanSpec:
+    return PurchasePlanSpec(
+        type="purchase_plan",
+        title="Plan de compra",
+        purchase_amount=amount,
+        current_balance=current_balance,
+        balance_after_cash_purchase=current_balance - amount,
+        monthly_balance=monthly_balance,
+        fixed_payments_monthly=fixed_payments_monthly,
+        annual_rate=annual_rate,
+        options=options,
+        selected_option_id=selected_option_id,
+        disclaimer=(
+            f"Simulación educativa. Las opciones de crédito usan una tasa ilustrativa de "
+            f"{annual_rate}% anual, no son una oferta ni una aprobación. El ahorro se calcula "
+            "sin rendimientos y en 12 meses."
+        ),
     )
 
 

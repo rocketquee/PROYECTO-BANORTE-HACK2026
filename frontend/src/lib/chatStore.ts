@@ -33,6 +33,7 @@ interface ChatState {
   /** Result opened in "expanded detail" (right panel): message key + specs. */
   detail: UISpec[] | null;
   detailKey: string | null;
+  detailTraceId: string | null;
 }
 
 const STORAGE_KEY = "baf.conversations.v1";
@@ -60,6 +61,7 @@ function initialState(): ChatState {
     loading: false,
     detail: null,
     detailKey: null,
+    detailTraceId: null,
   };
   return fallback;
 }
@@ -113,6 +115,7 @@ function hydrateFromStorage() {
       loading: false,
       detail: null,
       detailKey: null,
+      detailTraceId: null,
     };
     listeners.forEach((listener) => listener());
   } catch {
@@ -161,8 +164,9 @@ export const chatActions = {
     setState({ loading });
   },
 
-  setDetail(detail: UISpec[] | null, detailKey: string | null = null) {
-    setState({ detail, detailKey });
+  setDetail(detail: UISpec[] | null, detailKey: string | null = null,
+             detailTraceId: string | null = null) {
+    setState({ detail, detailKey, detailTraceId });
   },
 
   updateMessage(index: number, updater: (msg: ChatMsg) => ChatMsg) {
@@ -178,11 +182,11 @@ export const chatActions = {
   newConversation() {
     const conv = newConversation();
     setState({ conversations: [conv, ...state.conversations], activeId: conv.id,
-               detail: null });
+               detail: null, detailTraceId: null });
   },
 
   selectConversation(id: string) {
-    setState({ activeId: id, detail: null });
+    setState({ activeId: id, detail: null, detailTraceId: null });
   },
 
   deleteConversation(id: string) {

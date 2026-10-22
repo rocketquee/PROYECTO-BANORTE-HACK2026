@@ -15,24 +15,30 @@ from fastapi.responses import JSONResponse
 
 from app.api.routes import router
 from app.core import config, database
+from app.core.structured_logging import configure_application_logging
 from app.services.mcp_client import mcp_client
 
 logger = logging.getLogger("banorte")
-logging.basicConfig(level=logging.INFO)
+configure_application_logging()
+config.load_dotenv()
 
 GENERIC_ERROR = "No pude hacer eso. ¿Lo intentamos de otra forma?"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    config.load_dotenv()
     database.ensure_db()
     try:
         await mcp_client.start()
-        logger.info("Servidor de herramientas conectado (%s disponibles).",
-                    len(mcp_client.tools))
+        logger.info(
+            "mcp_server_connected",
+            extra={"service_count": len(mcp_client.tools)},
+        )
     except Exception as exc:  # noqa: BLE001 - report, don't crash the API
-        logger.error("Error al iniciar el servidor de herramientas: %s", exc)
+        logger.error(
+            "mcp_server_start_failed",
+            extra={"error_type": type(exc).__name__},
+        )
     yield
     await mcp_client.stop()
 
@@ -71,8 +77,10 @@ async def hide_server_header(request: Request, call_next):
 
 @app.exception_handler(Exception)
 async def generic_error_handler(request: Request, exc: Exception):
-    # Details go to the log only; the user sees a friendly, non-technical message.
-    logger.error("Error interno en %s: %s", request.url.path, exc)
+    logger.error(
+        "request_failed",
+        extra={"error_type": type(exc).__name__},
+    )
     return JSONResponse(status_code=500, content={"detail": GENERIC_ERROR})
 
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { AUTHORIZED_COMPONENTS, UISpec } from "@/types/contract";
+import { AUTHORIZED_COMPONENTS } from "@/types/contract";
+import type { PurchaseOption, UISpec } from "@/types/contract";
 import FinancialSummary from "./FinancialSummary";
 import SpendingChart from "./SpendingChart";
 import TransactionsTable from "./TransactionsTable";
@@ -13,6 +14,7 @@ import TrendChart from "./TrendChart";
 import Comparison from "./Comparison";
 import Timeline from "./Timeline";
 import AlertList from "./AlertList";
+import PurchasePlan from "./PurchasePlan";
 
 interface RendererProps {
   spec: UISpec;
@@ -21,6 +23,11 @@ interface RendererProps {
   onGoalsChanged: () => void;
   pendingAction?: { id: string; description: string } | null;
   onConfirmPending?: (actionId: string) => Promise<void>;
+  onPurchaseOptionSelect?: (optionId: PurchaseOption["option_id"], label: string, traceId: string) => void;
+  onPurchaseGoalRequest?: (traceId: string) => void;
+  onPurchaseGoalConfirm?: (traceId: string, confirmationToken: string, idempotencyKey: string) => void;
+  traceId?: string | null;
+  loading?: boolean;
 }
 
 /**
@@ -32,8 +39,8 @@ export default function DynamicRenderer(props: RendererProps) {
   const { spec } = props;
   if (!(AUTHORIZED_COMPONENTS as readonly string[]).includes(spec.type)) {
     return (
-      <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-base text-amber-800">
-        Componente no autorizado: {String((spec as { type?: string }).type)}
+      <div role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-[18px] text-amber-900">
+        No pudimos mostrar esta parte. Puedes continuar preguntándole al asistente.
       </div>
     );
   }
@@ -57,6 +64,25 @@ export default function DynamicRenderer(props: RendererProps) {
       return <SavingsProgress title={spec.title} goals={spec.goals} onChanged={props.onGoalsChanged} />;
     case "credit_simulator":
       return <CreditSimulator spec={spec} onAsk={props.onAsk} />;
+    case "purchase_plan":
+      return (
+        <PurchasePlan
+          spec={spec}
+          loading={props.loading ?? false}
+          eventAvailable={Boolean(props.traceId && props.onPurchaseOptionSelect)}
+          onSelect={(optionId, label) =>
+            props.traceId && props.onPurchaseOptionSelect?.(optionId, label, props.traceId)
+          }
+          onRequestGoal={() =>
+            props.traceId && props.onPurchaseGoalRequest?.(props.traceId)
+          }
+          onConfirmGoal={(confirmationToken, idempotencyKey) =>
+            props.traceId && props.onPurchaseGoalConfirm?.(
+              props.traceId, confirmationToken, idempotencyKey,
+            )
+          }
+        />
+      );
     case "budget_planner":
       return (
         <BudgetPlanner
