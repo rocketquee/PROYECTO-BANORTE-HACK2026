@@ -1,0 +1,232 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --app-bg: #f3f2f8;
+  --surface: #ffffff;
+  --surface-subtle: #f7f6fa;
+  --line: #e5e3ec;
+  --text: #17171d;
+  --muted: #50505b;
+  --accent: #f26a4b;
+  --squares-color: #EB0029;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --app-bg: #17171d;
+  --surface: #24242d;
+  --surface-subtle: #30303a;
+  --line: #454550;
+  --text: #f7f6fa;
+  --muted: #c5c3cf;
+  --accent: #ff896e;
+  --squares-color: #EB0029;
+}
+
+html {
+  font-size: 112.5%;
+}
+
+body {
+  @apply antialiased;
+  background: var(--app-bg);
+  color: var(--text);
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html[data-theme="dark"] .bg-white {
+  background-color: var(--surface);
+}
+html[data-theme="dark"] .bg-neutral-50 {
+  background-color: var(--surface-subtle);
+}
+html[data-theme="dark"] .bg-neutral-100 {
+  background-color: var(--app-bg);
+}
+html[data-theme="dark"] .bg-neutral-200 {
+  background-color: #393943;
+}
+html[data-theme="dark"] .border-neutral-200,
+html[data-theme="dark"] .border-neutral-300,
+html[data-theme="dark"] .border-neutral-400 {
+  border-color: var(--line);
+}
+html[data-theme="dark"] .text-neutral-100,
+html[data-theme="dark"] .text-neutral-200 {
+  color: #f7f6fa;
+}
+html[data-theme="dark"] .text-neutral-300,
+html[data-theme="dark"] .text-neutral-400,
+html[data-theme="dark"] .text-neutral-500,
+html[data-theme="dark"] .text-neutral-600,
+html[data-theme="dark"] .text-neutral-700,
+html[data-theme="dark"] .text-neutral-800,
+html[data-theme="dark"] .text-neutral-900 {
+  color: #d2d0da;
+}
+html[data-theme="dark"] .text-emerald-700,
+html[data-theme="dark"] .text-emerald-800 {
+  color: #86efac;
+}
+html[data-theme="dark"] .bg-amber-50 {
+  background-color: #3d3224;
+}
+html[data-theme="dark"] .text-amber-800,
+html[data-theme="dark"] .text-amber-900 {
+  color: #f5d6a6;
+}
+html[data-theme="dark"] .bg-brand-soft {
+  background-color: #492b2a;
+}
+html[data-theme="dark"] .text-brand,
+html[data-theme="dark"] .text-brand-dark {
+  color: #ffb4a3;
+}
+html[data-theme="dark"] .border-white\/20,
+html[data-theme="dark"] .border-white\/30 {
+  border-color: var(--line);
+}
+html[data-theme="dark"] .shadow-sm {
+  box-shadow: 0 14px 40px rgb(0 0 0 / 28%);
+}
+
+.rounded-xl {
+  border-radius: 20px;
+}
+.rounded-2xl {
+  border-radius: 24px;
+}
+.shadow-sm {
+  box-shadow: 0 14px 40px rgb(29 22 53 / 10%);
+}
+
+@keyframes screen-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes screen-exit {
+  to { opacity: 0; }
+}
+
+@keyframes progress-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(var(--progress-scale)); }
+}
+
+@keyframes progress-ring {
+  from { stroke-dashoffset: var(--ring-circumference); }
+  to { stroke-dashoffset: var(--ring-offset); }
+}
+
+.animate-screen-enter {
+  animation: screen-enter 300ms ease-out both;
+}
+
+.animate-screen-exit {
+  animation: screen-exit 150ms ease-out both;
+  pointer-events: none;
+}
+
+.screen-stagger {
+  animation: screen-enter 300ms ease-out both;
+}
+
+.screen-stagger-1 { animation-delay: 60ms; }
+.screen-stagger-2 { animation-delay: 120ms; }
+
+.animated-progress-fill {
+  transform: scaleX(0);
+  animation: progress-fill 700ms ease-out forwards;
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgb(255 255 255 / 18%) 0,
+    rgb(255 255 255 / 18%) 5px,
+    transparent 5px,
+    transparent 10px
+  );
+}
+
+.animated-progress-ring {
+  stroke-dasharray: var(--ring-circumference);
+  stroke-dashoffset: var(--ring-circumference);
+  animation: progress-ring 700ms ease-out forwards;
+}
+
+.recharts-legend-item-text {
+  color: var(--text) !important;
+}
+
+.recharts-default-tooltip,
+.recharts-tooltip-label,
+.recharts-tooltip-item,
+.recharts-tooltip-item-name,
+.recharts-tooltip-item-value {
+  color: var(--text) !important;
+}
+
+.recharts-default-tooltip {
+  background-color: var(--surface) !important;
+  border-color: var(--line) !important;
+}
+
+.scrollbar-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-neutral-300;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:focus-visible {
+  @apply outline-none ring-2 ring-brand ring-offset-1;
+}
+
+/* Respect the OS "reduce motion" setting. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-screen-enter,
+  .animate-screen-exit,
+  .screen-stagger,
+  .animated-progress-fill,
+  .animated-progress-ring {
+    animation: none !important;
+  }
+
+  .animated-progress-fill {
+    transform: scaleX(var(--progress-scale));
+  }
+
+  .animated-progress-ring {
+    stroke-dashoffset: var(--ring-offset);
+  }
+}

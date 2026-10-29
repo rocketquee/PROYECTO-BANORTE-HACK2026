@@ -1,0 +1,2775 @@
+{
+  "GET /analytics/trend": {
+    "series": [
+      {
+        "count": 75,
+        "label": "Mayo 2026",
+        "month": "2026-05",
+        "total": 31250.91
+      },
+      {
+        "count": 83,
+        "label": "Junio 2026",
+        "month": "2026-06",
+        "total": 45785.29
+      },
+      {
+        "count": 77,
+        "label": "Julio 2026",
+        "month": "2026-07",
+        "total": 33185.62
+      },
+      {
+        "count": 78,
+        "label": "Agosto 2026",
+        "month": "2026-08",
+        "total": 33259.52
+      },
+      {
+        "count": 92,
+        "label": "Septiembre 2026",
+        "month": "2026-09",
+        "total": 37437.47
+      },
+      {
+        "count": 58,
+        "label": "Octubre 2026",
+        "month": "2026-10",
+        "total": 24417.22
+      }
+    ]
+  },
+  "GET /budget": {
+    "available": -13457.95,
+    "categories": [
+      {
+        "category": "Educación",
+        "limit": 800.0,
+        "pct": 0.0,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 800.0,
+        "spent": 0
+      },
+      {
+        "category": "Entretenimiento",
+        "limit": 1500.0,
+        "pct": 47.6,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 1500.0,
+        "spent": 714.69
+      },
+      {
+        "category": "Hogar",
+        "limit": 9000.0,
+        "pct": 80.7,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 9000.0,
+        "spent": 7262.83
+      },
+      {
+        "category": "Regalos",
+        "limit": 1500.0,
+        "pct": 0.0,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 1500.0,
+        "spent": 0
+      },
+      {
+        "category": "Restaurantes",
+        "limit": 3000.0,
+        "pct": 61.1,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 3000.0,
+        "spent": 1832.58
+      },
+      {
+        "category": "Salud",
+        "limit": 1500.0,
+        "pct": 58.5,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 1500.0,
+        "spent": 877.91
+      },
+      {
+        "category": "Seguros",
+        "limit": 500.0,
+        "pct": 96.0,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 500.0,
+        "spent": 480.0
+      },
+      {
+        "category": "Servicios",
+        "limit": 2500.0,
+        "pct": 69.3,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 2500.0,
+        "spent": 1732.13
+      },
+      {
+        "category": "Supermercado",
+        "limit": 6500.0,
+        "pct": 110.8,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 6500.0,
+        "spent": 7204.05
+      },
+      {
+        "category": "Tarjetas",
+        "limit": 2500.0,
+        "pct": 60.0,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 2500.0,
+        "spent": 1501.08
+      },
+      {
+        "category": "Tiendas de conveniencia",
+        "limit": 900.0,
+        "pct": 141.7,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 900.0,
+        "spent": 1275.3
+      },
+      {
+        "category": "Transporte",
+        "limit": 2500.0,
+        "pct": 61.5,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 2500.0,
+        "spent": 1536.65
+      }
+    ],
+    "income": 10959.27,
+    "month": "2026-10",
+    "total_spent": 24417.22
+  },
+  "GET /dashboard": {
+    "accounts": [
+      {
+        "balance": 24580.35,
+        "currency": "MXN",
+        "id": 1,
+        "name": "Cuenta Nómina",
+        "type": "debit"
+      },
+      {
+        "balance": 35700.0,
+        "currency": "MXN",
+        "id": 2,
+        "name": "Cuenta Ahorro",
+        "type": "savings"
+      },
+      {
+        "balance": 3140.8,
+        "currency": "MXN",
+        "id": 3,
+        "name": "Cuenta Digital",
+        "type": "debit"
+      }
+    ],
+    "budget_overview": {
+      "available": -13457.95,
+      "categories": [
+        {
+          "category": "Educación",
+          "limit": 800.0,
+          "pct": 0.0,
+          "pct_base": "límite mensual de la categoría",
+          "pct_base_value": 800.0,
+          "spent": 0
+        },
+        {
+          "category": "Entretenimiento",
+          "limit": 1500.0,
+          "pct": 47.6,
+          "pct_base": "límite mensual de la categoría",
+          "pct_base_value": 1500.0,
+          "spent": 714.69
+        },
+        {
+          "category": "Hogar",
+          "limit": 9000.0,
+          "pct": 80.7,
+          "pct_base": "límite mensual de la categoría",
+          "pct_base_value": 9000.0,
+          "spent": 7262.83
+        },
+        {
+          "category": "Regalos",
+          "limit": 1500.0,
+          "pct": 0.0,
+          "pct_base": "límite mensual de la categoría",
+          "pct_base_value": 1500.0,
+          "spent": 0
+        },
+        {
+          "category": "Restaurantes",
+          "limit": 3000.0,
+          "pct": 61.1,
+          "pct_base": "límite mensual de la categoría",
+          "pct_base_value": 3000.0,
+          "spent": 1832.58
+        },
+        {
+          "category": "Salud",
+          "limit": 1500.0,
+          "pct": 58.5,
+          "pct_base": "límite mensual de la categoría",
+          "pct_base_value": 1500.0,
+          "spent": 877.91
+        },
+        {
+          "category": "Seguros",
+          "limit": 500.0,
+          "pct": 96.0,
+          "pct_base": "límite mensual de la categoría",
+          "pct_base_value": 500.0,
+          "spent": 480.0
+        },
+        {
+          "category": "Servicios",
+          "limit": 2500.0,
+          "pct": 69.3,
+          "pct_base": "límite mensual de la categoría",
+          "pct_base_value": 2500.0,
+          "spent": 1732.13
+        },
+        {
+          "category": "Supermercado",
+          "limit": 6500.0,
+          "pct": 110.8,
+          "pct_base": "límite mensual de la categoría",
+          "pct_base_value": 6500.0,
+          "spent": 7204.05
+        },
+        {
+          "category": "Tarjetas",
+          "limit": 2500.0,
+          "pct": 60.0,
+          "pct_base": "límite mensual de la categoría",
+          "pct_base_value": 2500.0,
+          "spent": 1501.08
+        },
+        {
+          "category": "Tiendas de conveniencia",
+          "limit": 900.0,
+          "pct": 141.7,
+          "pct_base": "límite mensual de la categoría",
+          "pct_base_value": 900.0,
+          "spent": 1275.3
+        },
+        {
+          "category": "Transporte",
+          "limit": 2500.0,
+          "pct": 61.5,
+          "pct_base": "límite mensual de la categoría",
+          "pct_base_value": 2500.0,
+          "spent": 1536.65
+        }
+      ],
+      "income": 10959.27,
+      "month": "2026-10",
+      "total_spent": 24417.22
+    },
+    "cards": [
+      {
+        "balance": 8450.5,
+        "closing_day": 28,
+        "credit_limit": 30000.0,
+        "due_day": 5,
+        "id": 1,
+        "last4": "4412",
+        "name": "Tarjeta de Crédito Principal",
+        "type": "credit"
+      },
+      {
+        "balance": 0.0,
+        "closing_day": null,
+        "credit_limit": 0.0,
+        "due_day": null,
+        "id": 2,
+        "last4": "9903",
+        "name": "Tarjeta de Débito Nómina",
+        "type": "debit"
+      }
+    ],
+    "categories": [
+      {
+        "amount": 7262.83,
+        "category": "Hogar",
+        "count": 3,
+        "pct": 29.7,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 7204.05,
+        "category": "Supermercado",
+        "count": 9,
+        "pct": 29.5,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 1832.58,
+        "category": "Restaurantes",
+        "count": 8,
+        "pct": 7.5,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 1732.13,
+        "category": "Servicios",
+        "count": 5,
+        "pct": 7.1,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 1536.65,
+        "category": "Transporte",
+        "count": 10,
+        "pct": 6.3,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 1501.08,
+        "category": "Tarjetas",
+        "count": 1,
+        "pct": 6.1,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 1275.3,
+        "category": "Tiendas de conveniencia",
+        "count": 16,
+        "pct": 5.2,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 877.91,
+        "category": "Salud",
+        "count": 2,
+        "pct": 3.6,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 714.69,
+        "category": "Entretenimiento",
+        "count": 3,
+        "pct": 2.9,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 480.0,
+        "category": "Seguros",
+        "count": 1,
+        "pct": 2.0,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      }
+    ],
+    "goals": [
+      {
+        "created_at": "<normalizado>",
+        "deadline": "2027-03-28",
+        "id": 1,
+        "name": "Fondo de emergencia",
+        "pct_base": "objetivo de la meta",
+        "pct_base_value": 30000.0,
+        "progress_pct": 61.7,
+        "saved_amount": 18500.0,
+        "status": "activa",
+        "target_amount": 30000.0
+      },
+      {
+        "created_at": "<normalizado>",
+        "deadline": "2027-08-01",
+        "id": 2,
+        "name": "Viaje a Japón",
+        "pct_base": "objetivo de la meta",
+        "pct_base_value": 45000.0,
+        "progress_pct": 18.2,
+        "saved_amount": 8200.0,
+        "status": "activa",
+        "target_amount": 45000.0
+      },
+      {
+        "created_at": "<normalizado>",
+        "deadline": "2027-08-01",
+        "id": 3,
+        "name": "Enganche del auto",
+        "pct_base": "objetivo de la meta",
+        "pct_base_value": 45000.0,
+        "progress_pct": 50.0,
+        "saved_amount": 22500.0,
+        "status": "completada",
+        "target_amount": 45000.0
+      }
+    ],
+    "monthly_series": [
+      {
+        "expense": 31250.91,
+        "income": 21977.71,
+        "label": "May",
+        "month": "2026-05"
+      },
+      {
+        "expense": 45785.29,
+        "income": 22094.54,
+        "label": "Jun",
+        "month": "2026-06"
+      },
+      {
+        "expense": 33185.62,
+        "income": 28455.17,
+        "label": "Jul",
+        "month": "2026-07"
+      },
+      {
+        "expense": 33259.52,
+        "income": 22091.55,
+        "label": "Ago",
+        "month": "2026-08"
+      },
+      {
+        "expense": 37437.47,
+        "income": 21901.84,
+        "label": "Sep",
+        "month": "2026-09"
+      },
+      {
+        "expense": 24417.22,
+        "income": 10959.27,
+        "label": "Oct",
+        "month": "2026-10"
+      }
+    ],
+    "recent_transactions": [
+      {
+        "account_id": 2,
+        "amount": 22500.0,
+        "category": null,
+        "date": "2026-10-25",
+        "description": "Abono a meta: Enganche del auto",
+        "direction": "account_to_goal",
+        "goal_id": 3,
+        "id": 984,
+        "type": "transfer"
+      },
+      {
+        "account_id": 2,
+        "amount": 123.61,
+        "category": "Restaurantes",
+        "date": "2026-10-25",
+        "description": "Starbucks",
+        "direction": null,
+        "goal_id": null,
+        "id": 983,
+        "type": "expense"
+      },
+      {
+        "account_id": 3,
+        "amount": 52.92,
+        "category": "Tiendas de conveniencia",
+        "date": "2026-10-25",
+        "description": "Café La Parroquia",
+        "direction": null,
+        "goal_id": null,
+        "id": 982,
+        "type": "expense"
+      },
+      {
+        "account_id": 1,
+        "amount": 102.36,
+        "category": "Tiendas de conveniencia",
+        "date": "2026-10-25",
+        "description": "OXXO",
+        "direction": null,
+        "goal_id": null,
+        "id": 981,
+        "type": "expense"
+      },
+      {
+        "account_id": 2,
+        "amount": 563.59,
+        "category": "Supermercado",
+        "date": "2026-10-25",
+        "description": "Soriana",
+        "direction": null,
+        "goal_id": null,
+        "id": 980,
+        "type": "expense"
+      },
+      {
+        "account_id": 1,
+        "amount": 1501.08,
+        "category": "Tarjetas",
+        "date": "2026-10-25",
+        "description": "Pago tarjeta de crédito",
+        "direction": null,
+        "goal_id": null,
+        "id": 979,
+        "type": "expense"
+      },
+      {
+        "account_id": 2,
+        "amount": 67.97,
+        "category": "Tiendas de conveniencia",
+        "date": "2026-10-24",
+        "description": "Café La Parroquia",
+        "direction": null,
+        "goal_id": null,
+        "id": 978,
+        "type": "expense"
+      },
+      {
+        "account_id": 1,
+        "amount": 115.52,
+        "category": "Tiendas de conveniencia",
+        "date": "2026-10-24",
+        "description": "OXXO",
+        "direction": null,
+        "goal_id": null,
+        "id": 977,
+        "type": "expense"
+      }
+    ],
+    "summary": {
+      "expense": 24417.22,
+      "income": 10959.27,
+      "month": 10,
+      "month_label": "Octubre 2026",
+      "net": -13457.95,
+      "top_categories": [
+        {
+          "amount": 7262.83,
+          "category": "Hogar",
+          "count": 3,
+          "pct": 29.7,
+          "pct_base": "gasto total del periodo",
+          "pct_base_value": 24417.22
+        },
+        {
+          "amount": 7204.05,
+          "category": "Supermercado",
+          "count": 9,
+          "pct": 29.5,
+          "pct_base": "gasto total del periodo",
+          "pct_base_value": 24417.22
+        },
+        {
+          "amount": 1832.58,
+          "category": "Restaurantes",
+          "count": 8,
+          "pct": 7.5,
+          "pct_base": "gasto total del periodo",
+          "pct_base_value": 24417.22
+        },
+        {
+          "amount": 1732.13,
+          "category": "Servicios",
+          "count": 5,
+          "pct": 7.1,
+          "pct_base": "gasto total del periodo",
+          "pct_base_value": 24417.22
+        },
+        {
+          "amount": 1536.65,
+          "category": "Transporte",
+          "count": 10,
+          "pct": 6.3,
+          "pct_base": "gasto total del periodo",
+          "pct_base_value": 24417.22
+        }
+      ],
+      "transaction_count": 60,
+      "year": 2026
+    },
+    "total_balance": 112621.15
+  },
+  "GET /dashboard (final)": {
+    "accounts": [
+      {
+        "balance": 24580.35,
+        "currency": "MXN",
+        "id": 1,
+        "name": "Cuenta Nómina",
+        "type": "debit"
+      },
+      {
+        "balance": 33700.0,
+        "currency": "MXN",
+        "id": 2,
+        "name": "Cuenta Ahorro",
+        "type": "savings"
+      },
+      {
+        "balance": 3140.8,
+        "currency": "MXN",
+        "id": 3,
+        "name": "Cuenta Digital",
+        "type": "debit"
+      }
+    ],
+    "budget_overview": {
+      "available": -13457.95,
+      "categories": [
+        {
+          "category": "Educación",
+          "limit": 800.0,
+          "pct": 0.0,
+          "pct_base": "límite mensual de la categoría",
+          "pct_base_value": 800.0,
+          "spent": 0
+        },
+        {
+          "category": "Entretenimiento",
+          "limit": 1500.0,
+          "pct": 47.6,
+          "pct_base": "límite mensual de la categoría",
+          "pct_base_value": 1500.0,
+          "spent": 714.69
+        },
+        {
+          "category": "Hogar",
+          "limit": 9000.0,
+          "pct": 80.7,
+          "pct_base": "límite mensual de la categoría",
+          "pct_base_value": 9000.0,
+          "spent": 7262.83
+        },
+        {
+          "category": "Regalos",
+          "limit": 1500.0,
+          "pct": 0.0,
+          "pct_base": "límite mensual de la categoría",
+          "pct_base_value": 1500.0,
+          "spent": 0
+        },
+        {
+          "category": "Restaurantes",
+          "limit": 3000.0,
+          "pct": 61.1,
+          "pct_base": "límite mensual de la categoría",
+          "pct_base_value": 3000.0,
+          "spent": 1832.58
+        },
+        {
+          "category": "Salud",
+          "limit": 1500.0,
+          "pct": 58.5,
+          "pct_base": "límite mensual de la categoría",
+          "pct_base_value": 1500.0,
+          "spent": 877.91
+        },
+        {
+          "category": "Seguros",
+          "limit": 500.0,
+          "pct": 96.0,
+          "pct_base": "límite mensual de la categoría",
+          "pct_base_value": 500.0,
+          "spent": 480.0
+        },
+        {
+          "category": "Servicios",
+          "limit": 2500.0,
+          "pct": 69.3,
+          "pct_base": "límite mensual de la categoría",
+          "pct_base_value": 2500.0,
+          "spent": 1732.13
+        },
+        {
+          "category": "Supermercado",
+          "limit": 7000.0,
+          "pct": 102.9,
+          "pct_base": "límite mensual de la categoría",
+          "pct_base_value": 7000.0,
+          "spent": 7204.05
+        },
+        {
+          "category": "Tarjetas",
+          "limit": 2500.0,
+          "pct": 60.0,
+          "pct_base": "límite mensual de la categoría",
+          "pct_base_value": 2500.0,
+          "spent": 1501.08
+        },
+        {
+          "category": "Tiendas de conveniencia",
+          "limit": 900.0,
+          "pct": 141.7,
+          "pct_base": "límite mensual de la categoría",
+          "pct_base_value": 900.0,
+          "spent": 1275.3
+        },
+        {
+          "category": "Transporte",
+          "limit": 2500.0,
+          "pct": 61.5,
+          "pct_base": "límite mensual de la categoría",
+          "pct_base_value": 2500.0,
+          "spent": 1536.65
+        }
+      ],
+      "income": 10959.27,
+      "month": "2026-10",
+      "total_spent": 24417.22
+    },
+    "cards": [
+      {
+        "balance": 8450.5,
+        "closing_day": 28,
+        "credit_limit": 30000.0,
+        "due_day": 5,
+        "id": 1,
+        "last4": "4412",
+        "name": "Tarjeta de Crédito Principal",
+        "type": "credit"
+      },
+      {
+        "balance": 0.0,
+        "closing_day": null,
+        "credit_limit": 0.0,
+        "due_day": null,
+        "id": 2,
+        "last4": "9903",
+        "name": "Tarjeta de Débito Nómina",
+        "type": "debit"
+      }
+    ],
+    "categories": [
+      {
+        "amount": 7262.83,
+        "category": "Hogar",
+        "count": 3,
+        "pct": 29.7,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 7204.05,
+        "category": "Supermercado",
+        "count": 9,
+        "pct": 29.5,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 1832.58,
+        "category": "Restaurantes",
+        "count": 8,
+        "pct": 7.5,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 1732.13,
+        "category": "Servicios",
+        "count": 5,
+        "pct": 7.1,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 1536.65,
+        "category": "Transporte",
+        "count": 10,
+        "pct": 6.3,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 1501.08,
+        "category": "Tarjetas",
+        "count": 1,
+        "pct": 6.1,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 1275.3,
+        "category": "Tiendas de conveniencia",
+        "count": 16,
+        "pct": 5.2,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 877.91,
+        "category": "Salud",
+        "count": 2,
+        "pct": 3.6,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 714.69,
+        "category": "Entretenimiento",
+        "count": 3,
+        "pct": 2.9,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 480.0,
+        "category": "Seguros",
+        "count": 1,
+        "pct": 2.0,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      }
+    ],
+    "goals": [
+      {
+        "created_at": "<normalizado>",
+        "deadline": "2027-03-28",
+        "id": 1,
+        "name": "Fondo de emergencia",
+        "pct_base": "objetivo de la meta",
+        "pct_base_value": 30000.0,
+        "progress_pct": 61.7,
+        "saved_amount": 18500.0,
+        "status": "activa",
+        "target_amount": 30000.0
+      },
+      {
+        "created_at": "<normalizado>",
+        "deadline": "2027-08-01",
+        "id": 2,
+        "name": "Viaje a Japón",
+        "pct_base": "objetivo de la meta",
+        "pct_base_value": 45000.0,
+        "progress_pct": 18.2,
+        "saved_amount": 8200.0,
+        "status": "activa",
+        "target_amount": 45000.0
+      },
+      {
+        "created_at": "<normalizado>",
+        "deadline": "2027-08-01",
+        "id": 3,
+        "name": "Enganche del auto",
+        "pct_base": "objetivo de la meta",
+        "pct_base_value": 45000.0,
+        "progress_pct": 50.0,
+        "saved_amount": 22500.0,
+        "status": "completada",
+        "target_amount": 45000.0
+      },
+      {
+        "created_at": "<normalizado>",
+        "deadline": null,
+        "id": 4,
+        "name": "Meta dorada",
+        "pct_base": "objetivo de la meta",
+        "pct_base_value": 16000.0,
+        "progress_pct": 12.5,
+        "saved_amount": 2000.0,
+        "status": "activa",
+        "target_amount": 16000.0
+      },
+      {
+        "created_at": "<normalizado>",
+        "deadline": null,
+        "id": 5,
+        "name": "Meta REST dorada",
+        "pct_base": "objetivo de la meta",
+        "pct_base_value": 9000.0,
+        "progress_pct": 0.0,
+        "saved_amount": 0.0,
+        "status": "activa",
+        "target_amount": 9000.0
+      }
+    ],
+    "monthly_series": [
+      {
+        "expense": 31250.91,
+        "income": 21977.71,
+        "label": "May",
+        "month": "2026-05"
+      },
+      {
+        "expense": 45785.29,
+        "income": 22094.54,
+        "label": "Jun",
+        "month": "2026-06"
+      },
+      {
+        "expense": 33185.62,
+        "income": 28455.17,
+        "label": "Jul",
+        "month": "2026-07"
+      },
+      {
+        "expense": 33259.52,
+        "income": 22091.55,
+        "label": "Ago",
+        "month": "2026-08"
+      },
+      {
+        "expense": 37437.47,
+        "income": 21901.84,
+        "label": "Sep",
+        "month": "2026-09"
+      },
+      {
+        "expense": 24417.22,
+        "income": 10959.27,
+        "label": "Oct",
+        "month": "2026-10"
+      }
+    ],
+    "recent_transactions": [
+      {
+        "account_id": 2,
+        "amount": 500.0,
+        "category": null,
+        "date": "2026-10-25",
+        "description": "Abono a meta: Meta dorada",
+        "direction": "account_to_goal",
+        "goal_id": 4,
+        "id": 986,
+        "type": "transfer"
+      },
+      {
+        "account_id": 2,
+        "amount": 1500.0,
+        "category": null,
+        "date": "2026-10-25",
+        "description": "Abono a meta: Meta dorada",
+        "direction": "account_to_goal",
+        "goal_id": 4,
+        "id": 985,
+        "type": "transfer"
+      },
+      {
+        "account_id": 2,
+        "amount": 22500.0,
+        "category": null,
+        "date": "2026-10-25",
+        "description": "Abono a meta: Enganche del auto",
+        "direction": "account_to_goal",
+        "goal_id": 3,
+        "id": 984,
+        "type": "transfer"
+      },
+      {
+        "account_id": 2,
+        "amount": 123.61,
+        "category": "Restaurantes",
+        "date": "2026-10-25",
+        "description": "Starbucks",
+        "direction": null,
+        "goal_id": null,
+        "id": 983,
+        "type": "expense"
+      },
+      {
+        "account_id": 3,
+        "amount": 52.92,
+        "category": "Tiendas de conveniencia",
+        "date": "2026-10-25",
+        "description": "Café La Parroquia",
+        "direction": null,
+        "goal_id": null,
+        "id": 982,
+        "type": "expense"
+      },
+      {
+        "account_id": 1,
+        "amount": 102.36,
+        "category": "Tiendas de conveniencia",
+        "date": "2026-10-25",
+        "description": "OXXO",
+        "direction": null,
+        "goal_id": null,
+        "id": 981,
+        "type": "expense"
+      },
+      {
+        "account_id": 2,
+        "amount": 563.59,
+        "category": "Supermercado",
+        "date": "2026-10-25",
+        "description": "Soriana",
+        "direction": null,
+        "goal_id": null,
+        "id": 980,
+        "type": "expense"
+      },
+      {
+        "account_id": 1,
+        "amount": 1501.08,
+        "category": "Tarjetas",
+        "date": "2026-10-25",
+        "description": "Pago tarjeta de crédito",
+        "direction": null,
+        "goal_id": null,
+        "id": 979,
+        "type": "expense"
+      }
+    ],
+    "summary": {
+      "expense": 24417.22,
+      "income": 10959.27,
+      "month": 10,
+      "month_label": "Octubre 2026",
+      "net": -13457.95,
+      "top_categories": [
+        {
+          "amount": 7262.83,
+          "category": "Hogar",
+          "count": 3,
+          "pct": 29.7,
+          "pct_base": "gasto total del periodo",
+          "pct_base_value": 24417.22
+        },
+        {
+          "amount": 7204.05,
+          "category": "Supermercado",
+          "count": 9,
+          "pct": 29.5,
+          "pct_base": "gasto total del periodo",
+          "pct_base_value": 24417.22
+        },
+        {
+          "amount": 1832.58,
+          "category": "Restaurantes",
+          "count": 8,
+          "pct": 7.5,
+          "pct_base": "gasto total del periodo",
+          "pct_base_value": 24417.22
+        },
+        {
+          "amount": 1732.13,
+          "category": "Servicios",
+          "count": 5,
+          "pct": 7.1,
+          "pct_base": "gasto total del periodo",
+          "pct_base_value": 24417.22
+        },
+        {
+          "amount": 1536.65,
+          "category": "Transporte",
+          "count": 10,
+          "pct": 6.3,
+          "pct_base": "gasto total del periodo",
+          "pct_base_value": 24417.22
+        }
+      ],
+      "transaction_count": 62,
+      "year": 2026
+    },
+    "total_balance": 112621.15
+  },
+  "GET /goals": {
+    "goals": [
+      {
+        "created_at": "<normalizado>",
+        "deadline": "2027-03-28",
+        "id": 1,
+        "name": "Fondo de emergencia",
+        "pct_base": "objetivo de la meta",
+        "pct_base_value": 30000.0,
+        "progress_pct": 61.7,
+        "saved_amount": 18500.0,
+        "status": "activa",
+        "target_amount": 30000.0
+      },
+      {
+        "created_at": "<normalizado>",
+        "deadline": "2027-08-01",
+        "id": 2,
+        "name": "Viaje a Japón",
+        "pct_base": "objetivo de la meta",
+        "pct_base_value": 45000.0,
+        "progress_pct": 18.2,
+        "saved_amount": 8200.0,
+        "status": "activa",
+        "target_amount": 45000.0
+      },
+      {
+        "created_at": "<normalizado>",
+        "deadline": "2027-08-01",
+        "id": 3,
+        "name": "Enganche del auto",
+        "pct_base": "objetivo de la meta",
+        "pct_base_value": 45000.0,
+        "progress_pct": 50.0,
+        "saved_amount": 22500.0,
+        "status": "completada",
+        "target_amount": 45000.0
+      }
+    ]
+  },
+  "GET /goals (final)": {
+    "goals": [
+      {
+        "created_at": "<normalizado>",
+        "deadline": "2027-03-28",
+        "id": 1,
+        "name": "Fondo de emergencia",
+        "pct_base": "objetivo de la meta",
+        "pct_base_value": 30000.0,
+        "progress_pct": 61.7,
+        "saved_amount": 18500.0,
+        "status": "activa",
+        "target_amount": 30000.0
+      },
+      {
+        "created_at": "<normalizado>",
+        "deadline": "2027-08-01",
+        "id": 2,
+        "name": "Viaje a Japón",
+        "pct_base": "objetivo de la meta",
+        "pct_base_value": 45000.0,
+        "progress_pct": 18.2,
+        "saved_amount": 8200.0,
+        "status": "activa",
+        "target_amount": 45000.0
+      },
+      {
+        "created_at": "<normalizado>",
+        "deadline": "2027-08-01",
+        "id": 3,
+        "name": "Enganche del auto",
+        "pct_base": "objetivo de la meta",
+        "pct_base_value": 45000.0,
+        "progress_pct": 50.0,
+        "saved_amount": 22500.0,
+        "status": "completada",
+        "target_amount": 45000.0
+      },
+      {
+        "created_at": "<normalizado>",
+        "deadline": null,
+        "id": 4,
+        "name": "Meta dorada",
+        "pct_base": "objetivo de la meta",
+        "pct_base_value": 16000.0,
+        "progress_pct": 12.5,
+        "saved_amount": 2000.0,
+        "status": "activa",
+        "target_amount": 16000.0
+      },
+      {
+        "created_at": "<normalizado>",
+        "deadline": null,
+        "id": 5,
+        "name": "Meta REST dorada",
+        "pct_base": "objetivo de la meta",
+        "pct_base_value": 9000.0,
+        "progress_pct": 0.0,
+        "saved_amount": 0.0,
+        "status": "activa",
+        "target_amount": 9000.0
+      }
+    ]
+  },
+  "GET /health": {
+    "services": "ok",
+    "status": "ok"
+  },
+  "GET /transactions": {
+    "categories": [
+      "Entretenimiento",
+      "Hogar",
+      "Ingresos",
+      "Restaurantes",
+      "Salud",
+      "Seguros",
+      "Servicios",
+      "Supermercado",
+      "Tarjetas",
+      "Tiendas de conveniencia",
+      "Transporte"
+    ],
+    "total_count": 984,
+    "transactions": [
+      {
+        "account_id": 2,
+        "amount": 22500.0,
+        "category": null,
+        "date": "2026-10-25",
+        "description": "Abono a meta: Enganche del auto",
+        "direction": "account_to_goal",
+        "goal_id": 3,
+        "id": 984,
+        "type": "transfer"
+      },
+      {
+        "account_id": 2,
+        "amount": 123.61,
+        "category": "Restaurantes",
+        "date": "2026-10-25",
+        "description": "Starbucks",
+        "direction": null,
+        "goal_id": null,
+        "id": 983,
+        "type": "expense"
+      },
+      {
+        "account_id": 3,
+        "amount": 52.92,
+        "category": "Tiendas de conveniencia",
+        "date": "2026-10-25",
+        "description": "Café La Parroquia",
+        "direction": null,
+        "goal_id": null,
+        "id": 982,
+        "type": "expense"
+      },
+      {
+        "account_id": 1,
+        "amount": 102.36,
+        "category": "Tiendas de conveniencia",
+        "date": "2026-10-25",
+        "description": "OXXO",
+        "direction": null,
+        "goal_id": null,
+        "id": 981,
+        "type": "expense"
+      },
+      {
+        "account_id": 2,
+        "amount": 563.59,
+        "category": "Supermercado",
+        "date": "2026-10-25",
+        "description": "Soriana",
+        "direction": null,
+        "goal_id": null,
+        "id": 980,
+        "type": "expense"
+      }
+    ]
+  },
+  "GET /transactions?category=Supermercado": {
+    "categories": [
+      "Entretenimiento",
+      "Hogar",
+      "Ingresos",
+      "Restaurantes",
+      "Salud",
+      "Seguros",
+      "Servicios",
+      "Supermercado",
+      "Tarjetas",
+      "Tiendas de conveniencia",
+      "Transporte"
+    ],
+    "total_count": 148,
+    "transactions": [
+      {
+        "account_id": 2,
+        "amount": 563.59,
+        "category": "Supermercado",
+        "date": "2026-10-25",
+        "description": "Soriana",
+        "direction": null,
+        "goal_id": null,
+        "id": 980,
+        "type": "expense"
+      },
+      {
+        "account_id": 2,
+        "amount": 720.1,
+        "category": "Supermercado",
+        "date": "2026-10-22",
+        "description": "Chedraui",
+        "direction": null,
+        "goal_id": null,
+        "id": 972,
+        "type": "expense"
+      },
+      {
+        "account_id": 3,
+        "amount": 1755.19,
+        "category": "Supermercado",
+        "date": "2026-10-19",
+        "description": "Chedraui",
+        "direction": null,
+        "goal_id": null,
+        "id": 965,
+        "type": "expense"
+      },
+      {
+        "account_id": 1,
+        "amount": 644.18,
+        "category": "Supermercado",
+        "date": "2026-10-16",
+        "description": "Bodega Aurrerá",
+        "direction": null,
+        "goal_id": null,
+        "id": 962,
+        "type": "expense"
+      },
+      {
+        "account_id": 2,
+        "amount": 688.51,
+        "category": "Supermercado",
+        "date": "2026-10-10",
+        "description": "Soriana",
+        "direction": null,
+        "goal_id": null,
+        "id": 948,
+        "type": "expense"
+      }
+    ]
+  },
+  "GET /transactions?type=transfer": {
+    "categories": [
+      "Entretenimiento",
+      "Hogar",
+      "Ingresos",
+      "Restaurantes",
+      "Salud",
+      "Seguros",
+      "Servicios",
+      "Supermercado",
+      "Tarjetas",
+      "Tiendas de conveniencia",
+      "Transporte"
+    ],
+    "total_count": 1,
+    "transactions": [
+      {
+        "account_id": 2,
+        "amount": 22500.0,
+        "category": null,
+        "date": "2026-10-25",
+        "description": "Abono a meta: Enganche del auto",
+        "direction": "account_to_goal",
+        "goal_id": 3,
+        "id": 984,
+        "type": "transfer"
+      }
+    ]
+  },
+  "GET /ui-schema": {
+    "detail": "No pude hacer eso. ¿Lo intentamos de otra forma?"
+  },
+  "MCP analyze_spending": {
+    "categories": [
+      {
+        "amount": 7262.83,
+        "category": "Hogar",
+        "count": 3,
+        "pct": 29.7,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 7204.05,
+        "category": "Supermercado",
+        "count": 9,
+        "pct": 29.5,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 1832.58,
+        "category": "Restaurantes",
+        "count": 8,
+        "pct": 7.5,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 1732.13,
+        "category": "Servicios",
+        "count": 5,
+        "pct": 7.1,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 1536.65,
+        "category": "Transporte",
+        "count": 10,
+        "pct": 6.3,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 1501.08,
+        "category": "Tarjetas",
+        "count": 1,
+        "pct": 6.1,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 1275.3,
+        "category": "Tiendas de conveniencia",
+        "count": 16,
+        "pct": 5.2,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 877.91,
+        "category": "Salud",
+        "count": 2,
+        "pct": 3.6,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 714.69,
+        "category": "Entretenimiento",
+        "count": 3,
+        "pct": 2.9,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 480.0,
+        "category": "Seguros",
+        "count": 1,
+        "pct": 2.0,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      }
+    ],
+    "period": "2026-10",
+    "total": 24417.22
+  },
+  "MCP apply_savings_contribution": {
+    "amount": 1500.0,
+    "available_balance": 61921.15,
+    "direction": "account_to_goal",
+    "goal": {
+      "created_at": "<normalizado>",
+      "deadline": null,
+      "id": 4,
+      "name": "Meta dorada",
+      "pct_base": "objetivo de la meta",
+      "pct_base_value": 15000.0,
+      "progress_pct": 10.0,
+      "saved_amount": 1500.0,
+      "status": "activa",
+      "target_amount": 15000.0
+    },
+    "message": "Abono de $1,500.00 a la meta 'Meta dorada'.",
+    "status": "applied",
+    "total_balance": 112621.15
+  },
+  "MCP budget_vs_actual": {
+    "available": -13457.95,
+    "categories": [
+      {
+        "category": "Educación",
+        "limit": 800.0,
+        "pct": 0.0,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 800.0,
+        "spent": 0
+      },
+      {
+        "category": "Entretenimiento",
+        "limit": 1500.0,
+        "pct": 47.6,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 1500.0,
+        "spent": 714.69
+      },
+      {
+        "category": "Hogar",
+        "limit": 9000.0,
+        "pct": 80.7,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 9000.0,
+        "spent": 7262.83
+      },
+      {
+        "category": "Regalos",
+        "limit": 1500.0,
+        "pct": 0.0,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 1500.0,
+        "spent": 0
+      },
+      {
+        "category": "Restaurantes",
+        "limit": 3000.0,
+        "pct": 61.1,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 3000.0,
+        "spent": 1832.58
+      },
+      {
+        "category": "Salud",
+        "limit": 1500.0,
+        "pct": 58.5,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 1500.0,
+        "spent": 877.91
+      },
+      {
+        "category": "Seguros",
+        "limit": 500.0,
+        "pct": 96.0,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 500.0,
+        "spent": 480.0
+      },
+      {
+        "category": "Servicios",
+        "limit": 2500.0,
+        "pct": 69.3,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 2500.0,
+        "spent": 1732.13
+      },
+      {
+        "category": "Supermercado",
+        "limit": 6500.0,
+        "pct": 110.8,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 6500.0,
+        "spent": 7204.05
+      },
+      {
+        "category": "Tarjetas",
+        "limit": 2500.0,
+        "pct": 60.0,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 2500.0,
+        "spent": 1501.08
+      },
+      {
+        "category": "Tiendas de conveniencia",
+        "limit": 900.0,
+        "pct": 141.7,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 900.0,
+        "spent": 1275.3
+      },
+      {
+        "category": "Transporte",
+        "limit": 2500.0,
+        "pct": 61.5,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 2500.0,
+        "spent": 1536.65
+      }
+    ],
+    "exceeded_categories": [
+      {
+        "category": "Supermercado",
+        "limit": 6500.0,
+        "pct": 110.8,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 6500.0,
+        "spent": 7204.05
+      },
+      {
+        "category": "Tiendas de conveniencia",
+        "limit": 900.0,
+        "pct": 141.7,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 900.0,
+        "spent": 1275.3
+      }
+    ],
+    "income": 10959.27,
+    "month": "2026-10",
+    "total_spent": 24417.22
+  },
+  "MCP calculate_credit_simulation": {
+    "amount": 50000,
+    "annual_rate": 15.9,
+    "disclaimer": "Simulación educativa con datos de demostración. No es una oferta oficial de crédito de Banorte ni implica aprobación o tasas reales.",
+    "method": "frances",
+    "monthly_payment": 2445.77,
+    "months": 24,
+    "schedule": [
+      {
+        "balance": 48216.73,
+        "interest": 662.5,
+        "n": 1,
+        "payment": 2445.77,
+        "principal": 1783.27
+      },
+      {
+        "balance": 46409.84,
+        "interest": 638.87,
+        "n": 2,
+        "payment": 2445.77,
+        "principal": 1806.9
+      },
+      {
+        "balance": 44579.0,
+        "interest": 614.93,
+        "n": 3,
+        "payment": 2445.77,
+        "principal": 1830.84
+      },
+      {
+        "balance": 42723.91,
+        "interest": 590.67,
+        "n": 4,
+        "payment": 2445.77,
+        "principal": 1855.1
+      },
+      {
+        "balance": 40844.23,
+        "interest": 566.09,
+        "n": 5,
+        "payment": 2445.77,
+        "principal": 1879.68
+      },
+      {
+        "balance": 38939.65,
+        "interest": 541.19,
+        "n": 6,
+        "payment": 2445.77,
+        "principal": 1904.58
+      },
+      {
+        "balance": 37009.83,
+        "interest": 515.95,
+        "n": 7,
+        "payment": 2445.77,
+        "principal": 1929.82
+      },
+      {
+        "balance": 35054.44,
+        "interest": 490.38,
+        "n": 8,
+        "payment": 2445.77,
+        "principal": 1955.39
+      },
+      {
+        "balance": 33073.15,
+        "interest": 464.47,
+        "n": 9,
+        "payment": 2445.77,
+        "principal": 1981.3
+      },
+      {
+        "balance": 31065.6,
+        "interest": 438.22,
+        "n": 10,
+        "payment": 2445.77,
+        "principal": 2007.55
+      },
+      {
+        "balance": 29031.45,
+        "interest": 411.62,
+        "n": 11,
+        "payment": 2445.77,
+        "principal": 2034.15
+      },
+      {
+        "balance": 26970.35,
+        "interest": 384.67,
+        "n": 12,
+        "payment": 2445.77,
+        "principal": 2061.1
+      },
+      {
+        "balance": 24881.94,
+        "interest": 357.36,
+        "n": 13,
+        "payment": 2445.77,
+        "principal": 2088.41
+      },
+      {
+        "balance": 22765.86,
+        "interest": 329.69,
+        "n": 14,
+        "payment": 2445.77,
+        "principal": 2116.08
+      },
+      {
+        "balance": 20621.74,
+        "interest": 301.65,
+        "n": 15,
+        "payment": 2445.77,
+        "principal": 2144.12
+      },
+      {
+        "balance": 18449.21,
+        "interest": 273.24,
+        "n": 16,
+        "payment": 2445.77,
+        "principal": 2172.53
+      },
+      {
+        "balance": 16247.9,
+        "interest": 244.45,
+        "n": 17,
+        "payment": 2445.77,
+        "principal": 2201.32
+      },
+      {
+        "balance": 14017.42,
+        "interest": 215.28,
+        "n": 18,
+        "payment": 2445.77,
+        "principal": 2230.48
+      },
+      {
+        "balance": 11757.38,
+        "interest": 185.73,
+        "n": 19,
+        "payment": 2445.77,
+        "principal": 2260.04
+      },
+      {
+        "balance": 9467.4,
+        "interest": 155.79,
+        "n": 20,
+        "payment": 2445.77,
+        "principal": 2289.98
+      },
+      {
+        "balance": 7147.07,
+        "interest": 125.44,
+        "n": 21,
+        "payment": 2445.77,
+        "principal": 2320.32
+      },
+      {
+        "balance": 4796.0,
+        "interest": 94.7,
+        "n": 22,
+        "payment": 2445.77,
+        "principal": 2351.07
+      },
+      {
+        "balance": 2413.78,
+        "interest": 63.55,
+        "n": 23,
+        "payment": 2445.77,
+        "principal": 2382.22
+      },
+      {
+        "balance": 0.0,
+        "interest": 31.98,
+        "n": 24,
+        "payment": 2445.77,
+        "principal": 2413.78
+      }
+    ],
+    "total_interest": 8698.48,
+    "total_paid": 58698.48
+  },
+  "MCP compare_credit_terms": {
+    "amount": 50000,
+    "annual_rate": 15.9,
+    "terms": [
+      {
+        "monthly_payment": 4534.18,
+        "months": 12,
+        "total_interest": 4410.16,
+        "total_paid": 54410.16
+      },
+      {
+        "monthly_payment": 2445.77,
+        "months": 24,
+        "total_interest": 8698.48,
+        "total_paid": 58698.48
+      },
+      {
+        "monthly_payment": 1755.38,
+        "months": 36,
+        "total_interest": 13193.68,
+        "total_paid": 63193.68
+      }
+    ]
+  },
+  "MCP compare_months": {
+    "expense_diff": -13020.25,
+    "month_a": {
+      "expense": 37437.47,
+      "income": 21901.84,
+      "month": 9,
+      "month_label": "Septiembre 2026",
+      "net": -15535.63,
+      "top_categories": [
+        {
+          "amount": 10442.72,
+          "category": "Supermercado",
+          "count": 14,
+          "pct": 27.9,
+          "pct_base": "gasto total del periodo",
+          "pct_base_value": 37437.47
+        },
+        {
+          "amount": 8657.51,
+          "category": "Hogar",
+          "count": 5,
+          "pct": 23.1,
+          "pct_base": "gasto total del periodo",
+          "pct_base_value": 37437.47
+        },
+        {
+          "amount": 5302.04,
+          "category": "Restaurantes",
+          "count": 22,
+          "pct": 14.2,
+          "pct_base": "gasto total del periodo",
+          "pct_base_value": 37437.47
+        },
+        {
+          "amount": 4907.29,
+          "category": "Transporte",
+          "count": 18,
+          "pct": 13.1,
+          "pct_base": "gasto total del periodo",
+          "pct_base_value": 37437.47
+        },
+        {
+          "amount": 2185.78,
+          "category": "Tarjetas",
+          "count": 1,
+          "pct": 5.8,
+          "pct_base": "gasto total del periodo",
+          "pct_base_value": 37437.47
+        }
+      ],
+      "transaction_count": 94,
+      "year": 2026
+    },
+    "month_b": {
+      "expense": 24417.22,
+      "income": 10959.27,
+      "month": 10,
+      "month_label": "Octubre 2026",
+      "net": -13457.95,
+      "top_categories": [
+        {
+          "amount": 7262.83,
+          "category": "Hogar",
+          "count": 3,
+          "pct": 29.7,
+          "pct_base": "gasto total del periodo",
+          "pct_base_value": 24417.22
+        },
+        {
+          "amount": 7204.05,
+          "category": "Supermercado",
+          "count": 9,
+          "pct": 29.5,
+          "pct_base": "gasto total del periodo",
+          "pct_base_value": 24417.22
+        },
+        {
+          "amount": 1832.58,
+          "category": "Restaurantes",
+          "count": 8,
+          "pct": 7.5,
+          "pct_base": "gasto total del periodo",
+          "pct_base_value": 24417.22
+        },
+        {
+          "amount": 1732.13,
+          "category": "Servicios",
+          "count": 5,
+          "pct": 7.1,
+          "pct_base": "gasto total del periodo",
+          "pct_base_value": 24417.22
+        },
+        {
+          "amount": 1536.65,
+          "category": "Transporte",
+          "count": 10,
+          "pct": 6.3,
+          "pct_base": "gasto total del periodo",
+          "pct_base_value": 24417.22
+        }
+      ],
+      "transaction_count": 60,
+      "year": 2026
+    }
+  },
+  "MCP create_savings_goal": {
+    "goal": {
+      "created_at": "<normalizado>",
+      "deadline": null,
+      "id": 4,
+      "name": "Meta dorada",
+      "pct_base": "objetivo de la meta",
+      "pct_base_value": 12000.0,
+      "progress_pct": 0.0,
+      "saved_amount": 0.0,
+      "status": "activa",
+      "target_amount": 12000.0
+    },
+    "message": "Meta 'Meta dorada' creada.",
+    "status": "created"
+  },
+  "MCP detect_anomalies": {
+    "anomalies": [
+      {
+        "amount": 14800.0,
+        "category": "Hogar",
+        "date": "2026-06-17",
+        "description": "Electrodoméstico Liverpool",
+        "detail": "Cargo por $14,800 en Hogar, muy por encima de lo típico de esa categoría ($2,650.10).",
+        "kind": "inusual"
+      }
+    ]
+  },
+  "MCP detect_duplicates": {
+    "duplicates": [
+      {
+        "amount": 348.9,
+        "date": "2026-09-14",
+        "description": "Rappi pedido #8817",
+        "detail": "El cargo 'Rappi pedido #8817' aparece 2 veces el mismo día por $348.90 cada uno.",
+        "kind": "duplicado"
+      }
+    ]
+  },
+  "MCP detect_recurring_charges": {
+    "charges": [
+      {
+        "avg_amount": 5500.0,
+        "category": "Hogar",
+        "description": "Renta departamento",
+        "monthly_estimate": 5500.0,
+        "months_count": 12,
+        "occurrences": 12
+      },
+      {
+        "avg_amount": 599.0,
+        "category": "Servicios",
+        "description": "Internet Izzi",
+        "monthly_estimate": 599.0,
+        "months_count": 12,
+        "occurrences": 12
+      },
+      {
+        "avg_amount": 480.0,
+        "category": "Seguros",
+        "description": "Seguro de vida GNP",
+        "monthly_estimate": 480.0,
+        "months_count": 12,
+        "occurrences": 12
+      },
+      {
+        "avg_amount": 450.0,
+        "category": "Salud",
+        "description": "Gimnasio Smart Fit",
+        "monthly_estimate": 450.0,
+        "months_count": 12,
+        "occurrences": 12
+      },
+      {
+        "avg_amount": 349.0,
+        "category": "Servicios",
+        "description": "Telcel",
+        "monthly_estimate": 349.0,
+        "months_count": 12,
+        "occurrences": 12
+      },
+      {
+        "avg_amount": 299.0,
+        "category": "Entretenimiento",
+        "description": "Netflix",
+        "monthly_estimate": 299.0,
+        "months_count": 12,
+        "occurrences": 12
+      },
+      {
+        "avg_amount": 169.0,
+        "category": "Entretenimiento",
+        "description": "Spotify",
+        "monthly_estimate": 169.0,
+        "months_count": 12,
+        "occurrences": 12
+      },
+      {
+        "avg_amount": 29.0,
+        "category": "Servicios",
+        "description": "iCloud",
+        "monthly_estimate": 29.0,
+        "months_count": 12,
+        "occurrences": 12
+      }
+    ],
+    "monthly_total": 7875.0
+  },
+  "MCP get_balance": {
+    "accounts": [
+      {
+        "balance": 24580.35,
+        "currency": "MXN",
+        "id": 1,
+        "name": "Cuenta Nómina",
+        "type": "debit"
+      },
+      {
+        "balance": 35700.0,
+        "currency": "MXN",
+        "id": 2,
+        "name": "Cuenta Ahorro",
+        "type": "savings"
+      },
+      {
+        "balance": 3140.8,
+        "currency": "MXN",
+        "id": 3,
+        "name": "Cuenta Digital",
+        "type": "debit"
+      }
+    ],
+    "currency": "MXN",
+    "note": "Datos sintéticos de demostración.",
+    "total_balance": 112621.15
+  },
+  "MCP get_budgets": {
+    "available": -13457.95,
+    "categories": [
+      {
+        "category": "Educación",
+        "limit": 800.0,
+        "pct": 0.0,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 800.0,
+        "spent": 0
+      },
+      {
+        "category": "Entretenimiento",
+        "limit": 1500.0,
+        "pct": 47.6,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 1500.0,
+        "spent": 714.69
+      },
+      {
+        "category": "Hogar",
+        "limit": 9000.0,
+        "pct": 80.7,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 9000.0,
+        "spent": 7262.83
+      },
+      {
+        "category": "Regalos",
+        "limit": 1500.0,
+        "pct": 0.0,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 1500.0,
+        "spent": 0
+      },
+      {
+        "category": "Restaurantes",
+        "limit": 3000.0,
+        "pct": 61.1,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 3000.0,
+        "spent": 1832.58
+      },
+      {
+        "category": "Salud",
+        "limit": 1500.0,
+        "pct": 58.5,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 1500.0,
+        "spent": 877.91
+      },
+      {
+        "category": "Seguros",
+        "limit": 500.0,
+        "pct": 96.0,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 500.0,
+        "spent": 480.0
+      },
+      {
+        "category": "Servicios",
+        "limit": 2500.0,
+        "pct": 69.3,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 2500.0,
+        "spent": 1732.13
+      },
+      {
+        "category": "Supermercado",
+        "limit": 6500.0,
+        "pct": 110.8,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 6500.0,
+        "spent": 7204.05
+      },
+      {
+        "category": "Tarjetas",
+        "limit": 2500.0,
+        "pct": 60.0,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 2500.0,
+        "spent": 1501.08
+      },
+      {
+        "category": "Tiendas de conveniencia",
+        "limit": 900.0,
+        "pct": 141.7,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 900.0,
+        "spent": 1275.3
+      },
+      {
+        "category": "Transporte",
+        "limit": 2500.0,
+        "pct": 61.5,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 2500.0,
+        "spent": 1536.65
+      }
+    ],
+    "income": 10959.27,
+    "month": "2026-10",
+    "total_spent": 24417.22
+  },
+  "MCP get_cards": {
+    "cards": [
+      {
+        "balance": 8450.5,
+        "closing_day": 28,
+        "credit_limit": 30000.0,
+        "due_day": 5,
+        "id": 1,
+        "last4": "4412",
+        "name": "Tarjeta de Crédito Principal",
+        "type": "credit"
+      },
+      {
+        "balance": 0.0,
+        "closing_day": null,
+        "credit_limit": 0.0,
+        "due_day": null,
+        "id": 2,
+        "last4": "9903",
+        "name": "Tarjeta de Débito Nómina",
+        "type": "debit"
+      }
+    ],
+    "note": "Tarjetas ficticias; solo últimos 4 dígitos, nunca datos sensibles reales."
+  },
+  "MCP get_monthly_summary": {
+    "expense": 24417.22,
+    "income": 10959.27,
+    "month": 10,
+    "month_label": "Octubre 2026",
+    "net": -13457.95,
+    "top_categories": [
+      {
+        "amount": 7262.83,
+        "category": "Hogar",
+        "count": 3,
+        "pct": 29.7,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 7204.05,
+        "category": "Supermercado",
+        "count": 9,
+        "pct": 29.5,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 1832.58,
+        "category": "Restaurantes",
+        "count": 8,
+        "pct": 7.5,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 1732.13,
+        "category": "Servicios",
+        "count": 5,
+        "pct": 7.1,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      },
+      {
+        "amount": 1536.65,
+        "category": "Transporte",
+        "count": 10,
+        "pct": 6.3,
+        "pct_base": "gasto total del periodo",
+        "pct_base_value": 24417.22
+      }
+    ],
+    "transaction_count": 60,
+    "year": 2026
+  },
+  "MCP get_savings_goals": {
+    "goals": [
+      {
+        "created_at": "<normalizado>",
+        "deadline": "2027-03-28",
+        "id": 1,
+        "name": "Fondo de emergencia",
+        "pct_base": "objetivo de la meta",
+        "pct_base_value": 30000.0,
+        "progress_pct": 61.7,
+        "saved_amount": 18500.0,
+        "status": "activa",
+        "target_amount": 30000.0
+      },
+      {
+        "created_at": "<normalizado>",
+        "deadline": "2027-08-01",
+        "id": 2,
+        "name": "Viaje a Japón",
+        "pct_base": "objetivo de la meta",
+        "pct_base_value": 45000.0,
+        "progress_pct": 18.2,
+        "saved_amount": 8200.0,
+        "status": "activa",
+        "target_amount": 45000.0
+      },
+      {
+        "created_at": "<normalizado>",
+        "deadline": "2027-08-01",
+        "id": 3,
+        "name": "Enganche del auto",
+        "pct_base": "objetivo de la meta",
+        "pct_base_value": 45000.0,
+        "progress_pct": 50.0,
+        "saved_amount": 22500.0,
+        "status": "completada",
+        "target_amount": 45000.0
+      }
+    ]
+  },
+  "MCP get_spending_trend": {
+    "category": null,
+    "change_pct": -21.9,
+    "months": 6,
+    "series": [
+      {
+        "count": 75,
+        "label": "Mayo 2026",
+        "month": "2026-05",
+        "total": 31250.91
+      },
+      {
+        "count": 83,
+        "label": "Junio 2026",
+        "month": "2026-06",
+        "total": 45785.29
+      },
+      {
+        "count": 77,
+        "label": "Julio 2026",
+        "month": "2026-07",
+        "total": 33185.62
+      },
+      {
+        "count": 78,
+        "label": "Agosto 2026",
+        "month": "2026-08",
+        "total": 33259.52
+      },
+      {
+        "count": 92,
+        "label": "Septiembre 2026",
+        "month": "2026-09",
+        "total": 37437.47
+      },
+      {
+        "count": 58,
+        "label": "Octubre 2026",
+        "month": "2026-10",
+        "total": 24417.22
+      }
+    ]
+  },
+  "MCP get_transactions": {
+    "categories": [
+      "Entretenimiento",
+      "Hogar",
+      "Ingresos",
+      "Restaurantes",
+      "Salud",
+      "Seguros",
+      "Servicios",
+      "Supermercado",
+      "Tarjetas",
+      "Tiendas de conveniencia",
+      "Transporte"
+    ],
+    "filters_applied": {
+      "category": null,
+      "date_from": null,
+      "date_to": null,
+      "q": null,
+      "type": null
+    },
+    "total_count": 984,
+    "transactions": [
+      {
+        "account_id": 2,
+        "amount": 22500.0,
+        "category": null,
+        "date": "2026-10-25",
+        "description": "Abono a meta: Enganche del auto",
+        "direction": "account_to_goal",
+        "goal_id": 3,
+        "id": 984,
+        "type": "transfer"
+      },
+      {
+        "account_id": 2,
+        "amount": 123.61,
+        "category": "Restaurantes",
+        "date": "2026-10-25",
+        "description": "Starbucks",
+        "direction": null,
+        "goal_id": null,
+        "id": 983,
+        "type": "expense"
+      },
+      {
+        "account_id": 3,
+        "amount": 52.92,
+        "category": "Tiendas de conveniencia",
+        "date": "2026-10-25",
+        "description": "Café La Parroquia",
+        "direction": null,
+        "goal_id": null,
+        "id": 982,
+        "type": "expense"
+      },
+      {
+        "account_id": 1,
+        "amount": 102.36,
+        "category": "Tiendas de conveniencia",
+        "date": "2026-10-25",
+        "description": "OXXO",
+        "direction": null,
+        "goal_id": null,
+        "id": 981,
+        "type": "expense"
+      },
+      {
+        "account_id": 2,
+        "amount": 563.59,
+        "category": "Supermercado",
+        "date": "2026-10-25",
+        "description": "Soriana",
+        "direction": null,
+        "goal_id": null,
+        "id": 980,
+        "type": "expense"
+      }
+    ]
+  },
+  "MCP get_weekly_spending": {
+    "series": [
+      {
+        "count": 21,
+        "from": "2026-09-21",
+        "label": "Semana del 21/09",
+        "to": "2026-09-27",
+        "total": 7767.59,
+        "week": 1
+      },
+      {
+        "count": 22,
+        "from": "2026-09-28",
+        "label": "Semana del 28/09",
+        "to": "2026-10-04",
+        "total": 11956.7,
+        "week": 2
+      },
+      {
+        "count": 16,
+        "from": "2026-10-05",
+        "label": "Semana del 05/10",
+        "to": "2026-10-11",
+        "total": 6714.0,
+        "week": 3
+      },
+      {
+        "count": 13,
+        "from": "2026-10-12",
+        "label": "Semana del 12/10",
+        "to": "2026-10-18",
+        "total": 2951.77,
+        "week": 4
+      }
+    ],
+    "weeks": 4
+  },
+  "MCP project_savings": {
+    "already_saved": 8200,
+    "monthly_amount": 3000,
+    "months_needed": 13,
+    "target_amount": 45000
+  },
+  "MCP update_savings_goal": {
+    "goal": {
+      "created_at": "<normalizado>",
+      "deadline": null,
+      "id": 4,
+      "name": "Meta dorada",
+      "pct_base": "objetivo de la meta",
+      "pct_base_value": 15000.0,
+      "progress_pct": 0.0,
+      "saved_amount": 0.0,
+      "status": "activa",
+      "target_amount": 15000.0
+    },
+    "message": "Meta 'Meta dorada' actualizada.",
+    "status": "updated"
+  },
+  "PATCH /goals/{id}": {
+    "created_at": "<normalizado>",
+    "deadline": null,
+    "id": 4,
+    "name": "Meta dorada",
+    "pct_base": "objetivo de la meta",
+    "pct_base_value": 16000.0,
+    "progress_pct": 9.4,
+    "saved_amount": 1500.0,
+    "status": "activa",
+    "target_amount": 16000.0
+  },
+  "POST /agent/chat": {
+    "detail": [
+      {
+        "input": null,
+        "loc": [
+          "body",
+          "conversation_id"
+        ],
+        "msg": "Extra inputs are not permitted",
+        "type": "extra_forbidden"
+      }
+    ]
+  },
+  "POST /budget/update": {
+    "available": -13457.95,
+    "categories": [
+      {
+        "category": "Educación",
+        "limit": 800.0,
+        "pct": 0.0,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 800.0,
+        "spent": 0
+      },
+      {
+        "category": "Entretenimiento",
+        "limit": 1500.0,
+        "pct": 47.6,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 1500.0,
+        "spent": 714.69
+      },
+      {
+        "category": "Hogar",
+        "limit": 9000.0,
+        "pct": 80.7,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 9000.0,
+        "spent": 7262.83
+      },
+      {
+        "category": "Regalos",
+        "limit": 1500.0,
+        "pct": 0.0,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 1500.0,
+        "spent": 0
+      },
+      {
+        "category": "Restaurantes",
+        "limit": 3000.0,
+        "pct": 61.1,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 3000.0,
+        "spent": 1832.58
+      },
+      {
+        "category": "Salud",
+        "limit": 1500.0,
+        "pct": 58.5,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 1500.0,
+        "spent": 877.91
+      },
+      {
+        "category": "Seguros",
+        "limit": 500.0,
+        "pct": 96.0,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 500.0,
+        "spent": 480.0
+      },
+      {
+        "category": "Servicios",
+        "limit": 2500.0,
+        "pct": 69.3,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 2500.0,
+        "spent": 1732.13
+      },
+      {
+        "category": "Supermercado",
+        "limit": 7000.0,
+        "pct": 102.9,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 7000.0,
+        "spent": 7204.05
+      },
+      {
+        "category": "Tarjetas",
+        "limit": 2500.0,
+        "pct": 60.0,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 2500.0,
+        "spent": 1501.08
+      },
+      {
+        "category": "Tiendas de conveniencia",
+        "limit": 900.0,
+        "pct": 141.7,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 900.0,
+        "spent": 1275.3
+      },
+      {
+        "category": "Transporte",
+        "limit": 2500.0,
+        "pct": 61.5,
+        "pct_base": "límite mensual de la categoría",
+        "pct_base_value": 2500.0,
+        "spent": 1536.65
+      }
+    ],
+    "income": 10959.27,
+    "month": "2026-10",
+    "total_spent": 24417.22
+  },
+  "POST /credit/simulate": {
+    "amount": 50000.0,
+    "annual_rate": 15.9,
+    "disclaimer": "Simulación educativa con datos de demostración. No es una oferta oficial de crédito de Banorte ni implica aprobación o tasas reales.",
+    "method": "frances",
+    "monthly_payment": 2445.77,
+    "months": 24,
+    "schedule": [
+      {
+        "balance": 48216.73,
+        "interest": 662.5,
+        "n": 1,
+        "payment": 2445.77,
+        "principal": 1783.27
+      },
+      {
+        "balance": 46409.84,
+        "interest": 638.87,
+        "n": 2,
+        "payment": 2445.77,
+        "principal": 1806.9
+      },
+      {
+        "balance": 44579.0,
+        "interest": 614.93,
+        "n": 3,
+        "payment": 2445.77,
+        "principal": 1830.84
+      },
+      {
+        "balance": 42723.91,
+        "interest": 590.67,
+        "n": 4,
+        "payment": 2445.77,
+        "principal": 1855.1
+      },
+      {
+        "balance": 40844.23,
+        "interest": 566.09,
+        "n": 5,
+        "payment": 2445.77,
+        "principal": 1879.68
+      },
+      {
+        "balance": 38939.65,
+        "interest": 541.19,
+        "n": 6,
+        "payment": 2445.77,
+        "principal": 1904.58
+      },
+      {
+        "balance": 37009.83,
+        "interest": 515.95,
+        "n": 7,
+        "payment": 2445.77,
+        "principal": 1929.82
+      },
+      {
+        "balance": 35054.44,
+        "interest": 490.38,
+        "n": 8,
+        "payment": 2445.77,
+        "principal": 1955.39
+      },
+      {
+        "balance": 33073.15,
+        "interest": 464.47,
+        "n": 9,
+        "payment": 2445.77,
+        "principal": 1981.3
+      },
+      {
+        "balance": 31065.6,
+        "interest": 438.22,
+        "n": 10,
+        "payment": 2445.77,
+        "principal": 2007.55
+      },
+      {
+        "balance": 29031.45,
+        "interest": 411.62,
+        "n": 11,
+        "payment": 2445.77,
+        "principal": 2034.15
+      },
+      {
+        "balance": 26970.35,
+        "interest": 384.67,
+        "n": 12,
+        "payment": 2445.77,
+        "principal": 2061.1
+      },
+      {
+        "balance": 24881.94,
+        "interest": 357.36,
+        "n": 13,
+        "payment": 2445.77,
+        "principal": 2088.41
+      },
+      {
+        "balance": 22765.86,
+        "interest": 329.69,
+        "n": 14,
+        "payment": 2445.77,
+        "principal": 2116.08
+      },
+      {
+        "balance": 20621.74,
+        "interest": 301.65,
+        "n": 15,
+        "payment": 2445.77,
+        "principal": 2144.12
+      },
+      {
+        "balance": 18449.21,
+        "interest": 273.24,
+        "n": 16,
+        "payment": 2445.77,
+        "principal": 2172.53
+      },
+      {
+        "balance": 16247.9,
+        "interest": 244.45,
+        "n": 17,
+        "payment": 2445.77,
+        "principal": 2201.32
+      },
+      {
+        "balance": 14017.42,
+        "interest": 215.28,
+        "n": 18,
+        "payment": 2445.77,
+        "principal": 2230.48
+      },
+      {
+        "balance": 11757.38,
+        "interest": 185.73,
+        "n": 19,
+        "payment": 2445.77,
+        "principal": 2260.04
+      },
+      {
+        "balance": 9467.4,
+        "interest": 155.79,
+        "n": 20,
+        "payment": 2445.77,
+        "principal": 2289.98
+      },
+      {
+        "balance": 7147.07,
+        "interest": 125.44,
+        "n": 21,
+        "payment": 2445.77,
+        "principal": 2320.32
+      },
+      {
+        "balance": 4796.0,
+        "interest": 94.7,
+        "n": 22,
+        "payment": 2445.77,
+        "principal": 2351.07
+      },
+      {
+        "balance": 2413.78,
+        "interest": 63.55,
+        "n": 23,
+        "payment": 2445.77,
+        "principal": 2382.22
+      },
+      {
+        "balance": 0.0,
+        "interest": 31.98,
+        "n": 24,
+        "payment": 2445.77,
+        "principal": 2413.78
+      }
+    ],
+    "total_interest": 8698.48,
+    "total_paid": 58698.48
+  },
+  "POST /goals": {
+    "created_at": "<normalizado>",
+    "deadline": null,
+    "id": 5,
+    "name": "Meta REST dorada",
+    "pct_base": "objetivo de la meta",
+    "pct_base_value": 9000.0,
+    "progress_pct": 0.0,
+    "saved_amount": 0.0,
+    "status": "activa",
+    "target_amount": 9000.0
+  },
+  "POST /goals/{id}/transfers": {
+    "amount": 500.0,
+    "available_balance": 61421.15,
+    "direction": "account_to_goal",
+    "goal": {
+      "created_at": "<normalizado>",
+      "deadline": null,
+      "id": 4,
+      "name": "Meta dorada",
+      "pct_base": "objetivo de la meta",
+      "pct_base_value": 16000.0,
+      "progress_pct": 12.5,
+      "saved_amount": 2000.0,
+      "status": "activa",
+      "target_amount": 16000.0
+    },
+    "message": "Abono de $500.00 a la meta 'Meta dorada'.",
+    "status": "applied",
+    "total_balance": 112621.15
+  },
+  "demo_today": "2026-10-25"
+}
