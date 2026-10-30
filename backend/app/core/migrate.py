@@ -36,7 +36,18 @@ class MigrationError(RuntimeError):
     """Fallo de migración: la base queda intacta y se explica el motivo."""
 
 
+#: Versión de esquema que el código espera **hoy**. Las bases anteriores a la
+#: última migración (p. ej. el libro REAL sin tipo `transfer`) se migran hasta
+#: esta versión al arrancar; una base que no pueda llegar a ella se niega a
+#: servir datos en lugar de leer columnas inexistentes.
+CURRENT_SCHEMA_VERSION = "ledger-v2"
+
+
 # ------------------------------------------------------------------ utilidades
+
+#: Carpeta dentro de la carpeta de datos donde viven las copias de seguridad.
+BACKUP_DIRNAME = "backups"
+
 
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
@@ -73,18 +84,80 @@ def _column_types(conn, name: str) -> dict[str, str]:
             for r in conn.execute(f"PRAGMA table_info({name})")}
 
 
+def current_version(conn) -> str | None:
+    """Versión de esquema registrada en la base (la última aplicada)."""
+    row = conn.execute(
+        "SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1"
+    ).fetchone()
+    return row["version"] if row else None
+
+
+def assert_schema_compatible(conn) -> None:
+    """Guardián de arranque: la base debe estar en `CURRENT_SCHEMA_VERSION`.
+
+    Nunca se leen columnas inexistentes ni se convierten en silencio. Si el
+    esquema no coincide con la versión que el código espera, se aborta la
+    operación con un mensaje claro (la migración pendiente debe haberlo traído
+    al estado actual antes de llegar aquí).
+    """
+    problems: list[str] = []
+    for table, columns in MONEY_COLUMNS.items():
+        types = _column_types(conn, table)
+        if not types:
+            problems.append(f"tabla {table} ausente")
+            continue
+        for old, new in columns:
+            if new not in types:
+                problems.append(f"{table}.{new} no existe (migración incompleta o esquema no reconocido)")
+            elif (types[new] or "").upper() != "INTEGER":
+                problems.append(f"{table}.{new} debe ser INTEGER, es {(types[new] or '').upper()}")
+        for old, _new in columns:
+            if old in types:
+                problems.append(f"{table}.{old} aún existe (debe renombrarse a {dict(columns)[old]})")
+    tx_types = _column_types(conn, "transactions")
+    ddl = _table_ddl(conn, "transactions") or ""
+    if "transactions" in tx_types and "type" in tx_types and "transfer" not in ddl:
+        problems.append("transactions.type no admite el valor 'transfer'")
+    if problems:
+        raise MigrationError(
+            "La base no está en la versión de esquema esperada "
+            f"({CURRENT_SCHEMA_VERSION}): " + "; ".join(problems)
+            + ". Se recomienda ejecutar `python -m app.core.migrate`."
+        )
+
+
 def backup(db_path: Path) -> Path:
-    """Copia de seguridad obligatoria con marca de tiempo; nunca sobreescribe."""
+    """Copia de seguridad obligatoria con marca de tiempo; nunca sobreescribe.
+
+    Va a `<carpeta de datos>/<backups>/banorte.db.bak-<YYYYMMDD-HHMMSS>` (crea la
+    carpeta si no existe), nunca sobreescribe (`.bak-<marca>` con marca de
+    segundo, aborta si ya existe esa marca), guarda la suma de verificación
+    SHA-256 en `<archivo>.sha256` **junto al archivo** y confirma que la copia
+    se puede abrir (`PRAGMA quick_check`) antes de continuar.
+    """
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    target = db_path.with_name(f"{db_path.name}.bak-{stamp}")
+    filename = f"{db_path.name}.bak-{stamp}"
+    backup_dir = db_path.parent / BACKUP_DIRNAME
+    target = backup_dir / filename
     if target.exists():
         raise MigrationError(
             f"Ya existe una copia de seguridad con la misma marca de tiempo: {target.name}. "
             "Espera un segundo y vuelve a intentarlo."
         )
+    backup_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy2(db_path, target)
     if _sha256(db_path) != _sha256(target):
         raise MigrationError("La copia de seguridad no coincide con el original; se aborta.")
+    target.with_name(target.name + ".sha256").write_text(_sha256(target) + "\n", encoding="utf-8")
+    check_conn = sqlite3.connect(str(target))
+    try:
+        check_result = check_conn.execute("PRAGMA quick_check").fetchone()[0]
+    finally:
+        check_conn.close()
+    if check_result != "ok":
+        raise MigrationError(
+            f"La copia de seguridad {target.name} no se puede abrir (quick_check={check_result}); se aborta."
+        )
     return target
 
 
@@ -328,11 +401,11 @@ def _ledger_v2_apply(conn) -> dict:
             before_totals[old] = money.to_cents(raw)
 
         rows = [dict(r) for r in conn.execute(f"SELECT * FROM {table}").fetchall()]
+        new_cols = [new_names.get(c, c) for c in all_cols]
         cents_rows = []
         for item in rows:
             for old, new in columns:
                 item[new] = money.to_cents(item.pop(old))
-            new_cols = [new_names.get(c, c) for c in all_cols]
             cents_rows.append(tuple(item[c] for c in new_cols))
 
         new_table = seed.TABLE_DDL[table].replace(

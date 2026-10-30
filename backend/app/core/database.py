@@ -5,6 +5,7 @@ from contextlib import contextmanager
 
 from app.core import migrate, reconcile, seed
 from app.core.config import DB_PATH, DATA_DIR
+from app.core.migrate import MigrationError
 
 _initialized = False
 
@@ -49,6 +50,12 @@ def ensure_database() -> None:
     registra las migraciones como cubiertas; base existente → aplica las
     migraciones pendientes (con respaldo y transacción) y siembra solo si
     está vacía. Idempotente en cada arranque.
+
+    Guardián de esquema (Tramo B): al arrancar, si la versión de esquema de la
+    base no es la que el código espera (`migrate.CURRENT_SCHEMA_VERSION`), se
+    intenta migrar con el runner versionado (respaldo + transacción + verificación);
+    si la base quedara en un estado incompatible, se **niega a servir datos** con
+    un error claro en lugar de leer columnas inexistentes.
     """
     global _initialized
     if _initialized and DB_PATH.exists():
@@ -60,6 +67,15 @@ def ensure_database() -> None:
             migrate.mark_fresh_install(conn)
     else:
         migrate.run_pending(DB_PATH)
+        with db() as conn:
+            version = migrate.current_version(conn)
+            if version != migrate.CURRENT_SCHEMA_VERSION:
+                raise MigrationError(
+                    "La base no está en la versión de esquema esperada "
+                    f"({migrate.CURRENT_SCHEMA_VERSION}); última registrada: {version}. "
+                    "Revisa el estado de `schema_migrations` y repite el arranque."
+                )
+            migrate.assert_schema_compatible(conn)
         with db() as conn:
             seed.init_db(conn)  # siembra solo si no hay datos; no toca datos existentes
     _initialized = True

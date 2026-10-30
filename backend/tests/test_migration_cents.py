@@ -115,7 +115,7 @@ def test_ledger_v2_converts_legacy_db_with_exact_totals(legacy_db, tmp_path):
 
     versions = [a["version"] for a in report["applied"]]
     assert "ledger-v2" in versions
-    assert report["backup"] and (legacy_db.parent / report["backup"]).exists()
+    assert report["backup"] and (legacy_db.parent / "backups" / report["backup"]).exists()
 
     # Esquema: todas las columnas de dinero quedaron en centavos INTEGER.
     for table, columns in {
@@ -157,10 +157,10 @@ def test_ledger_v2_converts_legacy_db_with_exact_totals(legacy_db, tmp_path):
 
 def test_run_pending_is_idempotent(legacy_db):
     migrate.run_pending(legacy_db)
-    first_backup = sorted(p.name for p in legacy_db.parent.glob("*.bak-*"))
+    first_backup = sorted(p.name for p in (legacy_db.parent / "backups").glob("*.bak-*"))
     report = migrate.run_pending(legacy_db)
     assert report["pending"] == [] and report["applied"] == []
-    assert sorted(p.name for p in legacy_db.parent.glob("*.bak-*")) == first_backup
+    assert sorted(p.name for p in (legacy_db.parent / "backups").glob("*.bak-*")) == first_backup
 
 
 def test_dry_run_writes_nothing(legacy_db):
