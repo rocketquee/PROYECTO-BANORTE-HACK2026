@@ -1,6 +1,8 @@
 # Estructura del proyecto
 
 Organización de carpetas y archivos principales. Se excluyen `node_modules`, `.next`, `.venv`, `__pycache__`, `.git`, `.env` y archivos con claves o secretos.
+
+
 ![alt text](image.png)
 
 ## Para qué sirve cada carpeta
