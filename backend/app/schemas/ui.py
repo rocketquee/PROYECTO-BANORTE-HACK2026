@@ -238,6 +238,7 @@ class BudgetPlannerSpec(Strict):
     income: float
     total_spent: float
     available: float
+    monthly_balance: float | None = None
     categories: list[BudgetCategory]
 
 

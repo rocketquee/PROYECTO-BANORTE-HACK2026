@@ -313,7 +313,7 @@ def _ledger_v1_apply(conn) -> dict:
                     "  goal_id, direction)"
                     " VALUES (?,?,?,?,'transfer',NULL,?,?,'account_to_goal')",
                     (row["id"], row["date"], row["description"], money.to_cents(row["amount"]),
-                     plan[row["id"]], row["account_id"]),
+                     row["account_id"], plan[row["id"]]),
                 )
             else:
                 conn.execute(
@@ -324,6 +324,23 @@ def _ledger_v1_apply(conn) -> dict:
                     (row["id"], row["date"], row["description"], money.to_cents(row["amount"]),
                      row["type"], row["category"], row["account_id"]),
                 )
+        # Verificación por fila: el mapeo reclasificado debe conservar la cuenta
+        # original y apuntar exactamente a la meta planeada.
+        originals = {row["id"]: row for row in candidates}
+        for tx_id, goal_id in plan.items():
+            got = conn.execute(
+                "SELECT account_id, goal_id FROM transactions_new WHERE id=?",
+                (tx_id,),
+            ).fetchone()
+            if (got is None
+                    or got["goal_id"] != goal_id
+                    or got["account_id"] != originals[tx_id]["account_id"]):
+                raise MigrationError(
+                    f"ledger-v1: la fila {tx_id} no conservó su mapeo "
+                    f"(esperado account_id={originals[tx_id]['account_id']}, "
+                    f"goal_id={goal_id})."
+                )
+
         conn.execute("DROP TABLE transactions")
         conn.execute("ALTER TABLE transactions_new RENAME TO transactions")
         conn.executescript(seed.TRANSACTIONS_INDEXES)

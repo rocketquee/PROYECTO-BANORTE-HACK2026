@@ -16,13 +16,17 @@ from typing import Any
 # --------------------------------------------------------------------------- reporte
 
 
-def _item(invariant: str, status: str, rows: int, detail: str) -> dict[str, Any]:
-    return {
+def _item(invariant: str, status: str, rows: int, detail: str,
+          details: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    item = {
         "invariant": invariant,
         "status": status,  # "pass" | "fail" | "info"
         "rows_affected": rows,
         "detail": detail,
     }
+    if details is not None:
+        item["details"] = details
+    return item
 
 
 # --------------------------------------------------------------------------- verificaciones
@@ -65,6 +69,165 @@ def _inv4_goal_caps(conn: sqlite3.Connection) -> dict[str, Any]:
     status = "pass" if over == 0 else "fail"
     return _item("INV-4", status, over,
                  "Metas cuyo ahorrado excede el objetivo.")
+
+
+def _goal_ledger(conn: sqlite3.Connection) -> dict[str, Any]:
+    """INV-10: el ahorrado de cada meta es la suma firmada de sus transferencias.
+
+    Cada diferencia se reporta con el identificador de la meta, el ahorrado,
+    el libro y la diferencia exacta en centavos; nunca un resumen booleano.
+    """
+    rows = conn.execute(
+        """
+        SELECT g.id, g.name, g.saved_amount_cents, g.target_amount_cents,
+               COALESCE(SUM(CASE t.direction
+                   WHEN 'account_to_goal' THEN t.amount_cents
+                   ELSE -t.amount_cents END), 0) AS ledger_cents
+        FROM savings_goals g
+        LEFT JOIN transactions t
+               ON t.goal_id = g.id AND t.type = 'transfer'
+        GROUP BY g.id
+        ORDER BY g.id
+        """
+    ).fetchall()
+    details = [
+        {
+            "goal_id": r["id"],
+            "goal_name": r["name"],
+            "saved_cents": r["saved_amount_cents"],
+            "ledger_cents": r["ledger_cents"],
+            "difference_cents": r["saved_amount_cents"] - r["ledger_cents"],
+        }
+        for r in rows
+        if r["saved_amount_cents"] != r["ledger_cents"]
+    ]
+    return _item(
+        "goal_ledger",
+        "fail" if details else "pass",
+        len(details),
+        "Metas cuyo ahorrado no coincide con la suma firmada de sus transferencias.",
+        details,
+    )
+
+
+def _goal_status(conn: sqlite3.Connection) -> dict[str, Any]:
+    """INV-11: una meta completada tiene ahorrado igual al objetivo.
+
+    Tambi\u00e9n detecta el caso inverso: ahorrado igual al objetivo con estado
+    distinto de `completada` (el estado no refleja el libro).
+    """
+    rows = conn.execute(
+        """
+        SELECT id, name, saved_amount_cents, target_amount_cents, status
+        FROM savings_goals
+        WHERE (status = 'completada' AND saved_amount_cents <> target_amount_cents)
+           OR (status <> 'completada' AND saved_amount_cents = target_amount_cents)
+        ORDER BY id
+        """
+    ).fetchall()
+    details = [
+        {
+            "goal_id": r["id"],
+            "goal_name": r["name"],
+            "status": r["status"],
+            "saved_cents": r["saved_amount_cents"],
+            "target_cents": r["target_amount_cents"],
+            "reason": (
+                "completada sin alcanzar el objetivo"
+                if r["status"] == "completada"
+                else "objetivo alcanzado con estado distinto de completada"
+            ),
+        }
+        for r in rows
+    ]
+    return _item(
+        "goal_status",
+        "fail" if details else "pass",
+        len(details),
+        "Metas cuyo estado no corresponde con su avance real.",
+        details,
+    )
+
+
+def _table_exists(conn: sqlite3.Connection, name: str) -> bool:
+    return conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)
+    ).fetchone() is not None
+
+
+def _transfer_legs(conn: sqlite3.Connection) -> dict[str, Any]:
+    """INV-13: la suma de piernas de cada transferencia es su monto exacto.
+
+    Detecta débitos parciales: una operación que debitó varias cuentas pero
+    registró solo una pierna, o una pierna alterada.
+    """
+    if not _table_exists(conn, "transfer_legs"):
+        return _item(
+            "transfer_legs", "fail", 0,
+            "La tabla transfer_legs no existe; la reparación ledger-v3 está pendiente.",
+            [],
+        )
+    rows = conn.execute(
+        """
+        SELECT t.id, t.goal_id, t.amount_cents,
+               COALESCE(SUM(l.amount_cents), 0) AS legs_cents,
+               COUNT(l.id) AS leg_count
+        FROM transactions t
+        LEFT JOIN transfer_legs l ON l.transaction_id = t.id
+        WHERE t.type = 'transfer'
+        GROUP BY t.id
+        HAVING legs_cents <> t.amount_cents OR leg_count = 0
+        ORDER BY t.id
+        """
+    ).fetchall()
+    details = [
+        {
+            "transaction_id": r["id"],
+            "goal_id": r["goal_id"],
+            "amount_cents": r["amount_cents"],
+            "legs_cents": r["legs_cents"],
+            "leg_count": r["leg_count"],
+            "difference_cents": r["amount_cents"] - r["legs_cents"],
+        }
+        for r in rows
+    ]
+    return _item(
+        "transfer_legs",
+        "fail" if details else "pass",
+        len(details),
+        "Transferencias cuyas piernas no reconstruyen el monto de la operación.",
+        details,
+    )
+
+
+def _orphan_transfers(conn: sqlite3.Connection) -> dict[str, Any]:
+    """INV-12: toda transferencia pertenece a una meta existente."""
+    rows = conn.execute(
+        """
+        SELECT t.id, t.goal_id, t.amount_cents, t.direction, t.date
+        FROM transactions t
+        LEFT JOIN savings_goals g ON g.id = t.goal_id
+        WHERE t.type = 'transfer' AND g.id IS NULL
+        ORDER BY t.id
+        """
+    ).fetchall()
+    details = [
+        {
+            "transaction_id": r["id"],
+            "goal_id": r["goal_id"],
+            "amount_cents": r["amount_cents"],
+            "direction": r["direction"],
+            "date": r["date"],
+        }
+        for r in rows
+    ]
+    return _item(
+        "orphan_transfers",
+        "fail" if details else "pass",
+        len(details),
+        "Transferencias que apuntan a una meta inexistente.",
+        details,
+    )
 
 
 def _inv5_idempotency(conn: sqlite3.Connection) -> dict[str, Any]:
@@ -134,6 +297,10 @@ def reconcile(conn: sqlite3.Connection) -> dict[str, Any]:
     results: list[dict[str, Any]] = [
         _inv1_transaction_shape(conn),
         _inv4_goal_caps(conn),
+        _goal_ledger(conn),
+        _goal_status(conn),
+        _orphan_transfers(conn),
+        _transfer_legs(conn),
         _inv5_idempotency(conn),
         _inv6_no_future_dates(conn),
         _balances_non_negative(conn),

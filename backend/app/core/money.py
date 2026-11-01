@@ -124,6 +124,17 @@ def apply_rate(cents: int, rate: float) -> int:
     return round_half_up(Decimal(cents) * Decimal(str(rate)))
 
 
+def percent_of(cents: int, pct: float) -> int:
+    """Porcentaje de una cantidad en centavos, redondeado una sola vez.
+
+    `pct` se expresa en puntos porcentuales (15 = 15 %). Es la única
+    conversión porcentaje→centavos permitida fuera de este módulo.
+    """
+    if isinstance(cents, bool) or not isinstance(cents, int):
+        raise MoneyError("Los centavos deben ser un entero.")
+    return round_half_up(Decimal(cents) * Decimal(str(pct)).scaleb(-2))
+
+
 def monthly_rate(annual_rate) -> float:
     """Tasa anual (%) → tasa mensual fraccional. Única definición
     (`anual / 1200`); las tasas no son dinero y viven en flotante."""

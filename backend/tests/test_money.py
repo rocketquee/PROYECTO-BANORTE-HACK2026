@@ -53,6 +53,14 @@ def test_round_half_up_rule():
     assert money.round_half_up(101.5) == 102
 
 
+def test_percent_of_rounds_half_up_once():
+    assert money.percent_of(1_000_000, 15) == 150_000
+    assert money.percent_of(333, 15) == 50
+    assert money.percent_of(10, 15) == 2
+    with pytest.raises(money.MoneyError):
+        money.percent_of(True, 15)
+
+
 def test_apply_rate_rounds_to_the_cent():
     # 10,000.00 × 1 % mensual = 100.00 exacto.
     assert money.apply_rate(1_000_000, 0.01) == 10_000

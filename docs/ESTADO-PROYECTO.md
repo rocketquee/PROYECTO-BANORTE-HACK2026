@@ -1,173 +1,233 @@
-# ESTADO DEL PROYECTO — Informe de auditoría técnica independiente
+# ESTADO DEL PROYECTO — Auditoría técnica independiente
 
-**Repositorio:** `proyecto-banorte-ai-finanzas` (rama `main`, commit `dc606b5` "recondicionamientpo")
-**Fecha de auditoría:** 26/10/2026
-**Auditor:** independiente (no construyó el proyecto)
-**Regla de oro aplicada:** solo lectura; ninguna afirmación sin ruta de archivo:línea o salida de comando. BD real intacta.
+**Repositorio:** `proyecto-banorte-ai-finanzas`
+**Rama / commit:** `main` / `7062c60`
+**Fecha de auditoría:** 2026-10-30
+**Actualización:** 2026-10-30 — Etapa 2.1/2.2 aplicada en `finance.py` con 7 pruebas nuevas; la base real sigue intacta.
+**Alcance:** lectura completa, ejecución de pruebas, build, arranque con base temporal, consultas sobre copia de la base real y corrección del flujo de aportaciones.
+**Regla aplicada:** ninguna afirmación sin archivo:línea o salida de comando. La base real no se usó para escrituras.
 
 ---
 
 ## 1. Veredicto en cinco líneas
 
-El proyecto es un prototipo funcional de asistente financiero con interfaz dinámica generada en tiempo real. El núcleo (contrato UI validado con Pydantic, servidor MCP real, capa de dominio con invariantes, dinero en centavos, escrituras atómicas/idempotentes, tests y build verdes) está bien ingeniero y cumple la mayor parte de lo prometido en el README. Sin embargo, el "LLM al centro" no es real en el modo por defecto (`AI_PROVIDER=demo`): la comprensión del lenguaje es por reglas, el modelo no interpreta ni orquesta a menos que se configure una clave de OpenAI/Anthropic. Varias secciones de la UI son informativas/simuladas (no mueven dinero real) y faltan entregables planeados (PDF, correo, .exe, evaluación de retención). Resultado: prototipo sólido como demostración, pero incompleto como producto del reto.
+1. El proyecto es un prototipo funcional y demostrable: contrato UI validado, servidor MCP real con 20 herramientas, dinero en centavos, migraciones versionadas y una suite de 302 pruebas que pasa.
+2. El flujo de aportaciones ya funciona tras 2.1: el 50% deja la meta activa, el 100% la completa y el retiro la reabre; siguen abiertos el desajuste libro-metas (R-2), la semilla de metas 1–2 (2.6) y el débito multi-cuenta (R-3).
+3. La reconciliación propia devuelve `ok: true` pese a diferencias entre ahorro y transferencias de $18,500, -$14,300 y $22,500, por lo que la señal de integridad no es confiable.
+4. La documentación está desactualizada y se contradice con el código en número de herramientas MCP, pruebas, estado de las migraciones y volumen de datos.
+5. Veredicto: **apto para demostración local controlada; no apto para entrega como producto, custodia de datos ni despliegue público** hasta cerrar las Etapas 2 y 3 de `docs/PLAN.md`.
+
 ---
 
 ## 2. Tabla maestra: Área | Elemento | Estado | Evidencia
 
 | Área | Elemento | Estado | Evidencia |
-|------|----------|--------|-----------|
-| A. Reto | LLM al centro (interpretar/decidir/orquestar) | Parcial | `backend/app/services/agent/providers.py:143-149` `get_provider()` devuelve `None` sin clave → `demo_response` basado en reglas; `orchestrator.py:2344-2345` elige `demo_response` si `get_provider() is None or AI_PROVIDER=="demo"`. Sin clave: 0% de respuestas pasa por el modelo. Con clave: 100% (no hay mixto medible). |
-| A. Reto | Proveedor configurable y funcional | Hecho y verificado | `providers.py:35-148` `OpenAIProvider`, `AnthropicProvider`; `config.py:12-17` `AI_PROVIDER`/`OPENAI_API_KEY`/`ANTHROPIC_API_KEY`. |
-| A. Reto | MCP: herramientas expuestas | Hecho y verificado | `mcp-server/server.py:44-66`: 19 herramientas registradas con `mcp.tool(...)`. |
-| A. Reto | MCP: cuáles usa el orquestador | Hecho y verificado | `orchestrator.py:39-47` `WRITE_TOOLS` (3) y `MCP_ALLOWED_TOOLS` (19, idéntico al expuesto). |
-| A. Reto | MCP: lectura vs escritura | Hecho y verificado | `mcp-server/README.md:10-20`: 16 lectura, 3 escritura (`create_savings_goal`, `update_savings_goal`, `apply_savings_contribution`) que requieren `confirm=True`. |
-| A. Reto | A2UI: contrato, versión, validación servidor | Hecho y verificado | `backend/app/schemas/ui.py:316-341` unión discriminada `UISpec` con `extra="forbid"`; `ui.py:346` `UI_SCHEMA_VERSION="1.0"`; `routes.py:240-251` `GET /ui-schema` (solo `DEV_MODE`). |
-| A. Reto | A2UI: registro componentes cliente | Hecho y verificado | `frontend/src/components/dynamic/DynamicRenderer.tsx:44` comprueba `AUTHORIZED_COMPONENTS`; tipos desconocidos → tarjeta de error (líneas 44-50). |
-| A. Reto | Componentes generables vs renderizados de verdad | Hecho y verificado | 16 tipos autorizados en `ui.py:336-341`; todos los 16 tienen `case` en `DynamicRenderer.tsx:51-126`. |
-| A. Reto | Flujo accionable con efecto real y confirmación | Hecho y verificado | Crear meta y abonar a meta: `savings.py:88-144` `apply_contribution` (atómico, idempotente); `routes.py:209-237` `/agent/confirm`. |
-| A. Reto | Ciclo cerrado (interacción → agente → acción/nueva UI) | Parcial | Sí: `purchase_option_selected`, `purchase_goal_confirmed`, `savings_contribution_confirmed` vuelven por `/agent/chat` con `ui_event` (`api.py:72-113`). No: interacciones de gráficas/tablas son solo lectura, no retornan al agente. |
-| A. Reto | Datos y APIs propios | Hecho y verificado | SQLite sintética (`seed.py`), MCP + REST (`mcp_client.py`, `routes.py`). |
-| A. Reto | Entregables (demo, repo, datos, diagrama, decisiones) | Hecho sin verificar | `scripts/start-all.cmd` (demo), `README.md` (instrucciones), `seed.py` (datos), `docs/arquitectura.html` (diagrama), `docs/DECISIONS.md` (decisiones). |
-| B. Datos | Modelo libro de movimientos y tipos | Hecho y verificado | `seed.py:23-43` tabla `transactions` con `CHECK (type IN ('income','expense','transfer'))`; `finance.py:18` `LEDGER_TYPES`. |
-| B. Datos | Invariantes en documento vs en base | Parcial | CHECK constraints en `seed.py:34-42` (INV-1 forma de cada tipo). `domain.py` impone reglas en código; no hay disparadores/triggers en SQLite. |
-| B. Datos | Representación del dinero, tolerancias, redondeos | Hecho y verificado | `money.py:1-159`: centavos enteros, `ROUND_HALF_UP` vía `Decimal`, única puerta `to_cents`/`to_pesos`; `credit.py:48-95` última cuota absorbe residuo. |
-| B. Datos | Rutas de escritura: atómicas, idempotentes, validadas en un lugar | Hecho y verificado | `savings.py:88-144` `apply_contribution` con `BEGIN IMMEDIATE` + `idempotency_records`; `domain.py:validate_transfer` autoridad única de reglas (INV-9); `finance.py:set_budget_limit` `ON CONFLICT` (`routes.py:192-197`). |
-| B. Datos | Métricas derivadas fuera de dominio (duplicadas) | No pudo verificar | `finance.py` es autoridad de métricas (`domain.py:8-11` lo declara); no se auditó duplicación de métricas en frontend. |
-| B. Datos | Migración: determinista, corre al iniciar, reset/reconciliación | Hecho y verificado | `migrate.py:384-451` migraciones versionadas (`ledger-v1`, `ledger-v2`), idempotentes, con backup + transacción + `foreign_key_check`; `database.py:46-65` `ensure_database` corre al arranque. |
-| B. Datos | Estado BD real: datos inconsistentes/de prueba | Hecho (solo lectura) | `backend/data/banorte.db` = 155648 bytes, 25/10/2026 02:57:21 p.m. (antes y después de tests, sin cambios). Los tests usan `tmp_path` (`conftest.py:16-21`) y `BANORTE_DB_PATH` temporal; la BD real no se tocó. |
-
-| C. Asistente | Intenciones por reglas (demo) | Hecho y verificado | `orchestrator.py` demo: rule-based con normalización (docstring línea 6-8). Cobertura uniforme para las entidades probadas; frases libres requieren proveedor live. |
-| C. Asistente | Intenciones por herramientas (MCP) | Hecho y verificado | 19 herramientas MCP (`server.py:44-66`) invocables por el agente en ambos modos. |
-| C. Asistente | Sobreajuste (cadenas literales, nombres, cifras fijas) | Hallado | `orchestrator.py:49` `PURCHASE_SIMULATION_RATE = 15.9`; `seed.py:301` "Electrodoméstico Liverpool" 14.800,00; `seed.py:306` "Rappi pedido #8817" 348,90 duplicado; `seed.py:289` aguinaldo 22.000,00. |
-| C. Asistente | Cobertura uniforme por entidad | Parcial | Capacidades implementadas, pero el demo (reglas) cubre solo patrones probados; frases muy libres fallan. |
-| D. Interfaz | Pantallas y navegación automática | Parcial | `page.tsx:28-31` `askAssistant` cambia a vista `"asistente"` automáticamente al hacer clic; 14 secciones (`page.tsx:13-17`), varias simuladas (`README.md:245-246`). |
-| D. Interfaz | Ubicación del asistente | Hecho | `page.tsx:79-84` `AgentView` solo en vista `"asistente"`; sidebar con historial (`chatStore.ts`). |
-| D. Interfaz | Componentes duplicados/sin uso | Parcial | `backend/probe2.py`, `probe3.py`, `probe_findings.py` son archivos de exploración sin llamadores claros (código potencialmente muerto). |
-| D. Accesibilidad | Letra base, contraste, botones, foco | Declarado no verificado | `README.md:203-212` declara 18px, contraste ≥4.5:1, botones 44-48px, `aria-label`, `prefers-reduced-motion`. |
-| D. Responsividad/rendimiento | Carga diferida, pantallas lentas, animaciones | Parcial | `next build` exitoso (<14s, 4 páginas estáticas). `TwinklingSquares.tsx` (animación) existe; no se midió rendimiento real. |
-| E. Seguridad | Claves y variables de entorno | Hecho y verificado | `.env` NO versionado (`git ls-files` solo trae `.env.example`); `config.py:32-43` carga `.env` con `setdefault` (env gana). Claves vacías por defecto. |
-| E. Seguridad | CORS, orígenes, puertos fijos | Hecho y verificado | `main.py:60-66` CORS solo `FRONTEND_ORIGIN` (`config.py:25` = `http://localhost:3000`); puertos 8000/3000 fijos en `start-all.cmd:34,53`. |
-| E. Seguridad | Validación de entradas, límites de tamaño | Hecho y verificado | Esquemas Pydantic `Strict` (`extra="forbid"`) en `api.py` y `ui.py`; `ChatRequest.message` max 5000 (`api.py:117`); rate limit 30 msgs/10s (`routes.py:25-41`). |
-| E. Seguridad | Resistencia a inyección de prompt (datos no código) | Hecho y verificado | `DynamicRenderer.tsx:44-50` nunca interpreta JSON; `ui.py` `extra="forbid"` bloquea campos tipo `onClick`; `chatSecurity.mjs` sanitiza (`chatStore.ts:12,107-112,139-141`). |
-| E. Seguridad | Enmascarado de datos sensibles | Parcial | `mcp-server/tools/finance_tools.py:57-58` tarjetas solo últimos 4 dígitos. No hay enmascarado explícito antes de enviar datos al modelo (datos son sintéticos por diseño). |
-| E. Seguridad | Registros con datos sensibles | Hecho y verificado | `main.py:7` comment "Logs nunca contienen user message content"; `routes.py:82` log solo `error_type`. |
-| E. Seguridad | Dependencias con riesgo conocido | No pudo verificar | `requirements.txt` / `package.json` sin lock de vulnerabilidades (no se ejecutó `npm audit`/`pip audit`). |
-| F. Portabilidad | Instalación desde clon limpio | Hecho y verificado | `scripts/setup.cmd` verifica Python 3.11+/Node 18.18+, crea venv, instala dependencias, copia `.env`. |
-| F. Portabilidad | Scripts *.cmd y README instalación | Hecho | `scripts/setup.cmd`, `start-all.cmd`, `stop-all.cmd`, `run-tests.cmd` presentes. |
-| F. Portabilidad | Versiones fijadas | Parcial | `package.json` usa `^` (no fijado); `requirements.txt` usa `>=`/`==` parciales. |
-| F. Portabilidad | Rutas personales/OneDrive | Parcial (solo metadatos) | Rutas personales de Windows solo en `.archify/*` (metadatos de herramienta de diseño), no en código fuente ni scripts. |
-| F. Portabilidad | Datos en carpeta del repo | Hecho | `backend/data/banorte.db` (gitignorado, `database.py:8` `DB_PATH` overridable vía `BANORTE_DB_PATH`). |
-| F. Portabilidad | Puertos configurables | Parcial | `FRONTEND_ORIGIN` configurable; puertos 8000/3000 fijos en `start-all.cmd`. |
-| F. Despliegue | vercel.json y por qué falla | Existe, no verificado | `vercel.json` define 3 servicios y rewrites; no se probó el despliegue. |
-| F. Empaquetado escritorio (.exe) | No existe | No existe | Búsqueda recursiva de `*.exe` solo encontró ejecutables del venv y Python, no una app empaquetada de Banorte. |
-| G. Calidad | Pruebas backend: 283, todas pasan | Hecho y verificado | `pytest tests -v` con BD temporal → `283 passed in 138.96s`. |
-| G. Calidad | Pruebas frontend: 9, todas pasan | Hecho y verificado | `node --test tests/*.test.mjs` → `pass 9, fail 0`. |
-| G. Calidad | Build de producción frontend | Hecho y verificado | `npm run build` → compiló en 13.8s, types OK, 4 páginas estáticas, sin errores. |
-| G. Calidad | Código muerto / archivos enormes / TODO | Parcial | `backend/probe2.py`, `probe3.py`, `probe_findings.py` (exploración, sin llamadores claros). |
-| G. Calidad | Documentación vigente vs desactualizada | Parcial | Existen `ARCHITECTURE.md`, `DECISIONS.md`, `DOMAIN.md`, `MIGRACION-FASE1.md`, `AUDITORIA-FASE1.md`, `REPORTE-QA.md`. |
-| G. Calidad | Trabajo sin commit | No pudo verificar | `git status --porcelain` no retornó salida usable en este shell. |
-| H. Planeadas | Exportación a PDF | No existe | No se encontró código de exportación PDF. |
-| H. Planeadas | Envío de estado por correo | No existe | No se encontró código de correo. |
-| H. Planeadas | Perfiles de demostración | Parcial | Datos sintéticos deterministas (`seed.py`), pero no perfiles de usuario seleccionables. |
-| H. Planeadas | Base ampliada (cuentas, tarjetas, estados, 24 meses) | Parcial | `accounts` y `cards` existen (`seed.py:54-73`); no hay estados de cuenta ni historial 24 meses (solo 12 meses). |
-| H. Planeadas | Verificador de fundamentación del modelo | No existe | No se encontró. |
-| H. Planeadas | Conjunto de evaluación con casos de retención | No existe | No se encontró. |
-| H. Planeadas | Empaquetado .exe | No existe | Ver §F. |
-
-
-## 3. Discrepancias entre documentos y código
-
-| Documento / Afirmación | Qué dice | Qué hace el código | Gravedad |
-|------------------------|----------|--------------------|----------|
-| `README.md:45` "IA: proveedor configurable (OpenAI / Anthropic) o modo demostración sin API key" | El LLM es central y configurable. | Por defecto (`AI_PROVIDER=demo`, `config.py:12`) no hay LLM: `providers.py:143-149` devuelve `None` y el orquestador usa reglas (`demo_response`). El modelo solo participa si se configura una clave real. | Alta |
-| `README.md:20-21` "Cada interacción con la UI regresa al agente y produce nuevas acciones (ciclo cerrado)" | Ciclo cerrado universal. | Solo ciertas interacciones (`purchase_*`, `savings_contribution_*`) retornan al agente vía `ui_event` (`api.py:72-113`). Gráficas, tablas y resúmenes son solo lectura y no vuelven al agente. | Media |
-| `README.md:196-197` "40 variantes de ataque probadas obtienen una negativa amable" | Pruebas de seguridad documentadas. | No se encontró un conjunto de pruebas de inyección de prompt con 40 variantes en el repo. | Media |
-| `docs/DOMAIN.md` (hipótesis) | Invariantes documentados. | Las invariantes están impuestas en `domain.py` y `seed.py` (CHECK), pero no hay disparadores/triggers de SQLite; algunas solo están en documento. | Media |
-
-## 4. Riesgos críticos ordenados por gravedad
-
-### R-1 (Alta) — El modo por defecto no usa LLM; el reto pide "LLM al centro"
-**Evidencia:** `config.py:12` `AI_PROVIDER = os.getenv("AI_PROVIDER", "demo")`; `providers.py:143-149` `get_provider()` retorna `None` sin clave; `orchestrator.py:2344-2345` usa `demo_response` (reglas).
-**Impacto:** Sin clave de API, el agente no interpreta ni orquesta con un modelo; incumple el espíritu del reto y el usuario no ve comportamiento de IA real.
-**Arreglo mínimo:** Hacer que el modo demo simule razonamiento de IA de forma más rica, o documentar claramente que el modo por defecto es un respaldo de reglas y que el valor del reto requiere `AI_PROVIDER=openai|anthropic` con clave.
-
-### R-2 (Alta) — Afirmación de "ciclo cerrado" no se cumple para todas las interacciones
-**Evidencia:** `api.py:72-113` solo algunos `ui_event` tipos retornan al orquestador; `DynamicRenderer.tsx` renderiza gráficas/tablas sin callback de retorno al agente.
-**Impacto:** El usuario puede creer que cualquier clic en la UI generada dispara una acción del agente, pero la mayoría son pantallas estáticas.
-**Arreglo mínimo:** Aclarar en la UI/docs qué componentes son accionables vs informativos, o conectar los componentes de consulta al agente.
-
-### R-3 (Media) — Sobreajuste con valores literales fijos
-**Evidencia:** `orchestrator.py:49` `PURCHASE_SIMULATION_RATE = 15.9`; `seed.py:301` "Electrodoméstico Liverpool" 14.800,00; `seed.py:306` "Rappi pedido #8817" 348,90 (duplicado intencional); `seed.py:289` aguinaldo 22.000,00.
-**Impacto:** El comportamiento está calibrado a datos de prueba concretos; no es generalizable a otros escenarios.
-**Arreglo mínimo:** Parametrizar la tasa de simulación y revisar que las reglas de negocio no dependan de cadenas/nombres fijos de la semilla.
-
-### R-4 (Media) — Escritura sin confirmación explícita en un transporte
-**Evidencia:** `mcp-server/tools/finance_tools.py` expone herramientas de escritura que requieren `confirm=True`, pero un cliente MCP directo podría invocarlas sin pasar por el orquestador; la validación central está en `domain.py`/`savings.py`.
-**Impacto:** Ruta de escritura expuesta vía MCP que podría invocarse sin confirmación de usuario si un cliente MCP la llama directamente.
-**Arreglo mínimo:** Reforzar que todas las herramientas de escritura requieran `confirm=True` y que el orquestador sea el único punto de entrada autorizado para acciones de escritura.
-
-### R-5 (Baja) — Datos de prueba en la BD local
-**Evidencia:** `backend/data/banorte.db` existe (155648 bytes) con datos sintéticos, gitignorado pero presente en el repositorio local.
-**Impacto:** Bajo (datos sintéticos, no reales), pero archivo binario versión-local que podría confundir.
-**Arreglo mínimo:** Documentar que la BD se regenera al arranque (`database.py:46-65`) y que `banorte.db` es local.
-
-### R-6 (Baja) — Metadatos con rutas personales de Windows
-**Evidencia:** `.archify/architecture-banorte-*/*.json` contienen `C:\Users\jonna\OneDrive\...` (búsqueda `C:\\Users`).
-**Impacto:** Exposición de ruta de usuario local en artefactos de metadatos (no es código fuente).
-**Arreglo mínimo:** No incluir `.archify` en el entregable público o sanitizar rutas.
-
-
-## 5. Puntaje estimado frente a la rúbrica del reto
-
-Pesos y puntaje (escala 0-100, estimación conservadora):
-
-| Criterio | Peso | Puntaje estimado | Aporte | Justificación breve |
-|----------|------|------------------|--------|---------------------|
-| Utilidad para el usuario | 25% | 60 | 15.0 | Funcional para consultas, ahorro y simulación, pero modo demo es reglas y varias secciones son simuladas. |
-| Calidad y adaptabilidad de la UI generada | 20% | 75 | 15.0 | Contrato Pydantic `extra="forbid"`, 16 componentes autorizados, validación servidor+cliente, manejo de desconocidos. |
-| Calidad de la solución de IA | 15% | 50 | 7.5 | Sin clave no hay LLM (reglas); con clave usa OpenAI/Anthropic pero sin orquestación compleja ni fundamentación verificable. |
-| Arquitectura e ingeniería | 15% | 70 | 10.5 | Buena separación (dominio/finanzas/MCP), tests (283+9), build verde, dinero en centavos, idempotencia. |
-| UX y diseño | 10% | 70 | 7.0 | Accesibilidad declarada (18px, contraste, foco), pero secciones simuladas y navegación automática no solicitada. |
-| Innovación | 10% | 80 | 8.0 | Interfaz dinámica generada por agente es novedosa y el protocolo A2UI-equivalente está bien pensado. |
-| Presentación | 5% | 80 | 4.0 | README completo, scripts de instalación, docs de arquitectura y decisiones. |
-| **TOTAL estimado** | **100%** | — | **67.0 / 100** | |
-
-
-## 6. Lista priorizada de qué hacer a continuación
-
-| Prioridad | Acción | Esfuerzo | Se puede dejar fuera sin pérdida importante |
-|-----------|--------|----------|---------------------------------------------|
-| 1 | Hacer que el modo demo simule razonamiento de IA más rico, o exigir/documentar clave para el valor del reto | Medio | — |
-| 2 | Completar el ciclo cerrado: conectar componentes de consulta (gráficas/tablas) al agente o etiquetarlos como informativos | Medio | — |
-| 3 | Eliminar sobreajuste: parametrizar `PURCHASE_SIMULATION_RATE` y revisar dependencia de nombres/cifras fijas de la semilla | Bajo | — |
-| 4 | Reforzar escritura: asegurar que todas las herramientas de escritura MCP requieran `confirm=True` y que el orquestador sea el único punto de entrada autorizado | Bajo | — |
-| 5 | Entregables faltantes del reto: exportación PDF, correo, conjunto de evaluación de retención, empaquetado .exe | Alto | Sí (son "mejoras futuras" del README, no bloqueantes del prototipo) |
-| 6 | Base ampliada: estados de cuenta, historial 24 meses, perfiles de demo seleccionables | Medio | Sí |
-| 7 | Verificador de fundamentación de respuestas del modelo | Medio | Sí |
-| 8 | Sanitizar rutas personales en `.archify` o excluirlo del entregable público | Bajo | — |
-
-## 7. Lo que no pude verificar y qué necesitaría
-
-- **Git status limpio / trabajo sin commit:** `git status --porcelain` no retornó salida usable en este shell (interferencia del prompt). Necesitaría ejecutar `git status` en una terminal estándar para confirmar archivos sin commit y untracked.
-- **Despliegue vercel:** `vercel.json` existe pero no se probó el despliegue; necesitaría cuenta de Vercel y ejecutar `vercel` para confirmar si funciona o falla.
-- **Dependencias con riesgo conocido:** no se ejecutó `npm audit` ni `pip audit`; necesitaría conexión a registros y ejecutar esas herramientas.
-- **Accesibilidad real (contraste, tamaños de letra, foco):** el README lo declara pero no se midió en el CSS renderizado; necesitaría una auditoría de accesibilidad (axe, Lighthouse) sobre el servidor en ejecución.
-- **Diagrama de arquitectura y documento de decisiones:** existen (`docs/arquitectura.html`, `docs/DECISIONS.md`) pero por regla de auditoría no se tomaron como evidencia; se necesitaría revisarlos independientemente si se quiere confirmar que coinciden con el código.
-- **Pruebas de inyección de prompt (las "40 variantes"):** no se encontró un conjunto con esa cifra en el repo; necesitaría localizarlo o confirmar que no existe.
-- **Duplicación de métricas derivadas fuera del dominio:** `domain.py` declara ser la autoridad y `finance.py` de métricas, pero no se auditó el frontend para detectar métricas duplicadas.
-
+|---|---|---|---|
+| A. Reto | Servidor MCP y herramientas | **Hecho, con discrepancia documental** | `mcp-server/server.py:44-66` registra 20 herramientas; el arranque reporta `service_count: 20`; README:44/155 dice 19 |
+| A. Reto | Contrato UI autorizado | **Hecho** | 14 componentes en `backend/app/schemas/ui.py:336-341` y `frontend/src/types/contract.ts:260-275`; Pydantic `extra="forbid"` |
+| A. Reto | Renderer fijo, sin código ejecutable | **Hecho** | `DynamicRenderer.tsx:44-126` mapea solo tipos autorizados; no hay `dangerouslySetInnerHTML` ni `eval` en `frontend/src` |
+| A. Reto | Validación del contrato en el cliente | **Parcial** | `chatStore.ts:97-105` hace `JSON.parse` y cast; el renderer solo comprueba `type` |
+| A. Reto | Ciclo cerrado universal | **Parcial** | Solo compra y aportación envían `ui_event` (`AgentView.tsx:53-66, 92-162`); otras tarjetas solo pueden enviar una pregunta de texto (`SpendingChart.tsx:71`, `CreditSimulator.tsx:115`), no un evento de acción; filtros y toggles no vuelven; README:20 generaliza |
+| B. Datos | Esquema real | **Hecho** | 7 tablas, sin vistas; `transactions` con `type` y `direction`; `PRAGMA integrity_check` = `ok`; `foreign_key_check` sin filas |
+| B. Datos | Dinero en centavos | **Hecho** | Columnas `*_cents INTEGER`; migración `ledger-v2` aplicada; `schema_migrations.result_json` confirma conversión de 5 tablas |
+| B. Datos | Migraciones y respaldo | **Hecho** | `ledger-v1` y `ledger-v2` aplicadas 2026-10-30 00:52:54; respaldo `banorte.db.bak-20261029-185254` con SHA-256 coincidente |
+| B. Datos | Semilla de metas | **Parcial** | Metas 1 y 2 se insertan con ahorro directo sin transferencia (`seed.py:202-209, 338-344, 348-353`); meta 3 ya no nace `completada` al 50% tras 2.1 |
+| B. Datos | Aportación que completa una meta | **Hecho** | 2.1: meta de $1,000 + dos abonos de $500 -> 200 y `status: completada`; `tests/test_transfer_accounting.py`; `finance.py:529-561` |
+| B. Datos | Aportación del 50% | **Hecho** | 2.1: meta de $1,000 + abono de $500 -> 200, `saved_amount: 500`, `status: activa`; también 51% y 60% (`tests/test_transfer_accounting.py`) |
+| B. Datos | Retiro de una meta completada | **Hecho** | 2.1: retiro de $100 sobre una meta de $1,000 -> 200, 90%, `status: activa`; `tests/test_transfer_accounting.py` |
+| B. Datos | Débito multi-cuenta | **Parcial / fallido** | `finance.py:478-502` debita varias cuentas; `finance.py:550-555` guarda un solo `account_id`; prueba: abono de $50,000 debita cuentas 2 y 1 y registra solo la 2 |
+| B. Datos | Movimiento 967 y meta | **Fallido** | `schema_migrations.result_json` de `ledger-v1`: `id 967 -> goal_id 3`; fila real: `goal_id=2`; `migrate.py:310-317` intercambia los parámetros de `account_id` y `goal_id`; meta 2 libro $22,500 vs ahorro $8,200; meta 3 ahorro $22,500 vs libro $0 |
+| B. Datos | Reconciliación de invariantes | **Fallido** | `reconcile.py:57-70` solo valida cotas; `reconcile.py:123-156` devuelve `ok: true` sobre la base real con las tres diferencias anteriores |
+| B. Datos | Idempotencia de aportaciones | **Hecho** | Repetición de la misma clave devuelve `idempotent_replay: true` y no duplica; `savings.py:88-112`; registros reales en `idempotency_records` |
+| C. IA | Modo demo | **Hecho** | Sin clave, `provider_mode()` = `demo`; `demo_response` usa reglas y MCP real; arranque y chat verificados con base temporal |
+| C. IA | Modo en vivo | **Parcial** | OpenAI/Anthropic implementados (`providers.py:35-141`); no se probó con claves reales; el texto final del modelo no se contrasta con herramientas |
+| C. IA | Verificador de fundamentación | **Pendiente** | `live_response` devuelve `final_text` sin validar cifras (`orchestrator.py:2092-2208`) |
+| C. IA | Privacidad / PII | **Fallido** | Base real con una meta de nombre de persona (id 4, 2026-10-25); 9 archivos versionados con rutas absolutas de Windows; README:5 afirma "datos 100% sintéticos" |
+| D. Validación | PATCH de metas | **Fallido** | `PATCH {"status":"banana"}` -> 200; `PATCH {"deadline":"2000-01-01"}` -> 200; `PATCH {"name":"<script>alert(1)</script>"}` -> 200; `schemas/api.py:33-34`, `finance.py:464-467` |
+| D. Validación | Presupuesto en cero | **Fallido** | `POST /api/budget/update {"monthly_limit":0}` -> 500; esquema acepta `ge=0` (`api.py:48`) y la tabla exige `> 0` (`seed.py:96-101`) |
+| D. Validación | Paridad REST/MCP | **Parcial** | REST limita a $10,000,000 (`routes.py:58-62`); MCP a $100,000,000 (`finance_tools.py:207`); MCP no valida fecha ni sanea nombre; solo aporta, no retira |
+| E. Salud | `/api/health` | **Fallido** | `size_bytes` siempre `null`; `routes.py:117` usa `DB_PATH` sin importarlo y el `except` oculta el `NameError` |
+| E. Calidad | Suite backend | **Hecho, con huecos** | 302 pruebas recolectadas y `302 passed in 530.42s`; las 7 nuevas cubren 2.1; aún no cubre reconciliación libro-metas ni concurrencia |
+| E. Calidad | Golden contract | **Fallido / deriva** | `tests/golden_contract.py` no está en pytest; reporta 18 diferencias: fecha real vs `DEMO_TODAY`, campos de health, redondeo de crédito y estado de meta 3 por 2.1 |
+| E. Calidad | Pruebas frontend | **Parcial** | 9 pruebas pasan; `frontend/tests/*.test.mjs` leen archivos y comparan regex, no renderizan componentes ni simulan interacción |
+| E. Calidad | Typecheck y build | **Hecho** | `npx tsc --noEmit` exit 0; `npm run build` exit 0 con Next.js 15.5.28 |
+| E. Calidad | CI, lint y cobertura | **Fallido** | No hay `.github/workflows`; `frontend/package.json` no tiene script `lint`; no hay ruff/eslint/coverage |
+| F. Portabilidad | Dependencias | **Parcial** | `requirements.txt` con `>=`; `package.json` con `^`; `@next/swc-win32-x64-msvc@16.4.2` junto a `next@15.5.28` |
+| F. Portabilidad | Scripts y rutas | **Parcial** | `scripts/*.cmd` solo Windows; puertos 3000/8000 fijos; MCP usa `sys.executable` (`mcp_client.py:36-37`) |
+| F. Portabilidad | Vercel | **No verificado** | `vercel.json` declara 3 servicios; no se desplegó; SQLite local y MCP stdio no son durables en filesystem efímero |
+| G. UX | Accesibilidad real | **No verificado** | No se ejecutó axe/Lighthouse ni prueba con lector de pantalla |
+| G. UX | Rendimiento | **No verificado** | 967 movimientos; no hay prueba de carga ni de volumen objetivo |
+| H. Docs | Verdad documental | **Fallido** | README:44/155 (19 vs 20 herramientas); REPORTE-QA:3/44 (152 vs 302 pruebas); DOMAIN:3 ("nada aplicado" vs migraciones/centavos/triggers); DATA-DICTIONARY:1568 (~984 vs 967 movimientos) |
+| H. Repo | Higiene | **Fallido** | 27 archivos de producto son artefactos de depuración o capturas; `.archify` aporta 4 y `.github/skills/archify` 203 archivos vendidos; `.gitignore` tiene una línea final corrupta |
 
 ---
 
-## Evidencia de integridad (BD real)
+## 3. Discrepancias entre documentos y código
 
-Antes y después de ejecutar la suite de pruebas (con `BANORTE_DB_PATH` apuntando a `%TEMP%\banorte_audit_test.db` y la fixture `tmp_path` de `backend/tests/conftest.py`):
+| Documento | Afirmación | Realidad verificada | Severidad |
+|---|---|---|---|
+| `README.md:44,155`; `docs/ARQUITECTURA.md:28` | 19 herramientas MCP | 20 registradas y descubiertas (`server.py:44-66`; arranque `service_count: 20`) | Media |
+| `docs/REPORTE-QA.md:3,44` | 152 pruebas backend | 302 recolectadas y en verde | Media |
+| `docs/DOMAIN.md:3` | "Nada de lo aquí descrito está aplicado al código ni a la base" | Tipo `transfer`, triggers, centavos y migraciones `ledger-v1/v2` están aplicados | Alta |
+| `docs/DATA-DICTIONARY.md:3` | "D1 no está aprobado; no se modificó la base" | Parte del modelo (transfer, centavos, restricciones) sí está aplicada; el volumen y perfiles de D1 no | Media |
+| `docs/DATA-DICTIONARY.md:1568`; `docs/DISENO-DATOS-PLATAFORMA.md:18,69` | ~984 movimientos | 967 en la base real; una base nueva sembró 997 por depender de la fecha | Baja |
+| `README.md:5` | Datos 100% sintéticos | Hay una meta con nombre de persona creada 2026-10-25; no puedo verificar su origen | Alta |
+| `README.md:20` | Toda interacción con la UI regresa al agente | Solo compra y aportación emiten `ui_event`; otras tarjetas ofrecen "preguntar" como texto; filtros y toggles no regresan | Media |
+| `docs/MIGRACION-FASE1.md:3,201,210` | Diseño para aprobación; "la base no se ha tocado" | `ledger-v1` y `ledger-v2` están aplicadas desde 2026-10-30 00:52:54; la tabla del libro fue reconstruida | Alta |
+| `docs/MIGRACION-FASE1.md:79,157` | Fila 967 reclasificada a `goal_id=3` | La fila real tiene `goal_id=2`; el resultado de la migración sí registra 3 | Crítica |
+| `docs/ESTADO-PROYECTO.md` anterior | 19 herramientas, 283 pruebas, base de 155,648 bytes | Documento obsoleto; esta versión lo reemplaza | Alta |
+| `vercel.json:1-20` | Despliegue en tres servicios | No probado; SQLite/MCP stdio no encajan con un filesystem efímero | Media |
 
-- `backend/data/banorte.db`: **155.648 bytes, domingo 25/10/2026 02:57:21 p. m.** — idéntico antes y después. La base real no fue modificada por las pruebas.
+---
 
-**Confirmación final:** No se modificó, borró ni formateó ningún archivo del repositorio salvo la creación de `docs/ESTADO-PROYECTO.md`. No se hicieron commits. La base de datos real (`backend/data/banorte.db`) quedó intacta.
+## 4. Riesgos y correcciones aplicadas
 
-**Nota:** score conservador; si se demuestra el ciclo cerrado completo y se activa LLM por defecto, podría subir.
+Los riesgos abiertos se ordenan por gravedad; R-1 quedó corregido en 2.1.
 
+### R-1 (Corregido en 2.1) — La aportación duplicaba el monto y bloqueaba completar la meta
 
+**Evidencia original:** `finance.py` actualizaba `saved_amount_cents` y luego `transfer_balance()` volvía a sumar el monto; el trigger `seed.py:123-133` se ejecutaba después de esa actualización. Reproducciones sobre copia:
+- meta de $1,000 + abono de $1,000 -> HTTP 500 `IntegrityError: INV-4`;
+- meta de $1,000 + abono de $500 -> 200, `saved_amount: 500`, `status: completada`.
 
+**Corrección aplicada:** `finance.py:529-561` calcula `new_saved_cents` una sola vez, inserta la transferencia antes de actualizar el ahorrado y fija el estado según el resultado exacto. El trigger ahora valida contra el estado previo.
+
+**Verificación:** 7 pruebas en `tests/test_transfer_accounting.py` (50%, 51%, 60%, 100%, retiro, semilla al 50% y API); el 100% completa la meta, el 50% permanece activa y el retiro la reabre. La base real no se reescribió; su desajuste es R-2.
+
+### R-2 (Crítico) — El libro y las metas no cuadran, y la reconciliación lo oculta
+
+**Evidencia:** consulta sobre copia de la base real:
+
+| Meta | Ahorro registrado | Suma de transferencias | Diferencia |
+|---|---:|---:|---:|
+| 1 | $18,500 | $0 | +$18,500 |
+| 2 | $8,200 | $22,500 | -$14,300 |
+| 3 | $22,500 | $0 | +$22,500 |
+
+La migración registró `id 967 -> goal_id 3`, pero la fila real tiene `goal_id=2`. La causa está en `migrate.py:310-317`: el `INSERT` de la fila reclasificada enumera `account_id, goal_id` pero pasa `plan[row["id"]]` y después `row["account_id"]`; el `account_id` original era 2 y la meta planeada 3, así que la fila terminó con `account_id=3` y `goal_id=2`. La verificación de la migración (`migrate.py:331-349`) solo compara totales, no el mapeo por fila, por eso no lo detectó. El defecto se reprodujo al restaurar el respaldo y ejecutar `ledger-v1/v2`: la fila 967 volvió a quedar `account_id=3, goal_id=2`. `reconcile.py:57-70` solo comprueba cotas y `reconcile.py:123-156` devuelve `ok: true`.
+
+**Impacto:** el progreso de ahorro, el saldo total y la confianza en la base son incorrectos; la herramienta que debería detectarlo da una falsa señal verde.
+
+**Corrección mínima:** corregir el orden de parámetros en `migrate.py` y añadir una comprobación por fila; agregar a `reconcile` la comparación `saved_amount_cents` contra `SUM(transfers)` y `status='completada'` contra objetivo; migración `ledger-v3` con respaldo que repare el movimiento 967 y los saldos; prueba sobre base real y base nueva.
+
+### R-3 (Alto) — Una transferencia multi-cuenta se registra en una sola cuenta
+
+**Evidencia:** `finance.py:478-502` reparte el débito entre cuentas con saldo; `finance.py:550-555` guarda un solo `account_id`. Prueba: abono de $50,000 debita $35,700 de la cuenta 2 y $14,300 de la cuenta 1, pero la fila de transferencia apunta solo a la cuenta 2. La fila histórica 967 apunta a la cuenta 3 por $22,500, cuyo saldo actual es $3,140.80.
+
+**Impacto:** no se puede reconstruir el movimiento por cuenta; cualquier reporte o conciliación por cuenta es incorrecto.
+
+**Corrección mínima:** tabla de piernas (`transfer_legs`) o una fila por cuenta; migrar la fila 967; probar el reparto y la reconstrucción de saldos.
+
+### R-4 (Alto) — Validación inconsistente: estados inválidos, fechas pasadas y errores 500
+
+**Evidencia:** `PATCH /goals/{id}` acepta `status: "banana"`, `deadline: "2000-01-01"` y un nombre con etiquetas; `finance.py:464-467` no valida. `POST /budget/update` con límite 0 devuelve 500 por el CHECK de la tabla. MCP acepta hasta $100,000,000 frente a $10,000,000 de REST y no sanea el nombre (`finance_tools.py:196-245`).
+
+**Impacto:** metas en estados imposibles, presupuestos que rompen la pantalla y diferencias entre transportes.
+
+**Corrección mínima:** una sola validación en `domain.py`; `Literal` para estado; fecha parseada; nombre saneado en POST/PATCH/MCP; mapear `ValueError`/`DomainError`/`IntegrityError` a 4xx; pruebas de paridad.
+
+### R-5 (Alto) — PII y promesa de "datos 100% sintéticos"
+
+**Evidencia:** la base real contiene una meta con nombre de persona creada 2026-10-25; 9 archivos versionados contienen rutas absolutas con el usuario local; README:5 afirma que los datos son 100% sintéticos.
+
+**Impacto:** al publicar el repositorio o empaquetar la base se expone información personal; en modo en vivo esos nombres pueden enviarse al proveedor de IA.
+
+**Corrección mínima:** inventario y limpieza de PII, redacción antes del proveedor, exclusión de rutas personales y corrección de la afirmación del README.
+
+### R-6 (Medio) — "Disponible" significa dos cosas distintas
+
+**Evidencia:** `DOMAIN.md:116` define disponible = saldo en cuentas; `finance.py:633` devuelve ingreso − gasto; `BudgetPlanner.tsx:20-21` vuelve a calcular ingreso − gasto en el cliente.
+
+**Impacto:** la etiqueta "Disponible" puede mostrar un número negativo que no es el dinero disponible y duplica la métrica fuera del servidor.
+
+**Corrección mínima:** una sola métrica calculada en el servidor, con nombre explícito ("balance del mes" o "disponible"); el cliente solo presenta.
+
+### R-7 (Medio) — Salud ciega
+
+**Evidencia:** `routes.py:117` usa `DB_PATH` sin importarlo; el `except` convierte el `NameError` en `size_bytes: null`. Verificado en `/api/health` con base temporal.
+
+**Impacto:** monitoreo y diagnóstico sin tamaño de base; el error real queda oculto.
+
+**Corrección mínima:** importar `config.DB_PATH` o `database.DB_PATH`, no silenciar el error y probar el campo.
+
+### R-8 (Medio) — Portabilidad y empaquetado sin resolver
+
+**Evidencia:** scripts `.cmd`, puertos fijos, dependencias sin fijar, `@next/swc-win32-x64-msvc@16.4.2` con `next@15.5.28`, MCP lanzado con `sys.executable` (`mcp_client.py:36-37`) y ruta asumida del repo (`finance_tools.py:18-21`).
+
+**Impacto:** instalación/deploy frágil; un `.exe` relanzaría el propio ejecutable en vez de Python.
+
+**Corrección mínima:** versiones fijas y `npm ci`; scripts multiplataforma; ruta de datos configurable; estrategia explícita de MCP para el paquete; decidir Vercel.
+
+### R-9 (Medio) — Confirmaciones sin vigencia y API sin autenticación
+
+**Evidencia:** `_PENDING` es un diccionario global sin TTL (`orchestrator.py:2278-2304`); `routes.py` no usa `Depends`/`Security`; `/agent/confirm` y las escrituras quedan abiertas.
+
+**Impacto:** en local es aceptable; si se publica, cualquiera puede escribir o confirmar. Las acciones pendientes pueden quedar en memoria indefinidamente.
+
+**Corrección mínima:** TTL, un solo uso, alcance por sesión/trace; autenticación y CSRF si hay despliegue público; declarar el modo local si no lo hay.
+
+### R-10 (Bajo) — Documentación y repositorio desactualizados
+
+**Evidencia:** cifras contradictorias de herramientas, pruebas, migraciones y volumen; 27 artefactos de depuración versionados más 4 de `.archify`; 203 archivos del skill vendido; línea corrupta en `.gitignore`.
+
+**Impacto:** el evaluador o un nuevo desarrollador toma como verdad estados que ya no existen; el repositorio parece menos terminado de lo que es.
+
+**Corrección mínima:** reescribir documentos con cifras verificadas, retirar artefactos y vendor innecesario, corregir `.gitignore`.
+
+---
+
+## 5. Lo que no pude verificar
+
+- **Despliegue en Vercel:** no se ejecutó `vercel` ni se probó la URL; `vercel.json` existe.
+- **Modo en vivo con claves reales:** no hay claves en el entorno; solo se revisó el código y el modo demo.
+- **Accesibilidad real:** no se ejecutó axe, Lighthouse ni prueba con lector de pantalla.
+- **Empaquetado `.exe`:** no se generó ni probó un binario.
+- **Pruebas de navegador/E2E:** no hay Playwright/Cypress; las 9 pruebas de frontend son análisis estático de archivos.
+- **Rollback completo:** se restauró el respaldo en una copia, se migró y se probó con la app; no se probó volver a una versión anterior del código ni un rollback en producción.
+- **Concurrencia multiproceso:** no se probaron dos confirmaciones simultáneas ni múltiples instancias.
+- **Origen de la meta 4:** no puedo determinar si el nombre corresponde a una persona real o es un dato inventado; por prudencia se trata como PII.
+- **Historia completa de secretos:** se revisó el árbol actual y los commits disponibles; no se hizo un escaneo forense de toda la historia.
+- **Vulnerabilidades de dependencias:** no se ejecutó `npm audit` ni `pip-audit`; solo se verificaron versiones e incompatibilidad de `swc`.
+- **Rendimiento a escala:** solo se midió la base de 967 movimientos; no hay prueba de volumen ni carga.
+- **OCR de capturas:** no se revisaron las imágenes de `docs/ui-evidence` para detectar PII.
+
+---
+
+## 6. Evidencia de integridad y cumplimiento de solo lectura
+
+**Base real:** `backend/data/banorte.db`
+
+| Comprobación | Antes | Después |
+|---|---|---|
+| SHA-256 | `48AED47499A0141ABAD80308AAE9B0CF506E37F6C05C49C77F77B5393AC287BB` | Igual |
+| Tamaño | 237,568 bytes | Igual |
+| Fecha UTC | 2026-10-30T00:52:54.3234366Z | Igual |
+
+Las pruebas, los arranques y las reproducciones de escritura usaron copias en `%TEMP%\opencode\audit\` o `BANORTE_DB_PATH` temporal. No se escribió en la base real. Al cierre, `git status --porcelain` muestra `finance.py` modificado, `tests/test_transfer_accounting.py` nuevo y los dos documentos de la auditoría. No se hicieron commits.
+
+**Comandos y resultados principales**
+
+| Comprobación | Resultado |
+|---|---|
+| `pytest backend/tests` con base temporal | `302 passed in 530.42s` |
+| `npm test` en `frontend` | 9 pruebas, 0 fallos |
+| `npx tsc --noEmit` | exit 0 |
+| `npm run build` | exit 0, Next.js 15.5.28 |
+| Arranque con copia de la base real | `/api/health` 200, schema `ledger-v2`, 20 herramientas MCP |
+| Arranque con base nueva | 200, siembra 3 cuentas, 3 metas, 12 presupuestos, 997 movimientos, integridad `ok` |
+| Restauración del respaldo + migraciones | Integridad `ok`, 0 FK, 967 movimientos, `ledger-v1/v2`; fila 967 `account_id=3, goal_id=2` (defecto reproducido) |
+| App contra respaldo restaurado y migrado | `/api/health` 200 (`ledger-v2`, 7 tablas); `/api/dashboard` y `/api/goals` 200 con 4 metas |
+| Aportación que completa la meta (2.1) | HTTP 200, `status: completada`; antes 500 |
+| Aportación al 50% (2.1) | HTTP 200, `saved_amount: 500`, `status: activa`; antes completada |
+| Reproducción de presupuesto 0 | HTTP 500 |
+| `PATCH` inválido | HTTP 200 con `status: banana`, fecha 2000 y nombre con etiquetas |
+
+El respaldo original es de antes de centavos: `transactions.amount` es `REAL`, no existe `amount_cents` y `schema_migrations` está vacío. Restaurarlo exige ejecutar `ledger-v1/v2`; sin migración, la app actual no puede leerlo.
+
+---
+
+## 7. Conclusión
+
+El valor real del proyecto está en el contrato de interfaz, la separación de capas y la infraestructura de pruebas; eso es más que un demo. El flujo central de aportaciones quedó corregido en 2.1: ya se puede completar una meta, el 50% no se marca completa y el retiro la reabre. Siguen abiertos el desajuste libro-metas (R-2), la semilla de metas 1–2 (2.6) y el débito multi-cuenta (R-3); mientras la Etapa 2 no esté cerrada, la base debe tratarse como demostración y no como libro contable.
+
+El siguiente paso está fijado en `docs/PLAN.md`, tarea **2.3**.

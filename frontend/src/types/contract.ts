@@ -172,6 +172,7 @@ export interface BudgetPlannerSpec {
   income: number;
   total_spent: number;
   available: number;
+  monthly_balance?: number | null;
   categories: BudgetCategory[];
 }
 

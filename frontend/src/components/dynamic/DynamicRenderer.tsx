@@ -110,6 +110,8 @@ export default function DynamicRenderer(props: RendererProps) {
           month={spec.month}
           income={spec.income}
           total_spent={spec.total_spent}
+          available={spec.available}
+          monthly_balance={spec.monthly_balance}
           categories={spec.categories}
         />
       );

@@ -6,19 +6,18 @@ import { post } from "@/lib/api";
 import { money, moneyInput } from "@/lib/format";
 
 export default function BudgetPlanner({
-  title, month, income, total_spent, categories,
+  title, month, income, total_spent, available, monthly_balance, categories,
 }: {
   title: string;
   month: string;
   income: number;
   total_spent: number;
+  available: number;
+  monthly_balance?: number | null;
   categories: BudgetCategory[];
 }) {
   const [rows, setRows] = useState(categories);
   const [saving, setSaving] = useState<string | null>(null);
-
-  const spentTotal = rows.reduce((acc, r) => acc + r.spent, 0);
-  const available = income - spentTotal;
 
   async function saveLimit(category: string, limit: number) {
     setSaving(category);
@@ -40,26 +39,32 @@ export default function BudgetPlanner({
         <span className="text-base text-neutral-700">Mes {month}</span>
       </div>
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+      <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl bg-neutral-50 p-3">
           <p className="text-base text-neutral-700">Ingreso del mes</p>
           <p className="text-base font-semibold">{money(income)}</p>
         </div>
         <div className="rounded-xl bg-neutral-50 p-3">
           <p className="text-base text-neutral-700">Gastado</p>
-          <p className="text-base font-semibold text-brand">{money(spentTotal)}</p>
+          <p className="text-base font-semibold text-brand">{money(total_spent)}</p>
         </div>
-        <div className="rounded-xl bg-neutral-50 p-3">
-          <p className="text-base text-neutral-700">Disponible</p>
-          <p className={`text-base font-semibold ${available >= 0 ? "text-emerald-800" : "text-brand"}`}>
-            {money(available)}
-          </p>
-          {/* R9: a negative available balance is spelled out. */}
-          {available < 0 && (
-            <p className="text-base font-medium text-brand-dark">
-              Ya gastaste {money(Math.abs(available))} de más este mes.
+        {monthly_balance != null && (
+          <div className="rounded-xl bg-neutral-50 p-3">
+            <p className="text-base text-neutral-700">Balance del mes</p>
+            <p className={`text-base font-semibold ${monthly_balance >= 0 ? "text-emerald-800" : "text-brand"}`}>
+              {money(monthly_balance)}
             </p>
-          )}
+            {/* R9: a negative monthly balance is spelled out. */}
+            {monthly_balance < 0 && (
+              <p className="text-base font-medium text-brand-dark">
+                Ya gastaste {money(Math.abs(monthly_balance))} de más este mes.
+              </p>
+            )}
+          </div>
+        )}
+        <div className="rounded-xl bg-neutral-50 p-3">
+          <p className="text-base text-neutral-700">Disponible en cuentas</p>
+          <p className="text-base font-semibold text-emerald-800">{money(available)}</p>
         </div>
       </div>
 

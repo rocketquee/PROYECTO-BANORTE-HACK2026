@@ -50,10 +50,20 @@ def test_budget_overview_shape(tmp_db):
     with database_connect() as conn:
         today = __import__("datetime").date.today()
         overview = finance.budget_overview(conn, today.year, today.month)
+        accounts_available = finance.available_balance(conn)
     assert overview["income"] > 0
     assert len(overview["categories"]) >= 8
-    assert overview["available"] == pytest.approx(
+    # Motivo del cambio: `available` era el flujo del mes (ingreso - gasto)
+    # recalculado en backend y frontend. La capa de dominio define disponible
+    # como saldo en cuentas (INV-3). El flujo del mes se expone aparte.
+    assert overview["available"] == pytest.approx(accounts_available, abs=0.01)
+    assert overview["monthly_balance"] == pytest.approx(
         overview["income"] - overview["total_spent"], abs=0.01)
+
+
+def test_suggested_reduction_uses_domain_rounding():
+    assert finance.suggested_reduction_cents(10_000, 15) == 1_500
+    assert finance.suggested_reduction_cents(333, 15) == 50
 
 
 def test_invalid_month_rejected(tmp_db):

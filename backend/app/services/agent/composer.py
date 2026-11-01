@@ -20,6 +20,7 @@ from app.schemas.ui import (
     TransactionsTableSpec, TrendChartSpec, TrendPoint,
 )
 from app.services import credit as credit_service
+from app.services import finance as finance_service
 
 CUR = "$"
 
@@ -200,6 +201,7 @@ def budget_planner_ui(overview: dict) -> BudgetPlannerSpec:
         income=overview["income"],
         total_spent=overview["total_spent"],
         available=overview["available"],
+        monthly_balance=overview.get("monthly_balance"),
         categories=[
             BudgetCategory(category=c["category"], spent=c["spent"], limit=c["limit"], pct=c["pct"])
             for c in overview["categories"]
@@ -238,10 +240,12 @@ def build_recommendations(summary: dict, categories: list[dict],
         ))
         second = next((c for c in categories[1:] if c["pct"] >= 5), None)
         if second:
+            reduction = finance_service.suggested_reduction_cents(
+                money_mod.to_cents(second["amount"]), 15.0)
             items.append(RecommendationItem(
                 title=f"Revisa {second['category']} ({second['pct']}%)",
                 detail=(f"Es tu segunda categoría más alta con {money(second['amount'])}. "
-                        f"Reducirla 15% liberaría ≈{money(second['amount'] * 0.15)} al mes."),
+                        f"Reducirla 15% liberaría {money(money_mod.to_pesos(reduction))} al mes."),
                 kind="suggestion",
                 basis="Estimación simple (15%) sobre datos calculados; ajústala a tu realidad.",
             ))

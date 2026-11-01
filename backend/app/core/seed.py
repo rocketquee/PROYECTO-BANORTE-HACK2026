@@ -48,6 +48,22 @@ CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(date);
 CREATE INDEX IF NOT EXISTS idx_tx_category ON transactions(category);
 """
 
+# Piernas de una transferencia: una fila por cuenta afectada, ligadas por el
+# identificador de la operación (`transaction_id`). La suma de las piernas es
+# exactamente el monto de la transferencia (INV-13); así un débito repartido
+# entre varias cuentas se puede reconstruir por cuenta.
+TRANSFER_LEGS_DDL = """
+CREATE TABLE IF NOT EXISTS transfer_legs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    transaction_id INTEGER NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+    account_id INTEGER NOT NULL REFERENCES accounts(id),
+    amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+    UNIQUE (transaction_id, account_id)
+);
+CREATE INDEX IF NOT EXISTS idx_transfer_legs_tx ON transfer_legs(transaction_id);
+CREATE INDEX IF NOT EXISTS idx_transfer_legs_account ON transfer_legs(account_id);
+"""
+
 # DDL canónico por tabla. `SCHEMA` es su concatenación; las migraciones
 # reutilizan las entradas individuales para reconstruir tablas.
 TABLE_DDL: dict[str, str] = {
@@ -104,7 +120,8 @@ CREATE TABLE IF NOT EXISTS budgets (
 
 SCHEMA = "".join(TABLE_DDL[name] for name in
                  ("accounts", "cards", "savings_goals", "transactions")) \
-    + TRANSACTIONS_INDEXES + TABLE_DDL["idempotency_records"] + TABLE_DDL["budgets"]
+    + TRANSACTIONS_INDEXES + TRANSFER_LEGS_DDL \
+    + TABLE_DDL["idempotency_records"] + TABLE_DDL["budgets"]
 
 # Restricciones que no se pueden expresar como CHECK de tabla (INV-3 e INV-4).
 # Se aplican en el motor, en centavos enteros, para que ninguna capa pueda
@@ -205,15 +222,23 @@ DEFAULT_GOALS = [
     # El nombre no puede coincidir con el que reserva el flujo de plan de compra
     # (`orchestrator`: "Compra planeada"); si coincidiera, crear esa meta desde
     # el flujo fallaría por nombre duplicado.
-    ("Enganche del auto", 45_000, 0, None),
+    ("Enganche del auto", 45_000, 22_500, None),
 ]
 
-# Fondeo declarado de la meta "Enganche del auto": entra al libro como
-# transferencia cuenta→meta (INV-1), no como gasto, y ajusta el disponible por
-# su monto exacto (INV-3). Mantiene la demo reproducible en cualquier máquina.
+# Fondeo declarado de **todas** las metas con ahorro inicial: entra al libro
+# como transferencia cuenta→meta (INV-1), no como gasto, y ajusta el disponible
+# por su monto exacto (INV-3). El ahorro nunca se escribe a mano: la meta nace
+# en cero y el libro explica cada centavo (INV-10).
 SEED_TRANSFERS = [
-    ("Enganche del auto", 22_500.00),
+    (name, float(saved))
+    for name, _target, saved, _deadline in DEFAULT_GOALS
+    if saved
 ]
+
+#: Fecha de referencia por defecto. Fija el calendario de la demo para que dos
+#: siembras en máquinas distintas produzcan el mismo libro y la misma suma de
+#: verificación. `BANORTE_DEMO_TODAY` puede sobrescribirla de forma explícita.
+DEFAULT_REFERENCE_DATE = date(2026, 10, 30)
 
 
 def _month_add(y: int, m: int, delta: int) -> tuple[int, int]:
@@ -224,17 +249,17 @@ def _month_add(y: int, m: int, delta: int) -> tuple[int, int]:
 
 
 def _reference_today() -> date:
-    """Fecha de referencia de la demo.
+    """Fecha de referencia de la demo, fija por defecto.
 
-    Por defecto es hoy (los análisis relativos al mes en curso necesitan datos
-    recientes). Para una semilla **idéntica en cualquier máquina**, define
-    `BANORTE_DEMO_TODAY` (AAAA-MM-DD): el generador ya es determinista
-    (`random.Random(42)`), solo falta fijar el calendario.
+    El generador ya es determinista (`random.Random(42)`); fijar el calendario
+    hace que dos siembras en máquinas distintas produzcan el mismo libro y la
+    misma suma de verificación. `BANORTE_DEMO_TODAY` (AAAA-MM-DD) puede
+    sobrescribirla de forma explícita y documentada.
     """
     raw = os.getenv("BANORTE_DEMO_TODAY", "").strip()
     if raw:
         return date.fromisoformat(raw)
-    return date.today()
+    return DEFAULT_REFERENCE_DATE
 
 
 def init_db(conn, reference_date: date | None = None) -> None:
@@ -335,16 +360,17 @@ def init_db(conn, reference_date: date | None = None) -> None:
     )
 
     deadline_emerg = (date(today.year + (1 if today.month > 3 else 0), 3, 28)).isoformat()
-    for name, target, saved, _ in DEFAULT_GOALS:
+    seeded_at = f"{today.isoformat()} 00:00:00"
+    for name, target, _saved, _ in DEFAULT_GOALS:
         dl = deadline_emerg if name == "Fondo de emergencia" else (date(today.year + 1, 8, 1)).isoformat()
         conn.execute(
-            "INSERT INTO savings_goals (name, target_amount_cents, saved_amount_cents, deadline)"
-            " VALUES (?,?,?,?)",
-            (name, money.to_cents(target), money.to_cents(saved), dl),
+            "INSERT INTO savings_goals (name, target_amount_cents, saved_amount_cents,"
+            " deadline, status, created_at) VALUES (?,?,0,?,'activa',?)",
+            (name, money.to_cents(target), dl, seeded_at),
         )
 
     # El fondeo declarado se aplica por el libro, no escribiendo el ahorrado a
-    # mano: así la fila existe con type='transfer' y las cotas se cumplen.
+    # mano: así cada meta nace en cero y sus transferencias explican el ahorro.
     for goal_name, amount in SEED_TRANSFERS:
         goal_row = conn.execute(
             "SELECT id FROM savings_goals WHERE name=?", (goal_name,)

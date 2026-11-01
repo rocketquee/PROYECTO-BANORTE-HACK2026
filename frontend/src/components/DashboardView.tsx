@@ -226,8 +226,8 @@ export default function DashboardView({ refreshKey }: { refreshKey: number }) {
         <p className="text-base leading-relaxed text-neutral-600">
           En {s.month_label} registraste {s.transaction_count} movimientos: ingresos por{" "}
           <strong>{money(s.income)}</strong> y gastos por <strong>{money(s.expense)}</strong>, con un
-          balance de <strong>{money(s.net)}</strong>. Tu presupuesto disponible del mes es{" "}
-          <strong>{money(data.budget_overview.available)}</strong>. Estos son hechos calculados sobre
+          balance de <strong>{money(s.net)}</strong>. Tienes{" "}
+          <strong>{money(data.budget_overview.available)}</strong> disponibles en tus cuentas. Estos son hechos calculados sobre
           datos sintéticos de demostración, no asesoría financiera.
         </p>
       </div>

@@ -1627,9 +1627,14 @@ async def _demo_budget() -> ChatResponse:
     ui = composer.budget_planner_ui(budgets)
     available = budgets.get("available", 0)
     exceeded = [c for c in budgets.get("categories", []) if c.get("pct") is not None and c["pct"] > 100]
-    avail_phrase = available_phrase(available)
+    monthly_balance = budgets.get("monthly_balance")
+    flow_phrase = (
+        available_phrase(monthly_balance)
+        if monthly_balance is not None else "revisa tu balance del mes"
+    )
     message = (f"Tu ingreso del mes es {composer.money(budgets['income'])} y llevas gastado "
-               f"{composer.money(budgets['total_spent'])}; {avail_phrase}. "
+               f"{composer.money(budgets['total_spent'])}; {flow_phrase}. "
+               f"Además, {available_phrase(available)} en tus cuentas. "
                + (f"Ojo: excediste el límite en {len(exceeded)} categoría(s): "
                   + ", ".join(c["category"] for c in exceeded) + ". " if exceeded else "")
                + "Puedes editar los límites y ver el efecto inmediato.")

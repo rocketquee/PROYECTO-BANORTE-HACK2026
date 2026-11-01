@@ -73,10 +73,21 @@ def total_balance(conn) -> float:
 def available_balance(conn) -> float:
     """Disponible = saldo en cuentas (INV-3).
 
-    Es distinto de `total_balance`: el dinero ahorrado en metas no está
-    disponible para gastar ni para aportar a otra meta.
+    Es la **única** definición de "disponible" del sistema. Es distinto de
+    `total_balance`: el dinero ahorrado en metas no está disponible para gastar
+    ni para aportar a otra meta. Presupuesto, interfaz y recomendaciones
+    consumen este valor; ninguno lo recalcula.
     """
     return accounts_balance(conn)
+
+
+def suggested_reduction_cents(amount_cents: int, pct: float = 15.0) -> int:
+    """Ahorro potencial de una reducción porcentual, calculado en el dominio.
+
+    El redondeo es el oficial (`ROUND_HALF_UP`) y ocurre una sola vez; el
+    composer solo presenta el resultado.
+    """
+    return money.percent_of(amount_cents, pct)
 
 
 def list_cards(conn) -> list[dict]:
@@ -475,13 +486,16 @@ def update_goal(conn, goal_id: int, name: str | None = None, target_amount: floa
     return _with_progress(updated)
 
 
-def _debit_accounts_cents(conn, amount_cents: int) -> int:
+def _debit_accounts_cents(conn, amount_cents: int) -> list[tuple[int, int]]:
     """Debita `amount_cents` del disponible, repartiendo entre cuentas con saldo.
 
-    Devuelve el id de la cuenta principal afectada (la de mayor saldo usada).
+    Devuelve **todas** las piernas afectadas como `(account_id, cents)`, en el
+    mismo orden en que se debitó. La suma de las piernas es exactamente el
+    monto solicitado (INV-13), de modo que un débito multi-cuenta es
+    reconstruible por cuenta.
     """
     remaining = amount_cents
-    primary: int | None = None
+    legs: list[tuple[int, int]] = []
     rows = conn.execute(
         "SELECT id, balance_cents FROM accounts WHERE balance_cents > 0"
         " ORDER BY balance_cents DESC, id"
@@ -494,21 +508,13 @@ def _debit_accounts_cents(conn, amount_cents: int) -> int:
             continue
         conn.execute("UPDATE accounts SET balance_cents = balance_cents - ? WHERE id=?",
                      (debit, row["id"]))
-        if primary is None:
-            primary = row["id"]
+        legs.append((int(row["id"]), int(debit)))
         remaining -= debit
     if remaining > 0:
         raise ValueError("No hay saldo suficiente en las cuentas de demostración.")
-    return int(primary or 0)
-
-
-def transfer_balance(conn, goal_id: int, direction: str, amount_cents: int) -> int:
-    """Ahorrado resultante de aplicar la transferencia, en centavos (INV-4)."""
-    row = conn.execute(
-        "SELECT saved_amount_cents FROM savings_goals WHERE id=?", (goal_id,)
-    ).fetchone()
-    saved = row["saved_amount_cents"] if row else 0
-    return saved + amount_cents if direction == "account_to_goal" else saved - amount_cents
+    if not legs:
+        raise ValueError("No hay cuentas con saldo para aplicar la transferencia.")
+    return legs
 
 
 def apply_transfer(conn, *, goal_id: int, amount: float, direction: str,
@@ -538,14 +544,13 @@ def apply_transfer(conn, *, goal_id: int, amount: float, direction: str,
     if direction == "account_to_goal":
         if saved_cents + amount_cents > target_cents:
             raise ValueError("El abono no puede superar lo que falta para la meta.")
-        account = _debit_accounts_cents(conn, amount_cents)
-        conn.execute(
-            "UPDATE savings_goals SET saved_amount_cents = saved_amount_cents + ? WHERE id=?",
-            (amount_cents, goal_id))
+        new_saved_cents = saved_cents + amount_cents
+        legs = _debit_accounts_cents(conn, amount_cents)
         label = f"Abono a meta: {row['name']}"
     else:
         if amount_cents > saved_cents:
             raise ValueError("El retiro no puede superar lo ahorrado en la meta.")
+        new_saved_cents = saved_cents - amount_cents
         if account_id is None:
             first = conn.execute("SELECT id FROM accounts ORDER BY id LIMIT 1").fetchone()
             if first is None:
@@ -555,21 +560,29 @@ def apply_transfer(conn, *, goal_id: int, amount: float, direction: str,
             account = int(account_id)
         conn.execute("UPDATE accounts SET balance_cents = balance_cents + ? WHERE id=?",
                      (amount_cents, account))
-        conn.execute(
-            "UPDATE savings_goals SET saved_amount_cents = saved_amount_cents - ? WHERE id=?",
-            (amount_cents, goal_id))
+        legs = [(account, amount_cents)]
         label = f"Retiro de meta: {row['name']}"
 
-    new_saved_cents = transfer_balance(conn, goal_id, direction, amount_cents)
-    if new_saved_cents >= target_cents:
-        conn.execute("UPDATE savings_goals SET status='completada' WHERE id=?", (goal_id,))
-
-    conn.execute(
+    if sum(cents for _account, cents in legs) != amount_cents:
+        raise ValueError("Las piernas de la transferencia no suman el monto.")
+    account = legs[0][0]
+    cursor = conn.execute(
         "INSERT INTO transactions"
         " (date, description, amount_cents, type, category, account_id, goal_id, direction)"
         " VALUES (?,?,?,'transfer',NULL,?,?,?)",
         (date_str or date.today().isoformat(), description or label, amount_cents,
          account, goal_id, direction),
+    )
+    transaction_id = int(cursor.lastrowid)
+    conn.executemany(
+        "INSERT INTO transfer_legs (transaction_id, account_id, amount_cents)"
+        " VALUES (?,?,?)",
+        [(transaction_id, leg_account, cents) for leg_account, cents in legs],
+    )
+    status = "completada" if new_saved_cents >= target_cents else "activa"
+    conn.execute(
+        "UPDATE savings_goals SET saved_amount_cents=?, status=? WHERE id=?",
+        (new_saved_cents, status, goal_id),
     )
     goal = dict(conn.execute("SELECT * FROM savings_goals WHERE id=?", (goal_id,)).fetchone())
     return {
@@ -577,6 +590,11 @@ def apply_transfer(conn, *, goal_id: int, amount: float, direction: str,
         "amount": money.to_pesos(amount_cents),
         "direction": direction,
         "account_id": account,
+        "operation_id": transaction_id,
+        "legs": [
+            {"account_id": leg_account, "amount": money.to_pesos(cents)}
+            for leg_account, cents in legs
+        ],
         "available_balance": available_balance(conn),
         "total_balance": total_balance(conn),
     }
@@ -630,8 +648,10 @@ def budget_overview(conn, year: int, month: int) -> dict:
         "month": f"{year}-{month:02d}",
         "income": summary["income"],
         "total_spent": total_spent,
-        "available": money.to_pesos(
-            money.to_cents(summary["income"]) - total_spent_cents),
+        # Única definición de disponible: saldo en cuentas (INV-3).
+        "available": available_balance(conn),
+        # Flujo del mes, con nombre propio para no confundirlo con disponible.
+        "monthly_balance": summary["net"],
         "categories": categories,
     }
 
