@@ -1,8 +1,7 @@
-from datetime import date
-
 import pytest
 
 from app.core import config
+from app.core.seed import reference_today
 from app.schemas.api import ChatRequest, UIEventIn
 from app.services.agent import orchestrator as orch
 
@@ -315,7 +314,7 @@ async def test_timeline_and_statistics_remain_in_chat_without_navigation(
     async def call_tool(name, arguments):
         if name == "get_transactions":
             return {"transactions": [{
-                "id": 1, "date": date.today().isoformat(), "description": "Compra sintética",
+                "id": 1, "date": reference_today().isoformat(), "description": "Compra sintética",
                 "amount": 100, "type": "expense", "category": "Comida",
             }], "total_count": 1}
         if name == "analyze_spending":

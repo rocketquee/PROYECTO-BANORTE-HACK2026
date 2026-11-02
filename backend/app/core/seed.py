@@ -248,13 +248,17 @@ def _month_add(y: int, m: int, delta: int) -> tuple[int, int]:
     return y, m
 
 
-def _reference_today() -> date:
-    """Fecha de referencia de la demo, fija por defecto.
+def reference_today() -> date:
+    """Fecha de referencia de la demo: **única fuente** de "hoy" en el proyecto.
 
     El generador ya es determinista (`random.Random(42)`); fijar el calendario
     hace que dos siembras en máquinas distintas produzcan el mismo libro y la
     misma suma de verificación. `BANORTE_DEMO_TODAY` (AAAA-MM-DD) puede
     sobrescribirla de forma explícita y documentada.
+
+    La usan la semilla, el backend y las herramientas MCP para que los datos y
+    su interpretación compartan el mismo calendario. Los sellos de auditoría y
+    los nombres de respaldo usan el reloj real a propósito.
     """
     raw = os.getenv("BANORTE_DEMO_TODAY", "").strip()
     if raw:
@@ -269,7 +273,7 @@ def init_db(conn, reference_date: date | None = None) -> None:
         return  # already seeded; data persists across restarts
 
     rng = random.Random(42)
-    today = reference_date or _reference_today()
+    today = reference_date or reference_today()
     start_y, start_m = _month_add(today.year, today.month, -11)
     start = date(start_y, start_m, 1)
 

@@ -10,6 +10,7 @@ or internal architecture details (those belong to developer mode).
 from datetime import date
 
 from app.core import money as money_mod
+from app.core.seed import reference_today
 from app.schemas.ui import (
     AlertItem, AlertListSpec, BudgetCategory, BudgetPlannerSpec, CategorySlice,
     ComparisonRow, ComparisonSpec, CreditParams, CreditResult, CreditSimulatorSpec,
@@ -276,12 +277,12 @@ def recommendation_list_ui(items: list[RecommendationItem],
 
 
 def default_savings_deadline() -> str:
-    future = date.today().replace(year=date.today().year + 1)
+    future = reference_today().replace(year=reference_today().year + 1)
     return future.isoformat()
 
 
 def month_context(year: int | None = None, month: int | None = None) -> tuple[int, int, str, str]:
-    today = date.today()
+    today = reference_today()
     y, m = year or today.year, month or today.month
     from app.services import finance
     date_from, date_to = finance.month_range(y, m)

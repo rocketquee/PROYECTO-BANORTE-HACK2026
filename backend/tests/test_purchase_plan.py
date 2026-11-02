@@ -1,11 +1,11 @@
 """Purchase plan amount parsing, MCP composition, and UI event cycle."""
 import asyncio
 import json
-from datetime import date
 
 import pytest
 from pydantic import ValidationError
 
+from app.core.seed import reference_today
 from app.schemas.api import ChatRequest, UIEventIn
 from app.services import credit
 from app.services.agent import orchestrator as orch
@@ -141,7 +141,7 @@ def test_purchase_amount_out_of_range_is_rejected_without_mcp(monkeypatch):
 def _stub_purchase_tools(monkeypatch):
     async def call_tool(name, arguments):
         if name == "get_monthly_summary":
-            today = date.today()
+            today = reference_today()
             return {"year": today.year, "month": today.month,
                     "income": 50000, "expense": 52000}
         if name == "get_balance":
@@ -191,7 +191,7 @@ def test_live_purchase_plan_uses_mcp_tools_and_returns_versioned_ui(monkeypatch)
                 tools = [
                     ("get_balance", {}),
                     ("get_monthly_summary", {
-                        "year": date.today().year, "month": date.today().month,
+                        "year": reference_today().year, "month": reference_today().month,
                     }),
                     ("detect_recurring_charges", {}),
                     *[
@@ -282,7 +282,7 @@ def test_replayed_ui_event_returns_same_response(monkeypatch):
 
 
 def test_purchase_goal_requires_request_and_explicit_verified_confirmation(monkeypatch):
-    now = date.today()
+    now = reference_today()
     generated = {"calls": 0, "goal": None, "arguments": None}
 
     async def call_tool(name, arguments):

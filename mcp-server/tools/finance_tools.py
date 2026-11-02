@@ -11,7 +11,6 @@ import hashlib
 import json
 import sys
 import uuid
-from datetime import date
 from pathlib import Path
 
 # Reuse the backend service layer (documented trade-off for a prototype).
@@ -20,6 +19,7 @@ sys.path.insert(0, str(BACKEND_DIR))
 
 from app.core.database import db  # noqa: E402
 from app.core import money  # noqa: E402
+from app.core.seed import reference_today  # noqa: E402
 from app.services import credit as credit_service  # noqa: E402
 from app.services import finance  # noqa: E402
 from app.services import savings  # noqa: E402
@@ -71,7 +71,7 @@ async def analyze_spending_impl(year: int | None = None, month: int | None = Non
             categories = finance.spending_by_category(conn, date_from, date_to)
             period = f"{date_from} a {date_to}"
         else:
-            today = date.today()
+            today = reference_today()
             y, m = year or today.year, month or today.month
             date_from_, date_to_ = finance.month_range(y, m)
             categories = finance.spending_by_category(conn, date_from_, date_to_)
@@ -87,13 +87,13 @@ async def calculate_credit_simulation_impl(amount: float, months: int, annual_ra
 
 async def get_monthly_summary_impl(year: int | None = None, month: int | None = None) -> dict:
     with db() as conn:
-        today = date.today()
+        today = reference_today()
         return finance.monthly_summary(conn, year or today.year, month or today.month)
 
 
 async def get_budgets_impl(year: int | None = None, month: int | None = None) -> dict:
     with db() as conn:
-        today = date.today()
+        today = reference_today()
         return finance.budget_overview(conn, year or today.year, month or today.month)
 
 
@@ -184,7 +184,7 @@ async def compare_credit_terms_impl(amount: float, terms: list[int] | None = Non
 
 async def budget_vs_actual_impl(year: int | None = None, month: int | None = None) -> dict:
     with db() as conn:
-        today = date.today()
+        today = reference_today()
         overview = finance.budget_overview(conn, year or today.year, month or today.month)
     exceeded = [c for c in overview["categories"] if c["pct"] is not None and c["pct"] > 100]
     return {**overview, "exceeded_categories": exceeded}

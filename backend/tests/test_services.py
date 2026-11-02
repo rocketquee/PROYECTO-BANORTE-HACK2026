@@ -2,6 +2,7 @@ import asyncio
 
 import pytest
 
+from app.core.seed import reference_today
 from app.services import finance
 
 
@@ -38,7 +39,7 @@ def test_goal_create_update_persists(tmp_db):
 
 def test_spending_analysis_only_expenses(tmp_db):
     with database_connect() as conn:
-        today = __import__("datetime").date.today()
+        today = reference_today()
         date_from, date_to = finance.month_range(today.year, today.month)
         cats = finance.spending_by_category(conn, date_from, date_to)
         assert cats, "should have spending this month"
@@ -48,7 +49,7 @@ def test_spending_analysis_only_expenses(tmp_db):
 
 def test_budget_overview_shape(tmp_db):
     with database_connect() as conn:
-        today = __import__("datetime").date.today()
+        today = reference_today()
         overview = finance.budget_overview(conn, today.year, today.month)
         accounts_available = finance.available_balance(conn)
     assert overview["income"] > 0

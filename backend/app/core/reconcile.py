@@ -10,8 +10,9 @@ la base; aquí se verifica lo que la base puede afirmar por sí misma.
 from __future__ import annotations
 
 import sqlite3
-from datetime import date
 from typing import Any
+
+from app.core.seed import reference_today
 
 # --------------------------------------------------------------------------- reporte
 
@@ -249,7 +250,7 @@ def _inv5_idempotency(conn: sqlite3.Connection) -> dict[str, Any]:
 
 def _inv6_no_future_dates(conn: sqlite3.Connection) -> dict[str, Any]:
     """INV-6: no hay movimientos con fecha futura más allá de hoy."""
-    today = date.today().isoformat()
+    today = reference_today().isoformat()
     future = conn.execute(
         "SELECT COUNT(*) FROM transactions WHERE date > ?", (today,)
     ).fetchone()[0]

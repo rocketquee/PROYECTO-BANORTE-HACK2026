@@ -16,6 +16,7 @@ import math
 from datetime import date
 
 from app.core import money
+from app.core.seed import reference_today
 from app.services import finance
 
 # ------------------------------------------------------------------ contrato
@@ -131,7 +132,7 @@ def validate_deadline(value) -> str | None:
             "deadline_not_a_date",
             "La fecha límite no es válida; usa el formato AAAA-MM-DD.",
         ) from exc
-    if parsed < date.today():
+    if parsed < reference_today():
         raise DomainError(
             "deadline_in_the_past",
             "La fecha límite no puede estar en el pasado.",
@@ -145,7 +146,7 @@ def period_state(year: int, month: int) -> str:
     """Estado de un periodo: 'en_curso' | 'cerrado' | 'futuro' (INV-8)."""
     if not isinstance(year, int) or not isinstance(month, int) or not (1 <= month <= 12):
         raise DomainError("period_invalid", "El periodo no es válido.")
-    today = date.today()
+    today = reference_today()
     if (year, month) == (today.year, today.month):
         return "en_curso"
     if (year, month) > (today.year, today.month):

@@ -19,6 +19,17 @@ LEDGER_TYPES = ("income", "expense", "transfer")
 TRANSFER_DIRECTIONS = ("account_to_goal", "goal_to_account")
 
 
+def _today() -> date:
+    """Fecha de referencia de la demo; nunca el reloj real.
+
+    La fuente única vive en `seed.reference_today()`. El import es local para
+    evitar el ciclo `seed -> finance` que existe al cargar la semilla.
+    """
+    from app.core.seed import reference_today
+
+    return reference_today()
+
+
 def month_range(year: int, month: int) -> tuple[str, str]:
     start = date(year, month, 1)
     end_year, end_month = (year + 1, 1) if month == 12 else (year, month + 1)
@@ -214,7 +225,7 @@ def monthly_summary(conn, year: int, month: int) -> dict:
 
 
 def monthly_series(conn, months: int = 6) -> list[dict]:
-    today = date.today()
+    today = _today()
     out = []
     y, m = today.year, today.month
     keys = []
@@ -234,7 +245,7 @@ def _prev_month(y: int, m: int) -> tuple[int, int]:
 
 def spending_trend(conn, months: int = 4, category: str | None = None) -> list[dict]:
     """Total expense per month for the last `months` months (oldest first)."""
-    today = date.today()
+    today = _today()
     keys = []
     y, m = today.year, today.month
     for _ in range(max(1, min(months, 24))):
@@ -268,7 +279,7 @@ def spending_trend(conn, months: int = 4, category: str | None = None) -> list[d
 
 def weekly_spending(conn, weeks: int = 4) -> list[dict]:
     """Total expense per ISO week for the last `weeks` weeks (oldest first)."""
-    today = date.today()
+    today = _today()
     out = []
     start = today - timedelta(days=7 * weeks + today.weekday())
     for w in range(weeks):
@@ -570,7 +581,7 @@ def apply_transfer(conn, *, goal_id: int, amount: float, direction: str,
         "INSERT INTO transactions"
         " (date, description, amount_cents, type, category, account_id, goal_id, direction)"
         " VALUES (?,?,?,'transfer',NULL,?,?,?)",
-        (date_str or date.today().isoformat(), description or label, amount_cents,
+        (date_str or _today().isoformat(), description or label, amount_cents,
          account, goal_id, direction),
     )
     transaction_id = int(cursor.lastrowid)
@@ -659,7 +670,7 @@ def budget_overview(conn, year: int, month: int) -> dict:
 # ---------- dashboard ----------
 
 def dashboard(conn, year: int | None = None, month: int | None = None) -> dict:
-    today = date.today()
+    today = _today()
     y, m = year or today.year, month or today.month
     summary = monthly_summary(conn, y, m)
     date_from, date_to = month_range(y, m)

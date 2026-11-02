@@ -13,6 +13,7 @@ import pytest
 import app.services.agent.orchestrator as orch
 import tools.finance_tools as ft
 from app.core import database
+from app.core.seed import reference_today
 from app.schemas.api import ChatRequest
 from app.schemas.ui import ChatResponse
 
@@ -90,7 +91,7 @@ class TestBug001TrendIntent:
         trend = next(u for u in resp.ui if u.type == "trend_chart")
         assert len(trend.series) == 4
         # the 4 correct months (current month last)
-        today = date.today()
+        today = reference_today()
         expected = []
         y, m = today.year, today.month
         for _ in range(4):
@@ -478,7 +479,7 @@ class TestBug008RealisticSeed:
         from app.services import finance
         conn = sqlite3.connect(tmp_db)
         conn.row_factory = sqlite3.Row
-        today = date.today()
+        today = reference_today()
         summary = finance.monthly_summary(conn, today.year, today.month)
         direct_income_cents = conn.execute(
             "SELECT COALESCE(SUM(amount_cents),0) FROM transactions WHERE type='income'"
@@ -687,7 +688,7 @@ class TestR03PayrollAndBonus:
         from calendar import monthrange
         from app.services.agent.composer import long_date
 
-        today = date.today()
+        today = reference_today()
         last_day = monthrange(today.year, today.month)[1]
         if today.day < 15:
             expected = date(today.year, today.month, 15)
@@ -766,10 +767,9 @@ class TestR06PartialMonthComparison:
     """An in-progress month must be flagged, not compared as if complete."""
 
     def test_current_month_is_flagged(self):
-        from datetime import date
         resp = ask("Compara mis gastos de septiembre contra octubre")
         assert ui_types(resp) == ["comparison"]
-        today = date.today()
+        today = reference_today()
         if today.month == 10:
             assert "en curso" in resp.message
             assert "hasta hoy" in resp.message

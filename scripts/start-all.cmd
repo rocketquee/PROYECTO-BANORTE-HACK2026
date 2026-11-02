@@ -6,6 +6,15 @@ rem  (backend + MCP integrado + frontend + navegador)
 rem ============================================================
 set ROOT=%~dp0..
 
+rem --- Fecha de referencia de la demo (opcional, AAAA-MM-DD) ---
+rem Se propaga al backend, al servidor MCP (hijo del backend) y al frontend.
+if defined BANORTE_DEMO_TODAY (
+  echo Fecha de referencia de la demo: %BANORTE_DEMO_TODAY%
+) else (
+  echo Fecha de referencia de la demo: por defecto (2026-10-30)
+)
+set "DEMO_TODAY=%BANORTE_DEMO_TODAY%"
+
 rem --- Verificar Python ---
 if not exist "%ROOT%\.venv\Scripts\python.exe" (
   echo [ERROR] No se encontro Python en .venv.
@@ -31,7 +40,7 @@ if not exist "%ROOT%\frontend\node_modules" (
 )
 
 echo [1/3] Iniciando backend en http://localhost:8000 ...
-start "Banorte Backend" /min cmd /c "cd /d %ROOT%\backend && ..\.venv\Scripts\python -m uvicorn app.main:app --host 127.0.0.1 --port 8000"
+start "Banorte Backend" /min cmd /c "set BANORTE_DEMO_TODAY=%DEMO_TODAY%&& cd /d %ROOT%\backend && ..\.venv\Scripts\python -m uvicorn app.main:app --host 127.0.0.1 --port 8000"
 
 rem --- Esperar a que el backend responda ---
 set /a TRIES=0
@@ -50,7 +59,7 @@ if errorlevel 1 (
 echo       Backend listo.
 
 echo [2/3] Iniciando frontend en http://localhost:3000 ...
-start "Banorte Frontend" /min cmd /c "cd /d %ROOT%\frontend && npm run dev"
+start "Banorte Frontend" /min cmd /c "set BANORTE_DEMO_TODAY=%DEMO_TODAY%&& cd /d %ROOT%\frontend && npm run dev"
 
 set /a TRIES=0
 :wait_frontend

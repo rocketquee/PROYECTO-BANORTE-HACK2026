@@ -45,6 +45,7 @@ La Etapa 1 (modelo de dominio, centavos, migraciones, contrato UI, pruebas base)
 | 2.6 | Corregir el fondeo de la semilla | **Hecho** | `seed.py` inserta metas con `saved=0` y las fondea con `finance.apply_transfer`; `tests/test_transfer_accounting.py` verifica que toda meta con ahorro tiene libro y que dos siembras dan el mismo SHA-256 | Toda meta sembrada con ahorro > 0 tiene su transferencia; base nueva reconcilia al 100% |
 | 2.7 | Registrar todas las cuentas debitadas | **Hecho** | `TRANSFER_LEGS_DDL` + `transfer_legs`; `_debit_accounts_cents` devuelve todas las piernas y `apply_transfer` las inserta; `tests/test_transfer_accounting.py` cubre multi-cuenta y reconstrucción por cuenta | Una transferencia multi-cuenta conserva todas las piernas y permite reconstruir cada saldo |
 | 2.8 | Congelar el calendario de la semilla | **Hecho** | `DEFAULT_REFERENCE_DATE = 2026-10-30`; `BANORTE_DEMO_TODAY` lo sobrescribe; `tests/test_transfer_accounting.py` compara SHA-256 de dos siembras | Semilla reproducible con fecha fija por defecto o documentada como variable obligatoria |
+| 2.9 | Fecha de referencia única en datos, herramientas y pruebas | **Hecho** | `seed.py:251` expone `reference_today()`; la usan `finance._today()`, `domain.py:135,149`, `reconcile.py:253`, `ledger_repair.py:358`, MCP (`finance_tools.py:74,90,96,187`), `composer.py:280,285`, `orchestrator.py` y las pruebas. `grep date.today()` en `backend` y `mcp-server` → 0 | Semilla, backend, MCP y pruebas comparten el mismo "hoy"; sin `date.today()` ni fechas literales; suite 319 en verde |
 
 **Aceptación de Etapa 2**
 
@@ -161,6 +162,35 @@ La Etapa 1 (modelo de dominio, centavos, migraciones, contrato UI, pruebas base)
 7. Documentación con cifras verificadas y estado real.
 
 ---
+
+## Fase A — Corrección de fecha de referencia (2026-11-01)
+
+La compuerta inicial falló con 13 pruebas: la semilla usaba `2026-10-30` y las
+herramientas/pruebas usaban `date.today()` (2026-11-01), por lo que noviembre no
+tenía datos. Se corrigió la causa raíz, no las pruebas.
+
+| ID | Causa | Corrección | Evidencia |
+|---|---|---|---|
+| A-1 | Fecha de "hoy" duplicada | `seed.reference_today()` como fuente única; alias interno `finance._today()` | `backend/app/core/seed.py:251`; `backend/app/services/finance.py:22` |
+| A-2 | Reglas de fecha con reloj real | `domain.py` y `reconcile.py` usan la referencia | `domain.py:135,149`; `reconcile.py:253` |
+| A-3 | Herramientas MCP con reloj real | `finance_tools.py` usa la referencia | `finance_tools.py:74,90,96,187` |
+| A-4 | Agente con reloj real | `composer.py` y `orchestrator.py` usan la referencia | `composer.py:280,285`; `orchestrator.py:301,326,333,583,815,1025,1666,1769,1853` |
+| A-5 | Aperturas de reparación fechadas con reloj real | `ledger_repair.py` fecha el asiento con la referencia; el sello de auditoría sigue con reloj real | `ledger_repair.py:358` |
+| A-6 | Pruebas dependientes del día de ejecución | Pruebas derivan de `reference_today()`; sin literales | `test_bugfixes.py:16`; `test_services.py:5`; `test_purchase_plan.py:8`; `test_savings_contribution.py:4` |
+| A-7 | Propagación incompleta | `start-all.cmd` propaga `BANORTE_DEMO_TODAY`; README lo documenta | `scripts/start-all.cmd:9-17,42,61`; `README.md:94-97` |
+
+**Puerta de salida de Fase A:** `319 passed`; `npm run build` exit 0;
+`grep date.today()` → 0; `AGENTS.md` y `.github/copilot-instructions.md`
+presentes.
+
+**Bloqueo de datos pendiente de aprobación:** con la referencia canónica
+(`2026-10-30`) la reconciliación de `backend/data/banorte.db` marca INV-6 por
+las aperturas 968 y 969, fechadas `2026-11-01` por una reparación anterior que
+usó el reloj real. Con `BANORTE_DEMO_TODAY=2026-11-01` la reconciliación da
+`ok=true`, `failures=0`, pero la suite falla porque la semilla de ese día solo
+genera un día de datos. Normalizar esas dos filas a la fecha de referencia
+exige respaldo, transacción y auditoría (aprobación explícita). El inventario de
+herramientas MCP queda pendiente de aprobación.
 
 ## Punto de continuación
 

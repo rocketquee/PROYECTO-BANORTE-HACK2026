@@ -26,6 +26,7 @@ from pydantic import ValidationError
 
 from app.core import config
 from app.core import money
+from app.core.seed import reference_today
 from app.core.database import db
 from app.schemas.api import ChatRequest, UIEventIn
 from app.schemas.ui import ChatResponse, CreditParams, CreditResult, CreditSimulatorSpec, \
@@ -297,7 +298,7 @@ def extract_amount(text: str) -> float | None:
 def resolve_month(text: str) -> tuple[int, int] | None:
     """Resolves an explicit month reference to (year, month), or None."""
     t = normalize(text)
-    today = date.today()
+    today = reference_today()
     if re.search(r"\bmes (pasado|anterior)\b", t):
         y, m = today.year, today.month
         return (y - 1, 12) if m == 1 else (y, m - 1)
@@ -322,14 +323,14 @@ def resolve_months_count(text: str) -> int | None:
     if m:
         return int(m.group(1))
     if re.search(r"\beste ano\b", t):
-        return date.today().month
+        return reference_today().month
     return None
 
 
 def _explicit_months(text: str) -> list[tuple[int, int]]:
     """All explicit month references, sorted oldest → newest."""
     t = normalize(text)
-    today = date.today()
+    today = reference_today()
     found = set()
     for name, num in MONTH_NAMES.items():
         if re.search(rf"\b{name}\b", t):
@@ -579,7 +580,7 @@ def _followup(text: str) -> dict | None:
 # ---------------------------------------------------------------- demo agent flows
 
 def _month_defaults() -> tuple[int, int]:
-    today = date.today()
+    today = reference_today()
     return today.year, today.month
 
 
@@ -811,7 +812,7 @@ async def _purchase_ui_event_response(event: UIEventIn) -> ChatResponse:
                 event, "La meta de este plan ya está creada.", spec,
             )
         if spec.goal_status == "not_requested":
-            today = date.today()
+            today = reference_today()
             try:
                 deadline = today.replace(year=today.year + 1)
             except ValueError:
@@ -1021,7 +1022,7 @@ async def _demo_overview(text: str = "") -> ChatResponse:
     balance = await mcp_client.call("get_balance", {})
     summary = await mcp_client.call("get_monthly_summary", {"year": y, "month": m})
     ui = composer.financial_summary_ui(summary, balance.get("total_balance", 0))
-    fortnight = "vas a mitad de la quincena" if 8 <= date.today().day <= 22 else \
+    fortnight = "vas a mitad de la quincena" if 8 <= reference_today().day <= 22 else \
                 "estamos cerca del cierre de quincena"
     return ChatResponse(
         message=(f"Tu saldo total es {composer.money(balance['total_balance'])}. En "
@@ -1662,7 +1663,7 @@ async def _demo_cards() -> ChatResponse:
     cards = await mcp_client.call("get_cards", {})
     items = []
     message_parts = []
-    today = date.today()
+    today = reference_today()
     for c in cards.get("cards", []):
         if c.get("type") != "credit":
             continue
@@ -1765,7 +1766,7 @@ async def _demo_anomalies() -> ChatResponse:
 
 
 async def _demo_compare(text: str) -> ChatResponse:
-    today = date.today()
+    today = reference_today()
     current = (today.year, today.month)
     months = _explicit_months(text)
     if len(months) >= 2:
@@ -1849,7 +1850,7 @@ async def _demo_payroll(text: str) -> ChatResponse:
         return ChatResponse(
             message="No encontré depósitos de nómina en tus movimientos.",
             mode="demo", ui=[], tools_used=["get_transactions"])
-    today = date.today()
+    today = reference_today()
     month_end = date.fromisoformat(finance.month_range(today.year, today.month)[1]).day
     if today.day < 15:
         next_date = date(today.year, today.month, 15)

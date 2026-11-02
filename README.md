@@ -91,6 +91,11 @@ El archivo `.env` inicial mantiene `AI_PROVIDER=demo`, por lo que la
 demostración funciona sin una clave ni conexión a un proveedor de IA. Para
 configurar un proveedor opcional, edita `.env` localmente; no publiques claves.
 
+La fecha de referencia de la demo se fija con `BANORTE_DEMO_TODAY=AAAA-MM-DD`
+(por defecto `2026-10-30`); `scripts\start-all.cmd` la propaga al backend, al
+servidor MCP y al frontend para que datos, herramientas y pruebas usen el mismo
+calendario.
+
 ## Variables de entorno
 
 | Variable | Descripción |
@@ -101,6 +106,7 @@ configurar un proveedor opcional, edita `.env` localmente; no publiques claves.
 | `AI_TEMPERATURE` / `AI_TIMEOUT_SECONDS` | Temperatura baja y tiempo límite para llamadas al proveedor |
 | `AGENT_MAX_STEPS` / `AGENT_MAX_RETRIES` | Máximo de pasos del agente y reintentos |
 | `AGENT_RETRY_DELAY_SECONDS` / `AGENT_TOOL_TIMEOUT_SECONDS` | Espera entre reintentos y tiempo límite de cada herramienta MCP |
+| `BANORTE_DEMO_TODAY` | Fecha de referencia de la demo (`AAAA-MM-DD`; default `2026-10-30`). Única fuente de "hoy" para semilla, backend, MCP y pruebas. |
 | `FRONTEND_ORIGIN` | CORS restrictivo (default `http://localhost:3000`) |
 | `DEV_MODE` | `1` habilita `/docs`, `/openapi.json` y detalles técnicos. **Desactivado por defecto**; nunca se activa desde la interfaz pública. |
 

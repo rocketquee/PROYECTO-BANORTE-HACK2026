@@ -355,7 +355,7 @@ def run(db_path: Path | str, *, apply: bool = False,
             if accept_openings:
                 openings = _apply_openings(
                     conn, _opening_candidates(conn),
-                    datetime.now().strftime("%Y-%m-%d"),
+                    seed.reference_today().isoformat(),
                 )
             _verify(conn, require_goals=accept_openings)
             after = plan(conn)
