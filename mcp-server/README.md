@@ -3,18 +3,32 @@
 Servidor MCP real (SDK oficial de Python `mcp`, transporte **stdio**) que expone
 las herramientas financieras del prototipo sobre la base de datos SQLite sintética.
 
-## Herramientas disponibles
+## Catálogo y herramientas disponibles
+
+El catálogo vive en `backend/app/services/mcp_catalog.py` y es la única fuente
+de nombre, descripción, esquema de entrada, riesgo, permisos, confirmación,
+idempotencia y contrato de salida. El servidor valida los argumentos contra ese
+catálogo antes de ejecutar cualquier herramienta y rechaza campos desconocidos.
 
 | Herramienta | Tipo | Descripción |
 |---|---|---|
 | `get_balance` | lectura | Saldo total y cuentas de demostración |
-| `get_transactions` | lectura | Movimientos con filtros (fechas, categoría, texto) |
+| `get_transactions` | lectura | Movimientos con filtros (fechas, categoría, tipo, texto) |
 | `get_cards` | lectura | Tarjetas ficticias (solo últimos 4 dígitos) |
 | `get_savings_goals` | lectura | Metas de ahorro y progreso |
 | `analyze_spending` | lectura | Gastos por categoría y periodo |
 | `calculate_credit_simulation` | cálculo | Simulación de crédito (francés/alemán) |
 | `get_monthly_summary` | lectura | Resumen mensual (ingresos, gastos, balance) |
 | `get_budgets` | lectura | Presupuesto: gasto vs límites por categoría |
+| `get_spending_trend` | lectura | Tendencia de gasto de los últimos meses |
+| `compare_months` | lectura | Comparación de dos meses |
+| `get_weekly_spending` | lectura | Gasto por semana |
+| `detect_recurring_charges` | lectura | Cargos fijos o recurrentes |
+| `detect_duplicates` | lectura | Cobros duplicados |
+| `detect_anomalies` | lectura | Cargos inusuales por categoría |
+| `project_savings` | cálculo | Meses necesarios para una meta |
+| `compare_credit_terms` | cálculo | Comparación de plazos de crédito |
+| `budget_vs_actual` | lectura | Presupuesto planeado contra gasto real |
 | `create_savings_goal` | **escritura** | Crear meta; requiere `confirm=True` |
 | `update_savings_goal` | **escritura** | Actualizar meta; requiere `confirm=True` |
 | `apply_savings_contribution` | **escritura** | Abonar a una meta; valida saldo/restante, registra movimiento y requiere confirmación + clave idempotente |

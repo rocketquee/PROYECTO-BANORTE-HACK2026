@@ -14,6 +14,7 @@ from mcp.client.stdio import stdio_client
 
 from app.core import database
 from app.core.config import MCP_SERVER_PATH
+from app.services.mcp_catalog import MCP_ALLOWED_TOOLS
 
 
 class MCPClientError(RuntimeError):
@@ -42,6 +43,14 @@ class MCPFinanceClient:
             self.session = await self._stack.enter_async_context(ClientSession(read, write))
             await self.session.initialize()
             result = await self.session.list_tools()
+            discovered = {tool.name for tool in result.tools}
+            if discovered != set(MCP_ALLOWED_TOOLS):
+                missing = sorted(MCP_ALLOWED_TOOLS - discovered)
+                extra = sorted(discovered - MCP_ALLOWED_TOOLS)
+                raise MCPClientError(
+                    "El catálogo MCP no coincide con el servidor; "
+                    f"faltan={missing}, sobran={extra}."
+                )
             self.tools = result.tools
         except Exception:
             await self.stop()

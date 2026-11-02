@@ -183,14 +183,29 @@ tenía datos. Se corrigió la causa raíz, no las pruebas.
 `grep date.today()` → 0; `AGENTS.md` y `.github/copilot-instructions.md`
 presentes.
 
-**Bloqueo de datos pendiente de aprobación:** con la referencia canónica
-(`2026-10-30`) la reconciliación de `backend/data/banorte.db` marca INV-6 por
-las aperturas 968 y 969, fechadas `2026-11-01` por una reparación anterior que
-usó el reloj real. Con `BANORTE_DEMO_TODAY=2026-11-01` la reconciliación da
-`ok=true`, `failures=0`, pero la suite falla porque la semilla de ese día solo
-genera un día de datos. Normalizar esas dos filas a la fecha de referencia
-exige respaldo, transacción y auditoría (aprobación explícita). El inventario de
-herramientas MCP queda pendiente de aprobación.
+**Bloqueo de datos resuelto:** las aperturas 968 y 969 de
+`backend/data/banorte.db` se normalizaron a `2026-10-30` con respaldo previo
+`backend/data/backups/banorte.db.bak-20261102-121909` (SHA-256
+`d5097b...e9544d70`). Comprobación actual: filas 968/969 con fecha
+`2026-10-30`; `PRAGMA integrity_check` = `ok`; `PRAGMA foreign_key_check` = `[]`;
+reconciliación `ok=true`, `failures=0`, 13 invariantes; SHA-256 de la base
+`3d14b2d29efa4c867c9c586a5349a027f171018f15caeac020e1b3b12490ae1a`.
+
+## Fase A — Catálogo MCP y contratos (2026-11-02)
+
+| ID | Tarea | Estado | Evidencia |
+|---|---|---|---|
+| MCP-1 | Catálogo único de las 20 herramientas | **Hecho** | `backend/app/services/mcp_catalog.py` define nombre, descripción, modelo de entrada, riesgo, permisos, auditoría, confirmación, idempotencia y contrato de salida |
+| MCP-2 | Validación estricta de argumentos | **Hecho** | Modelos Pydantic con `extra="forbid"`, límites, enums, fechas, UUID y nombres; `validate_arguments()` y `validated_tool()` |
+| MCP-3 | Servidor MCP guiado por catálogo | **Hecho** | `mcp-server/server.py` registra implementaciones desde `CATALOG`, publica el esquema estricto y rechaza campos desconocidos antes de ejecutar |
+| MCP-4 | Sin listas paralelas en el agente | **Hecho** | `orchestrator.py` importa `MCP_ALLOWED_TOOLS` y `WRITE_TOOLS` del catálogo |
+| MCP-5 | Guardia de descubrimiento | **Hecho** | `mcp_client.start()` exige que las herramientas descubiertas coincidan exactamente con el catálogo |
+| MCP-6 | Auditoría de riesgo y confirmación | **Hecho** | `_call_mcp_tool()` y `execute_pending()` registran `tool_risk`, `requires_confirmation`, `idempotency` e `idempotent_replay`; allowlist en `structured_logging.py` |
+| MCP-7 | Pruebas del catálogo y protocolo | **Hecho** | `backend/tests/test_mcp_catalog.py` y `test_mcp_tools.py`; suite `327 passed in 87.24s` |
+
+**Pendiente explícito (no cerrado en esta fase):** `sin_dato` tipado en todas
+las respuestas vacías, paridad REST/MCP completa de saneamiento y errores 4xx,
+y pruebas de concurrencia de confirmaciones (Etapas 3 y 6).
 
 ## Punto de continuación
 
@@ -205,7 +220,9 @@ cd backend
 
 Después de aplicarlo: repetir `reconcile` sobre la base real, verificar el SHA-256 del respaldo y conservar el JSON de auditoría.
 
-**Siguiente tarea tras la aprobación:** Fase A / Etapa 3 (herramientas propias + capa de dominio). No iniciar la Etapa 3 hasta que la base real esté reparada o el usuario decida explícitamente posponerlo.
+**Siguiente tarea tras la aprobación:** Etapa 3 (validación única y paridad
+REST/MCP). El catálogo MCP de Fase A ya está implementado; no iniciar la Etapa 3
+hasta que el usuario apruebe el cierre de Fase A.
 
 ---
 

@@ -190,9 +190,20 @@ async def test_real_mcp_protocol_discovery():
         async with ClientSession(read, write) as session:
             await session.initialize()
             result = await session.list_tools()
+            from app.services.mcp_catalog import CATALOG, TOOL_BY_NAME
             names = {t.name for t in result.tools}
-            expected = {"get_balance", "get_transactions", "get_cards", "get_savings_goals",
-                        "create_savings_goal", "update_savings_goal",
-                        "apply_savings_contribution", "analyze_spending",
-                        "calculate_credit_simulation", "get_monthly_summary", "get_budgets"}
-            assert expected <= names
+            expected = {contract.name for contract in CATALOG}
+            assert names == expected
+            for tool in result.tools:
+                contract = TOOL_BY_NAME[tool.name]
+                assert tool.description == contract.description
+                assert tool.title == contract.title
+                assert tool.inputSchema == contract.input_schema()
+                assert tool.inputSchema["additionalProperties"] is False
+
+            invalid_extra = await session.call_tool("get_balance", {"unexpected": 1})
+            assert invalid_extra.isError
+            invalid_enum = await session.call_tool(
+                "get_transactions", {"tx_type": "not-a-type"},
+            )
+            assert invalid_enum.isError

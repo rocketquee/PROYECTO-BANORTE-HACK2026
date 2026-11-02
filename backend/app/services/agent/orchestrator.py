@@ -36,16 +36,7 @@ from app.services import finance
 from app.services.agent import composer
 from app.services.agent.providers import ProviderError, ProviderTurn, get_provider
 from app.services.mcp_client import MCPClientError, mcp_client
-
-WRITE_TOOLS = {"create_savings_goal", "update_savings_goal", "apply_savings_contribution"}
-MCP_ALLOWED_TOOLS = {
-    "get_balance", "get_transactions", "get_cards", "get_savings_goals",
-    "create_savings_goal", "update_savings_goal", "apply_savings_contribution", "analyze_spending",
-    "calculate_credit_simulation", "get_monthly_summary", "get_budgets",
-    "get_spending_trend", "compare_months", "get_weekly_spending",
-    "detect_recurring_charges", "detect_duplicates", "detect_anomalies",
-    "project_savings", "compare_credit_terms", "budget_vs_actual",
-}
+from app.services.mcp_catalog import MCP_ALLOWED_TOOLS, WRITE_TOOLS, get_contract
 logger = logging.getLogger("banorte.agent")
 PURCHASE_SIMULATION_RATE = 15.9
 PURCHASE_PLAN_TTL_SECONDS = 30 * 60
@@ -2251,6 +2242,12 @@ async def _request_provider_turn(provider, messages: list[dict], specs: list[dic
 async def _call_mcp_tool(name: str, arguments: dict, trace_id: str, step: int,
                          retryable: bool) -> dict:
     attempts = config.AGENT_MAX_RETRIES + 1 if retryable else 1
+    contract = get_contract(name)
+    audit = {
+        "tool_risk": contract.risk if contract else None,
+        "requires_confirmation": contract.requires_confirmation if contract else None,
+        "idempotency": contract.idempotency if contract else None,
+    }
     for attempt in range(attempts):
         try:
             result = await asyncio.wait_for(
@@ -2259,13 +2256,15 @@ async def _call_mcp_tool(name: str, arguments: dict, trace_id: str, step: int,
             )
             logger.info(
                 "agent_tool_complete",
-                extra={"trace_id": trace_id, "step": step, "tool": name, "attempt": attempt + 1},
+                extra={"trace_id": trace_id, "step": step, "tool": name, "attempt": attempt + 1,
+                       **audit},
             )
             return result
         except asyncio.TimeoutError as exc:
             logger.warning(
                 "agent_tool_timeout",
-                extra={"trace_id": trace_id, "step": step, "tool": name, "attempt": attempt + 1},
+                extra={"trace_id": trace_id, "step": step, "tool": name, "attempt": attempt + 1,
+                       **audit},
             )
             if attempt + 1 == attempts:
                 raise ProviderError("Una consulta local tardó demasiado.") from exc
@@ -2273,7 +2272,7 @@ async def _call_mcp_tool(name: str, arguments: dict, trace_id: str, step: int,
         except MCPClientError:
             logger.warning(
                 "agent_tool_failed",
-                extra={"trace_id": trace_id, "step": step, "tool": name},
+                extra={"trace_id": trace_id, "step": step, "tool": name, **audit},
             )
             return {"error": "No se pudo completar esta consulta."}
     raise ProviderError("Una consulta local tardó demasiado.")
@@ -2303,7 +2302,18 @@ async def execute_pending(action_id: str) -> dict:
         raise MCPClientError("La acción de confirmación no existe o ya fue procesada.")
     if data["result"] is not None:
         return {**data["result"], "action": data["action"]}
+    contract = get_contract(data["action"])
     result = await mcp_client.call(data["action"], {**data["params"], "confirm": True})
+    logger.info(
+        "agent_confirmation_complete",
+        extra={
+            "tool": data["action"],
+            "tool_risk": contract.risk if contract else None,
+            "requires_confirmation": True,
+            "idempotency": contract.idempotency if contract else None,
+            "idempotent_replay": bool(result.get("idempotent_replay")),
+        },
+    )
     if result.get("status") in ("created", "updated"):
         data["result"] = result
     return {**result, "action": data["action"]}

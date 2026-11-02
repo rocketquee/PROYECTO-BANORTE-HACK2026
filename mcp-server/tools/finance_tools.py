@@ -23,21 +23,28 @@ from app.core.seed import reference_today  # noqa: E402
 from app.services import credit as credit_service  # noqa: E402
 from app.services import finance  # noqa: E402
 from app.services import savings  # noqa: E402
+from app.services.mcp_catalog import add_sin_dato, validated_tool  # noqa: E402
 
 
 # ---------------------------------------------------------------- read tools
 
+@validated_tool("get_balance")
 async def get_balance_impl() -> dict:
     with db() as conn:
         accounts = finance.list_accounts(conn)
-        return {
+        result = {
             "total_balance": finance.total_balance(conn),
             "accounts": accounts,
             "currency": "MXN",
             "note": "Datos sintéticos de demostración.",
         }
+    return add_sin_dato(
+        result, not accounts, "accounts_empty",
+        "No hay cuentas de demostración disponibles.",
+    )
 
 
+@validated_tool("get_transactions")
 async def get_transactions_impl(date_from: str | None = None, date_to: str | None = None,
                                 category: str | None = None, tx_type: str | None = None,
                                 q: str | None = None, limit: int = 50) -> dict:
@@ -46,24 +53,36 @@ async def get_transactions_impl(date_from: str | None = None, date_to: str | Non
         items = finance.list_transactions(conn, date_from, date_to, category, tx_type, q, limit)
         total = finance.count_transactions(conn, date_from, date_to, category, tx_type, q)
         categories = finance.category_taxonomy(conn)
-        return {"transactions": items, "total_count": total, "categories": categories,
-                "filters_applied": {"date_from": date_from, "date_to": date_to,
-                                    "category": category, "type": tx_type, "q": q}}
+        result = {"transactions": items, "total_count": total, "categories": categories,
+                  "filters_applied": {"date_from": date_from, "date_to": date_to,
+                                      "category": category, "type": tx_type, "q": q}}
+    period = " a ".join(part for part in (date_from, date_to) if part) or None
+    return add_sin_dato(
+        result, total == 0, "transactions_empty",
+        "No hay movimientos para los filtros solicitados.", period=period,
+    )
 
 
+@validated_tool("get_cards")
 async def get_cards_impl() -> dict:
     with db() as conn:
         cards = finance.list_cards(conn)
     # Only non-sensitive demo data is exposed: no full numbers, no CVV.
-    return {"cards": cards,
-            "note": "Tarjetas ficticias; solo últimos 4 dígitos, nunca datos sensibles reales."}
+    result = {"cards": cards,
+              "note": "Tarjetas ficticias; solo últimos 4 dígitos, nunca datos sensibles reales."}
+    return add_sin_dato(result, not cards, "cards_empty",
+                        "No hay tarjetas de demostración disponibles.")
 
 
+@validated_tool("get_savings_goals")
 async def get_savings_goals_impl() -> dict:
     with db() as conn:
-        return {"goals": finance.list_goals(conn)}
+        goals = finance.list_goals(conn)
+    return add_sin_dato({"goals": goals}, not goals, "savings_goals_empty",
+                        "No hay metas de ahorro registradas.")
 
 
+@validated_tool("analyze_spending")
 async def analyze_spending_impl(year: int | None = None, month: int | None = None,
                                 date_from: str | None = None, date_to: str | None = None) -> dict:
     with db() as conn:
@@ -77,20 +96,30 @@ async def analyze_spending_impl(year: int | None = None, month: int | None = Non
             categories = finance.spending_by_category(conn, date_from_, date_to_)
             period = f"{y}-{m:02d}"
         total = money.to_pesos(sum(money.to_cents(c["amount"]) for c in categories))
-        return {"period": period, "total": total, "categories": categories}
+        result = {"period": period, "total": total, "categories": categories}
+    return add_sin_dato(result, not categories, "spending_empty",
+                        "No hay gastos registrados en el periodo.", period=period)
 
 
+@validated_tool("calculate_credit_simulation")
 async def calculate_credit_simulation_impl(amount: float, months: int, annual_rate: float,
                                            method: str = "frances") -> dict:
     return credit_service.simulate_credit(amount, months, annual_rate, method)
 
 
+@validated_tool("get_monthly_summary")
 async def get_monthly_summary_impl(year: int | None = None, month: int | None = None) -> dict:
     with db() as conn:
         today = reference_today()
-        return finance.monthly_summary(conn, year or today.year, month or today.month)
+        summary = finance.monthly_summary(conn, year or today.year, month or today.month)
+    period = f"{summary['year']}-{summary['month']:02d}"
+    return add_sin_dato(
+        summary, summary["transaction_count"] == 0, "monthly_summary_empty",
+        "No hay movimientos registrados en el periodo.", period=period,
+    )
 
 
+@validated_tool("get_budgets")
 async def get_budgets_impl(year: int | None = None, month: int | None = None) -> dict:
     with db() as conn:
         today = reference_today()
@@ -107,6 +136,7 @@ def _parse_month_str(value: str) -> tuple[int, int]:
     return y, m
 
 
+@validated_tool("get_spending_trend")
 async def get_spending_trend_impl(months: int = 4, category: str | None = None) -> dict:
     with db() as conn:
         series = finance.spending_trend(conn, months, category)
@@ -121,6 +151,7 @@ async def get_spending_trend_impl(months: int = 4, category: str | None = None) 
     }
 
 
+@validated_tool("compare_months")
 async def compare_months_impl(month_a: str, month_b: str) -> dict:
     ya, ma = _parse_month_str(month_a)
     yb, mb = _parse_month_str(month_b)
@@ -131,11 +162,13 @@ async def compare_months_impl(month_a: str, month_b: str) -> dict:
             "expense_diff": money.difference(b["expense"], a["expense"])}
 
 
+@validated_tool("get_weekly_spending")
 async def get_weekly_spending_impl(weeks: int = 4) -> dict:
     with db() as conn:
         return {"weeks": weeks, "series": finance.weekly_spending(conn, weeks)}
 
 
+@validated_tool("detect_recurring_charges")
 async def detect_recurring_charges_impl() -> dict:
     with db() as conn:
         items = finance.recurring_charges(conn)
@@ -144,16 +177,19 @@ async def detect_recurring_charges_impl() -> dict:
                 money.to_cents(i["monthly_estimate"]) for i in items))}
 
 
+@validated_tool("detect_duplicates")
 async def detect_duplicates_impl() -> dict:
     with db() as conn:
         return {"duplicates": finance.detect_duplicates(conn)}
 
 
+@validated_tool("detect_anomalies")
 async def detect_anomalies_impl() -> dict:
     with db() as conn:
         return {"anomalies": finance.detect_anomalies(conn)}
 
 
+@validated_tool("project_savings")
 async def project_savings_impl(monthly_amount: float, target_amount: float,
                                already_saved: float = 0) -> dict:
     if monthly_amount <= 0:
@@ -169,6 +205,7 @@ async def project_savings_impl(monthly_amount: float, target_amount: float,
             "already_saved": money.to_pesos(money.to_cents(already_saved))}
 
 
+@validated_tool("compare_credit_terms")
 async def compare_credit_terms_impl(amount: float, terms: list[int] | None = None,
                                     annual_rate: float = 15.9) -> dict:
     terms = terms or [12, 24, 36]
@@ -182,6 +219,7 @@ async def compare_credit_terms_impl(amount: float, terms: list[int] | None = Non
     return {"amount": money.boundary(amount), "annual_rate": annual_rate, "terms": results}
 
 
+@validated_tool("budget_vs_actual")
 async def budget_vs_actual_impl(year: int | None = None, month: int | None = None) -> dict:
     with db() as conn:
         today = reference_today()
@@ -193,6 +231,7 @@ async def budget_vs_actual_impl(year: int | None = None, month: int | None = Non
 # ---------------------------------------------------------------- write tools
 # Always require explicit user confirmation (`confirm=True`).
 
+@validated_tool("create_savings_goal")
 async def create_savings_goal_impl(name: str, target_amount: float, deadline: str | None = None,
                                    confirm: bool = False,
                                    idempotency_key: str | None = None) -> dict:
@@ -247,6 +286,7 @@ async def create_savings_goal_impl(name: str, target_amount: float, deadline: st
             "message": f"Meta '{name}' creada."}
 
 
+@validated_tool("update_savings_goal")
 async def update_savings_goal_impl(goal_id: int, name: str | None = None,
                                    target_amount: float | None = None,
                                    deadline: str | None = None,
@@ -272,6 +312,7 @@ async def update_savings_goal_impl(goal_id: int, name: str | None = None,
             "message": f"Meta '{goal['name']}' actualizada."}
 
 
+@validated_tool("apply_savings_contribution")
 async def apply_savings_contribution_impl(
     goal_id: int | None,
     amount: float,

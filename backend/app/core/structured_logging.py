@@ -17,6 +17,10 @@ _SAFE_FIELDS = (
     "event_type",
     "service_count",
     "input_length",
+    "tool_risk",
+    "requires_confirmation",
+    "idempotency",
+    "idempotent_replay",
 )
 
 
