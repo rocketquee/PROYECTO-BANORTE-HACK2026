@@ -36,8 +36,10 @@ async def test_purchase_plan_to_goal_uses_real_mcp_and_persists(tmp_db, monkeypa
             transport=ASGITransport(app=app),
             base_url="http://test",
         ) as api:
+            session_id = "e2e-purchase"
             plan_response = await api.post("/api/agent/chat", json={
                 "message": "¿Puedo comprar una PC de 45 mil?",
+                "session_id": session_id,
             })
             assert plan_response.status_code == 200, plan_response.text
             plan = plan_response.json()
@@ -45,6 +47,7 @@ async def test_purchase_plan_to_goal_uses_real_mcp_and_persists(tmp_db, monkeypa
 
             selected_response = await api.post("/api/agent/chat", json={
                 "message": "Quiero ahorrar para la compra",
+                "session_id": session_id,
                 "ui_event": UIEventIn(
                     id="e2e-select-savings",
                     type="purchase_option_selected",
@@ -58,6 +61,7 @@ async def test_purchase_plan_to_goal_uses_real_mcp_and_persists(tmp_db, monkeypa
 
             pending_response = await api.post("/api/agent/chat", json={
                 "message": "Prepara la meta",
+                "session_id": session_id,
                 "ui_event": UIEventIn(
                     id="e2e-request-goal",
                     type="purchase_goal_create_requested",
@@ -81,6 +85,7 @@ async def test_purchase_plan_to_goal_uses_real_mcp_and_persists(tmp_db, monkeypa
             )
             confirm_response = await api.post("/api/agent/chat", json={
                 "message": "Confirmo crear la meta",
+                "session_id": session_id,
                 "ui_event": confirmation_event.model_dump(),
             })
             assert confirm_response.status_code == 200, confirm_response.text
@@ -95,6 +100,7 @@ async def test_purchase_plan_to_goal_uses_real_mcp_and_persists(tmp_db, monkeypa
 
             replayed_response = await api.post("/api/agent/chat", json={
                 "message": "Confirmo otra vez",
+                "session_id": session_id,
                 "ui_event": UIEventIn(
                     id="e2e-second-confirm",
                     type="purchase_goal_confirmed",
@@ -246,7 +252,10 @@ def test_live_purchase_plan_uses_mcp_tools_and_returns_versioned_ui(monkeypatch)
 def test_ui_event_selects_option_and_returns_updated_plan(monkeypatch):
     _stub_purchase_tools(monkeypatch)
     trace_id = "purchase-plan-event"
-    asyncio.run(orch._purchase_plan_response(45000, trace_id))
+    session_id = "purchase-event"
+    asyncio.run(orch._purchase_plan_response(
+        45000, trace_id, session=orch.session_store.get_session(session_id),
+    ))
     event = UIEventIn(
         id="event-123456",
         type="purchase_option_selected",
@@ -255,6 +264,7 @@ def test_ui_event_selects_option_and_returns_updated_plan(monkeypatch):
     )
     response = asyncio.run(orch.handle_chat(ChatRequest(
         message="Elegí la opción de 18 meses",
+        session_id=session_id,
         ui_event=event,
     )))
 
@@ -267,14 +277,19 @@ def test_ui_event_selects_option_and_returns_updated_plan(monkeypatch):
 def test_replayed_ui_event_returns_same_response(monkeypatch):
     _stub_purchase_tools(monkeypatch)
     trace_id = "purchase-plan-replay"
-    asyncio.run(orch._purchase_plan_response(45000, trace_id))
+    session_id = "purchase-replay"
+    asyncio.run(orch._purchase_plan_response(
+        45000, trace_id, session=orch.session_store.get_session(session_id),
+    ))
     event = UIEventIn(
         id="event-replay-123",
         type="purchase_option_selected",
         payload={"option_id": "cash"},
         trace_id=trace_id,
     )
-    request = ChatRequest(message="Elegí contado", ui_event=event)
+    request = ChatRequest(
+        message="Elegí contado", session_id=session_id, ui_event=event,
+    )
     first = asyncio.run(orch.handle_chat(request))
     replay = asyncio.run(orch.handle_chat(request))
 
@@ -313,7 +328,10 @@ def test_purchase_goal_requires_request_and_explicit_verified_confirmation(monke
 
     monkeypatch.setattr(orch.mcp_client, "call", call_tool)
     trace_id = "purchase-goal-confirmation"
-    asyncio.run(orch._purchase_plan_response(45000, trace_id))
+    session_id = "purchase-goal"
+    asyncio.run(orch._purchase_plan_response(
+        45000, trace_id, session=orch.session_store.get_session(session_id),
+    ))
     selected = UIEventIn(
         id="select-savings-option",
         type="purchase_option_selected",
@@ -322,6 +340,7 @@ def test_purchase_goal_requires_request_and_explicit_verified_confirmation(monke
     )
     selected_response = asyncio.run(orch.handle_chat(ChatRequest(
         message="Elijo la meta de ahorro",
+        session_id=session_id,
         ui_event=selected,
     )))
     assert selected_response.ui[0].selected_option_id == "savings_12"
@@ -334,6 +353,7 @@ def test_purchase_goal_requires_request_and_explicit_verified_confirmation(monke
     )
     pending = asyncio.run(orch.handle_chat(ChatRequest(
         message="Prepara la meta",
+        session_id=session_id,
         ui_event=request,
     )))
     pending_spec = pending.ui[0]
@@ -355,6 +375,7 @@ def test_purchase_goal_requires_request_and_explicit_verified_confirmation(monke
     )
     rejected = asyncio.run(orch.handle_chat(ChatRequest(
         message="Confirmo crear la meta",
+        session_id=session_id,
         ui_event=rejected_confirmation,
     )))
     assert "No pude verificar" in rejected.message
@@ -372,6 +393,7 @@ def test_purchase_goal_requires_request_and_explicit_verified_confirmation(monke
     )
     response = asyncio.run(orch.handle_chat(ChatRequest(
         message="Confirmo crear la meta",
+        session_id=session_id,
         ui_event=confirmation,
     )))
     assert response.ui[0].goal_status == "created"
@@ -394,6 +416,7 @@ def test_purchase_goal_requires_request_and_explicit_verified_confirmation(monke
     )
     replay = asyncio.run(orch.handle_chat(ChatRequest(
         message="Confirmo crear la meta",
+        session_id=session_id,
         ui_event=second_click,
     )))
     assert replay.model_dump() == response.model_dump()

@@ -22,6 +22,7 @@ export interface Conversation {
   id: string;
   title: string;
   createdAt: number;
+  sessionId: string;
   messages: ChatMsg[];
   history: { role: "user" | "assistant"; content: string }[];
 }
@@ -42,9 +43,13 @@ function makeId(): string {
   return `c_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function makeSessionId(): string {
+  return crypto.randomUUID();
+}
+
 function newConversation(): Conversation {
   return { id: makeId(), title: "Nueva conversación", createdAt: Date.now(),
-           messages: [], history: [] };
+           sessionId: makeSessionId(), messages: [], history: [] };
 }
 
 function initialState(): ChatState {
@@ -52,6 +57,7 @@ function initialState(): ChatState {
     id: "initial",
     title: "Nueva conversación",
     createdAt: 0,
+    sessionId: makeSessionId(),
     messages: [],
     history: [],
   };
@@ -103,6 +109,7 @@ function hydrateFromStorage() {
       ...parsed,
       conversations: parsed.conversations.map((conversation) => ({
         ...conversation,
+        sessionId: conversation.sessionId ?? makeSessionId(),
         messages: conversation.messages.map((message) =>
           message.role === "user" && message.text
             ? { ...message, text: sanitizeUserText(message.text) }

@@ -26,14 +26,24 @@ class ProviderToolCall(StrictProviderModel):
     arguments: str = Field(max_length=10_000)
 
 
+class ProviderUsage(StrictProviderModel):
+    prompt_tokens: int = Field(ge=0)
+    completion_tokens: int = Field(ge=0)
+
+
 class ProviderTurn(StrictProviderModel):
     content: str | None = None
     tool_calls: list[ProviderToolCall] = Field(default_factory=list, max_length=8)
     raw_message: dict
+    usage: ProviderUsage | None = None
 
 
 class OpenAIProvider:
     name = "openai"
+
+    @property
+    def model(self) -> str:
+        return config.OPENAI_MODEL
 
     async def chat_with_tools(self, system: str, messages: list[dict], tools: list[dict]) -> dict:
         payload_tools = [
@@ -59,7 +69,9 @@ class OpenAIProvider:
         if resp.status_code != 200:
             raise ProviderError(f"OpenAI devolvió HTTP {resp.status_code}.")
         try:
-            msg = resp.json()["choices"][0]["message"]
+            data = resp.json()
+            msg = data["choices"][0]["message"]
+            usage = data.get("usage") or {}
             out = {
                 "content": msg.get("content"),
                 "tool_calls": [
@@ -68,6 +80,13 @@ class OpenAIProvider:
                     for tc in msg.get("tool_calls") or []
                 ],
                 "raw_message": msg,
+                "usage": (
+                    {
+                        "prompt_tokens": usage.get("prompt_tokens", 0),
+                        "completion_tokens": usage.get("completion_tokens", 0),
+                    }
+                    if usage else None
+                ),
             }
             ProviderTurn.model_validate(out)
             return out
@@ -84,6 +103,10 @@ class OpenAIProvider:
 
 class AnthropicProvider:
     name = "anthropic"
+
+    @property
+    def model(self) -> str:
+        return config.ANTHROPIC_MODEL
 
     async def chat_with_tools(self, system: str, messages: list[dict], tools: list[dict]) -> dict:
         payload_tools = [
@@ -119,10 +142,18 @@ class AnthropicProvider:
                  "arguments": json.dumps(b.get("input", {}), ensure_ascii=False)}
                 for b in content if b.get("type") == "tool_use"
             ]
+            usage = data.get("usage") or {}
             out = {
                 "content": text,
                 "tool_calls": tool_calls,
                 "raw_message": {"role": "assistant", "content": content},
+                "usage": (
+                    {
+                        "prompt_tokens": usage.get("input_tokens", 0),
+                        "completion_tokens": usage.get("output_tokens", 0),
+                    }
+                    if usage else None
+                ),
             }
             ProviderTurn.model_validate(out)
             return out

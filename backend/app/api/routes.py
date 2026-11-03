@@ -242,7 +242,7 @@ async def agent_chat(request: Request, body: ChatRequest):
 @router.post("/agent/confirm", response_model=ChatResponse)
 async def agent_confirm(body: ConfirmRequest):
     try:
-        result = await orchestrator.execute_pending(body.action_id)
+        result = await orchestrator.execute_pending(body.action_id, body.session_id)
     except MCPClientError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     from app.schemas.ui import SavingsProgressSpec, GoalProgress

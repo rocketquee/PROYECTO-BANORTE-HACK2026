@@ -15,11 +15,13 @@ from app.services.agent import orchestrator as orch
     ],
 )
 def test_local_fallback_understands_amount_references(
-    phrase, remaining, previous, expected, monkeypatch,
+    phrase, remaining, previous, expected,
 ):
-    monkeypatch.setitem(orch._CTX, "last_contribution_amount", previous)
-    monkeypatch.setitem(orch._CTX, "last_amount", None)
-    assert orch._contribution_amount(phrase, remaining) == expected
+    session = orch.session_store.get_session("amount-references")
+    session["last_contribution_amount"] = previous
+    session["last_amount"] = None
+    assert orch._contribution_amount(phrase, remaining, session) == expected
+    orch.session_store.clear()
 
 
 @pytest.mark.asyncio
@@ -199,8 +201,10 @@ async def test_contribution_confirmation_is_verified_and_replay_does_not_duplica
 
     monkeypatch.setattr(orch.mcp_client, "session", object())
     monkeypatch.setattr(orch.mcp_client, "call", call_tool)
+    session_id = "contribution-replay"
     prepared = await orch.handle_chat(ChatRequest(
         message="abono a Compra planeada la mitad de lo que falta",
+        session_id=session_id,
     ))
     spec = prepared.ui[0]
     assert not any(name == "apply_savings_contribution" for name, _ in calls)
@@ -217,10 +221,11 @@ async def test_contribution_confirmation_is_verified_and_replay_does_not_duplica
         trace_id=prepared.trace_id,
     )
     confirmed = await orch.handle_chat(ChatRequest(
-        message="Confirmo el abono", ui_event=event,
+        message="Confirmo el abono", ui_event=event, session_id=session_id,
     ))
     replay = await orch.handle_chat(ChatRequest(
         message="Doble clic", ui_event=event.model_copy(update={"id": "confirm-contribution-2"}),
+        session_id=session_id,
     ))
     assert confirmed.ui[0].status == "completed"
     assert confirmed.ui[1].goals[0].saved_amount == 30_000
@@ -282,13 +287,16 @@ async def test_ambiguous_goal_reference_returns_selectable_goal_buttons(monkeypa
 
     monkeypatch.setattr(orch.mcp_client, "session", object())
     monkeypatch.setattr(orch.mcp_client, "call", call_tool)
+    session_id = "ambiguous-goal"
     response = await orch.handle_chat(ChatRequest(
         message="quiero hacer un abono a Viaje, la mitad de lo que falta",
+        session_id=session_id,
     ))
     assert response.ui[0].status == "select_goal"
     assert {candidate.goal_id for candidate in response.ui[0].candidates} == {904, 905}
     selected = await orch.handle_chat(ChatRequest(
         message="La primera",
+        session_id=session_id,
         ui_event=UIEventIn(
             id="choose-ambiguous-goal",
             type="savings_goal_selected",

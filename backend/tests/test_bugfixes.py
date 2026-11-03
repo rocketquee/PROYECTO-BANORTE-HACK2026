@@ -46,12 +46,17 @@ async def fake_call(name, args):
 def patched_agent(tmp_db, monkeypatch):
     monkeypatch.setattr(orch.mcp_client, "call", fake_call)
     monkeypatch.setattr(database, "DB_PATH", tmp_db)
-    orch._CTX.clear()
+    orch.session_store.clear()
     yield
 
 
+TEST_SESSION_ID = "test-session"
+
+
 def ask(message: str) -> ChatResponse:
-    return asyncio.run(orch.demo_response(ChatRequest(message=message)))
+    return asyncio.run(orch.demo_response(
+        ChatRequest(message=message, session_id=TEST_SESSION_ID),
+    ))
 
 
 def ui_types(resp: ChatResponse) -> list[str]:

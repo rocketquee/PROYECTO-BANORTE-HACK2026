@@ -62,6 +62,7 @@ export default function AgentView({
     try {
       const resp = await post<ChatResponse>("/api/agent/chat", {
         message,
+        session_id: conversation.sessionId,
         history: conversation.history.slice(-6),
         ui_event: uiEvent,
       }, controller.signal);
@@ -175,7 +176,10 @@ export default function AgentView({
   async function confirmPending(actionId: string, msgIndex: number) {
     chatActions.setLoading(true);
     try {
-      const resp = await post<ChatResponse>("/api/agent/confirm", { action_id: actionId });
+      const resp = await post<ChatResponse>("/api/agent/confirm", {
+        action_id: actionId,
+        session_id: conversation.sessionId,
+      });
       chatActions.updateMessage(msgIndex, (m) =>
         m.resp ? { ...m, resp: { ...m.resp, pending_action: null } } : m);
       chatActions.addMessage({ role: "assistant", resp });

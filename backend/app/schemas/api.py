@@ -1,4 +1,5 @@
 """Request/response models for the REST API."""
+import uuid
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -115,6 +116,8 @@ class UIEventIn(Strict):
 
 class ChatRequest(Strict):
     message: str = Field(min_length=1, max_length=5000)
+    session_id: str = Field(default_factory=lambda: uuid.uuid4().hex,
+                            min_length=1, max_length=128)
     history: list[dict] = []
     context: dict = {}
     ui_event: UIEventIn | None = None
@@ -122,3 +125,4 @@ class ChatRequest(Strict):
 
 class ConfirmRequest(Strict):
     action_id: str
+    session_id: str | None = Field(default=None, min_length=1, max_length=128)
