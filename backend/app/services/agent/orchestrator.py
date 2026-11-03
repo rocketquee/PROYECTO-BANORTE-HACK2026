@@ -2192,7 +2192,7 @@ async def live_response(req: ChatRequest, trace_id: str | None = None,
                     "agent_cost_limit_exceeded",
                     extra={
                         "trace_id": trace_id, "step": step,
-                        "estimated_cost_usd": round(estimated_cost_usd, 8),
+                        "estimated_cost_usd": estimated_cost_usd,
                         "max_cost_usd": config.AGENT_MAX_COST_USD,
                         "prompt_version": PROMPT_VERSION,
                     },
@@ -2238,7 +2238,7 @@ async def live_response(req: ChatRequest, trace_id: str | None = None,
                 extra={"trace_id": trace_id, "step": step, "tool_count": len(out.tool_calls),
                        "prompt_version": PROMPT_VERSION,
                        "usage_reported": usage_reported,
-                       "estimated_cost_usd": round(estimated_cost_usd, 8)},
+                       "estimated_cost_usd": estimated_cost_usd},
             )
             continue
         final_text = out.content or ""
@@ -2247,7 +2247,7 @@ async def live_response(req: ChatRequest, trace_id: str | None = None,
             extra={"trace_id": trace_id, "step": step, "tool_count": 0,
                    "prompt_version": PROMPT_VERSION,
                    "usage_reported": usage_reported,
-                   "estimated_cost_usd": round(estimated_cost_usd, 8)},
+                   "estimated_cost_usd": estimated_cost_usd},
         )
         break
     else:
@@ -2461,7 +2461,7 @@ async def handle_chat(req: ChatRequest) -> ChatResponse:
                 )
                 response = await demo_response(req, trace_id, session)
                 response.message = (
-                    "No pude contactar el servicio de IA; te respondo con la ayuda local. "
+                    "No pude completar la respuesta de IA; te respondo con la ayuda local. "
                     + response.message
                 )
                 response.mode = "demo"

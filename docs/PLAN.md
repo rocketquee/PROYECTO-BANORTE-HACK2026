@@ -208,6 +208,27 @@ reconciliación `ok=true`, `failures=0`, 13 invariantes; SHA-256 de la base
 saneamiento y errores 4xx, y pruebas de concurrencia de confirmaciones
 (Etapas 3 y 6).
 
+## Fase B — Sesiones, prompt y costo del agente (2026-11-03)
+
+| ID | Requisito | Estado | Evidencia |
+|---|---|---|---|
+| B-1 | Aislamiento por `session_id` | **Hecho** | `ChatRequest.session_id` genera UUID si falta (`schemas/api.py:117-120`); `chatStore.ts:25,46-60` conserva un id por conversación y `AgentView.tsx:65-66` lo envía junto con los últimos 6 turnos. `session_store.py:12-15,18-32,37-55` mantiene estado separado por sesión, TTL de 30 minutos y máximo 200; `test_agent_session_prompt_cost.py:32-72` comprueba aislamiento, expiración y descarte de la sesión más antigua. |
+| B-2 | Prompt externo, validado y versionado | **Hecho** | `system_prompt.md:1` declara `1.0.0`; `prompt_loader.py:10-22,36-72` valida versión y secciones; `orchestrator.py:47-49` lo carga al importar el backend, por lo que un archivo ausente o inválido impide iniciar con `PromptError`. `orchestrator.py:2413-2422` registra `prompt_version` en la traza; pruebas en `test_agent_session_prompt_cost.py:75-109`. |
+| B-3 | Uso de tokens y tope de costo con respaldo | **Hecho** | `providers.py:29-38` expone tokens de entrada/salida; `config.py:25-60,95-96` define tope predeterminado de USD 0.05 y precios configurables por modelo. `orchestrator.py:2189-2206` acumula costo, detiene el bucle y registra el exceso o la falta de `usage`; `orchestrator.py:2458-2465` registra el respaldo local. Prueba simulada y de falta de `usage` en `test_agent_session_prompt_cost.py:112`. |
+| B-4 | Orden de alertas y nombre declarado de meta | **Hecho / verificado** | `orchestrator.py:417-420` prioriza referencias a metas ante palabras de alerta; `test_agent_session_prompt_cost.py:189,196` prueba detección y resolución de «Fondo de emergencia». `test_agent_session_prompt_cost.py:220` prueba que no se crea una meta sin nombre y que el nombre declarado queda pendiente; `test_savings_contribution.py:178-234` verifica confirmación y replay idempotente. |
+
+**Puerta de salida Fase B:** `339 passed` con
+`..\.venv\Scripts\python.exe -m pytest tests -q --basetemp $pytestBase`;
+`npm run build` en `frontend` terminó con exit 0. Para repetir en PowerShell:
+
+```powershell
+Set-Location backend
+$pytestBase = Join-Path $env:TEMP ("banorte-fase-b-" + [guid]::NewGuid().ToString())
+..\.venv\Scripts\python.exe -m pytest tests -q --basetemp $pytestBase
+Set-Location ..\frontend
+npm run build
+```
+
 ## Punto de continuación
 
 **Etapa 2 cerrada en copia.** Falta una sola autorización: aplicar `ledger-v3` a `backend/data/banorte.db`.

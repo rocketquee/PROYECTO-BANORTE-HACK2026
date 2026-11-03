@@ -6,6 +6,7 @@ import pytest
 
 from app.core import config
 from app.schemas.api import ChatRequest, ConfirmRequest
+from app.schemas.ui import ChatResponse
 from app.services.agent import orchestrator as orch
 from app.services.agent import session_store
 from app.services.agent.prompt_loader import (
@@ -108,12 +109,14 @@ def test_prompt_version_is_logged_in_trace(caplog):
     assert records[-1].prompt_version == orch.PROMPT_VERSION
 
 
-def test_cost_limit_stops_live_loop_and_missing_usage_does_not(monkeypatch):
+def test_cost_limit_falls_back_and_missing_usage_does_not(monkeypatch, caplog):
     class Provider:
         model = "gpt-4o-mini"
         include_usage = True
+        calls = 0
 
         async def chat_with_tools(self, *_args):
+            self.calls += 1
             out = {
                 "content": "Listo", "tool_calls": [],
                 "raw_message": {"role": "assistant", "content": "Listo"},
@@ -124,20 +127,51 @@ def test_cost_limit_stops_live_loop_and_missing_usage_does_not(monkeypatch):
 
     provider = Provider()
     monkeypatch.setattr(orch, "get_provider", lambda: provider)
+    monkeypatch.setattr(config, "AI_PROVIDER", "openai")
+    monkeypatch.setattr(orch.mcp_client, "session", object())
     monkeypatch.setattr(orch.mcp_client, "tool_specs", lambda: [])
     monkeypatch.setattr(config, "AGENT_MAX_COST_USD", 0.01)
 
-    with pytest.raises(orch.ProviderError, match="límite de costo"):
-        asyncio.run(orch.live_response(
+    async def local_fallback(_req, _trace_id, _session):
+        return ChatResponse(message="Respuesta local.", mode="demo")
+
+    monkeypatch.setattr(orch, "demo_response", local_fallback)
+    with caplog.at_level(logging.WARNING, logger="banorte.agent"):
+        response = asyncio.run(orch.handle_chat(
             ChatRequest(message="consulta mi saldo", session_id="cost-high"),
         ))
 
+    assert provider.calls == 1
+    assert response.mode == "demo"
+    assert response.message.startswith(
+        "No pude completar la respuesta de IA; te respondo con la ayuda local."
+    )
+    warning_names = {record.getMessage() for record in caplog.records}
+    assert "agent_cost_limit_exceeded" in warning_names
+    assert "agent_live_fallback" in warning_names
+    cost_warning = next(
+        record for record in caplog.records
+        if record.getMessage() == "agent_cost_limit_exceeded"
+    )
+    fallback_warning = next(
+        record for record in caplog.records
+        if record.getMessage() == "agent_live_fallback"
+    )
+    assert cost_warning.trace_id == fallback_warning.trace_id
+    assert cost_warning.prompt_version == orch.PROMPT_VERSION
+
     provider.include_usage = False
     config.AGENT_MAX_COST_USD = 0
-    response = asyncio.run(orch.live_response(
-        ChatRequest(message="consulta mi saldo", session_id="cost-unknown"),
-    ))
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger="banorte.agent"):
+        response = asyncio.run(orch.live_response(
+            ChatRequest(message="consulta mi saldo", session_id="cost-unknown"),
+        ))
     assert response.mode == "live"
+    assert any(
+        record.getMessage() == "agent_usage_unavailable"
+        for record in caplog.records
+    )
 
 
 def test_estimate_cost_uses_provider_model(monkeypatch):
@@ -157,6 +191,30 @@ def test_goal_name_with_alert_word_resolves_entity():
     assert orch.detect_intent("crea una meta llamada Emergencia") == "savings"
     assert orch.detect_intent("estoy en peligro") == "emergency"
     assert orch.detect_intent("me estafaron") == "fraud"
+
+
+def test_goal_name_with_alert_word_resolves_existing_goal(monkeypatch):
+    async def call_tool(name, _arguments):
+        if name == "get_savings_goals":
+            return {"goals": [{
+                "id": 41, "name": "Fondo de emergencia",
+                "target_amount": 100_000, "saved_amount": 20_000,
+                "progress_pct": 20, "deadline": None, "status": "activa",
+            }]}
+        if name == "get_balance":
+            return {"total_balance": 50_000}
+        raise AssertionError(f"Unexpected tool: {name}")
+
+    monkeypatch.setattr(orch.mcp_client, "call", call_tool)
+    response = asyncio.run(orch.demo_response(ChatRequest(
+        message="abono $100 a mi fondo de emergencia",
+        session_id="alert-word-goal",
+    )))
+
+    assert response.ui[0].type == "savings_contribution"
+    assert response.ui[0].goal_id == 41
+    assert response.ui[0].goal_name == "Fondo de emergencia"
+    assert response.mode == "demo"
 
 
 def test_new_goal_requires_a_declared_name(monkeypatch):
