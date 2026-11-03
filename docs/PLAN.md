@@ -201,11 +201,12 @@ reconciliación `ok=true`, `failures=0`, 13 invariantes; SHA-256 de la base
 | MCP-4 | Sin listas paralelas en el agente | **Hecho** | `orchestrator.py` importa `MCP_ALLOWED_TOOLS` y `WRITE_TOOLS` del catálogo |
 | MCP-5 | Guardia de descubrimiento | **Hecho** | `mcp_client.start()` exige que las herramientas descubiertas coincidan exactamente con el catálogo |
 | MCP-6 | Auditoría de riesgo y confirmación | **Hecho** | `_call_mcp_tool()` y `execute_pending()` registran `tool_risk`, `requires_confirmation`, `idempotency` e `idempotent_replay`; allowlist en `structured_logging.py` |
-| MCP-7 | Pruebas del catálogo y protocolo | **Hecho** | `backend/tests/test_mcp_catalog.py` y `test_mcp_tools.py`; suite `327 passed in 87.24s` |
+| MCP-7 | Pruebas del catálogo y protocolo | **Hecho** | `backend/tests/test_mcp_catalog.py` y `test_mcp_tools.py`; suite `328 passed in 158.05s` |
+| MCP-8 | `sin_dato` tipado en respuestas vacías | **Hecho** | `add_sin_dato()` en `mcp_catalog.py`; 14 herramientas con `returns_no_data=True` devuelven `{"sin_dato": {"code", "message", "period"}}`; prueba de vacío en `test_mcp_tools.py` |
 
-**Pendiente explícito (no cerrado en esta fase):** `sin_dato` tipado en todas
-las respuestas vacías, paridad REST/MCP completa de saneamiento y errores 4xx,
-y pruebas de concurrencia de confirmaciones (Etapas 3 y 6).
+**Pendiente explícito (no cerrado en esta fase):** paridad REST/MCP completa de
+saneamiento y errores 4xx, y pruebas de concurrencia de confirmaciones
+(Etapas 3 y 6).
 
 ## Punto de continuación
 

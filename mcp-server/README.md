@@ -37,6 +37,10 @@ Las herramientas de escritura devuelven `{"status": "requires_confirmation", ...
 si no se pasa `confirm=True`. El backend convierte eso en una acción pendiente que
 la UI muestra al usuario para confirmar. Nunca se mueve dinero real.
 
+Las herramientas de lectura y cálculo que declaran `returns_no_data=True`
+agregan `{"sin_dato": {"code", "message", "period"}}` cuando no hay información;
+nunca devuelven cero o una lista vacía sin tipo.
+
 ## Ejecución
 
 Con el venv del proyecto (donde instalaste `mcp`):

@@ -15,6 +15,41 @@ async def test_get_balance(tmp_db):
 
 
 @pytest.mark.asyncio
+async def test_empty_results_are_typed_sin_dato(tmp_db):
+    from app.core.database import db
+    from tools.finance_tools import (
+        detect_duplicates_impl,
+        get_savings_goals_impl,
+        get_spending_trend_impl,
+        get_transactions_impl,
+    )
+
+    with db() as conn:
+        conn.execute("DELETE FROM transfer_legs")
+        conn.execute("DELETE FROM transactions")
+        conn.execute("DELETE FROM savings_goals")
+
+    transactions = await get_transactions_impl()
+    assert transactions["total_count"] == 0
+    assert transactions["sin_dato"] == {
+        "code": "transactions_empty",
+        "message": "No hay movimientos para los filtros solicitados.",
+        "period": None,
+    }
+
+    goals = await get_savings_goals_impl()
+    assert goals["goals"] == []
+    assert goals["sin_dato"]["code"] == "savings_goals_empty"
+
+    duplicates = await detect_duplicates_impl()
+    assert duplicates["duplicates"] == []
+    assert duplicates["sin_dato"]["code"] == "duplicates_empty"
+
+    trend = await get_spending_trend_impl()
+    assert trend["sin_dato"]["code"] == "spending_trend_empty"
+
+
+@pytest.mark.asyncio
 async def test_get_transactions_filters(tmp_db):
     from tools.finance_tools import get_transactions_impl
     result = await get_transactions_impl(tx_type="expense", limit=10)

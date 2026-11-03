@@ -123,7 +123,12 @@ async def get_monthly_summary_impl(year: int | None = None, month: int | None = 
 async def get_budgets_impl(year: int | None = None, month: int | None = None) -> dict:
     with db() as conn:
         today = reference_today()
-        return finance.budget_overview(conn, year or today.year, month or today.month)
+        overview = finance.budget_overview(conn, year or today.year, month or today.month)
+    return add_sin_dato(
+        overview, not overview["categories"], "budgets_empty",
+        "No hay presupuestos ni gastos registrados en el periodo.",
+        period=overview["month"],
+    )
 
 
 # ---------------------------------------------------------------- temporal tools
@@ -141,7 +146,7 @@ async def get_spending_trend_impl(months: int = 4, category: str | None = None) 
     with db() as conn:
         series = finance.spending_trend(conn, months, category)
     total_first, total_last = series[0]["total"], series[-1]["total"]
-    return {
+    result = {
         "months": months,
         "category": category,
         "series": series,
@@ -149,6 +154,10 @@ async def get_spending_trend_impl(months: int = 4, category: str | None = None) 
                                  money.to_cents(total_first))
                        if total_first else None),
     }
+    return add_sin_dato(
+        result, not any(item["count"] for item in series), "spending_trend_empty",
+        "No hay gastos registrados en los meses consultados.",
+    )
 
 
 @validated_tool("compare_months")
@@ -158,35 +167,52 @@ async def compare_months_impl(month_a: str, month_b: str) -> dict:
     with db() as conn:
         a = finance.monthly_summary(conn, ya, ma)
         b = finance.monthly_summary(conn, yb, mb)
-    return {"month_a": a, "month_b": b,
-            "expense_diff": money.difference(b["expense"], a["expense"])}
+    result = {"month_a": a, "month_b": b,
+              "expense_diff": money.difference(b["expense"], a["expense"])}
+    empty = a["transaction_count"] == 0 and b["transaction_count"] == 0
+    return add_sin_dato(
+        result, empty, "months_empty",
+        "No hay movimientos registrados en ninguno de los dos meses.",
+        period=f"{month_a} vs {month_b}",
+    )
 
 
 @validated_tool("get_weekly_spending")
 async def get_weekly_spending_impl(weeks: int = 4) -> dict:
     with db() as conn:
-        return {"weeks": weeks, "series": finance.weekly_spending(conn, weeks)}
+        series = finance.weekly_spending(conn, weeks)
+    result = {"weeks": weeks, "series": series}
+    return add_sin_dato(
+        result, not any(item["count"] for item in series), "weekly_spending_empty",
+        "No hay gastos registrados en las semanas consultadas.",
+    )
 
 
 @validated_tool("detect_recurring_charges")
 async def detect_recurring_charges_impl() -> dict:
     with db() as conn:
         items = finance.recurring_charges(conn)
-    return {"charges": items,
-            "monthly_total": money.to_pesos(sum(
-                money.to_cents(i["monthly_estimate"]) for i in items))}
+    result = {"charges": items,
+              "monthly_total": money.to_pesos(sum(
+                  money.to_cents(i["monthly_estimate"]) for i in items))}
+    return add_sin_dato(result, not items, "recurring_charges_empty",
+                        "No se detectaron cargos recurrentes.")
 
 
 @validated_tool("detect_duplicates")
 async def detect_duplicates_impl() -> dict:
     with db() as conn:
-        return {"duplicates": finance.detect_duplicates(conn)}
+        duplicates = finance.detect_duplicates(conn)
+    return add_sin_dato({"duplicates": duplicates}, not duplicates,
+                        "duplicates_empty", "No se detectaron cargos duplicados.")
 
 
 @validated_tool("detect_anomalies")
 async def detect_anomalies_impl() -> dict:
     with db() as conn:
-        return {"anomalies": finance.detect_anomalies(conn)}
+        anomalies = finance.detect_anomalies(conn)
+    return add_sin_dato({"anomalies": anomalies}, not anomalies,
+                        "anomalies_empty", "No se detectaron anomalías de gasto.")
 
 
 @validated_tool("project_savings")
@@ -225,7 +251,12 @@ async def budget_vs_actual_impl(year: int | None = None, month: int | None = Non
         today = reference_today()
         overview = finance.budget_overview(conn, year or today.year, month or today.month)
     exceeded = [c for c in overview["categories"] if c["pct"] is not None and c["pct"] > 100]
-    return {**overview, "exceeded_categories": exceeded}
+    result = {**overview, "exceeded_categories": exceeded}
+    return add_sin_dato(
+        result, not overview["categories"], "budget_comparison_empty",
+        "No hay presupuestos ni gastos registrados en el periodo.",
+        period=overview["month"],
+    )
 
 
 # ---------------------------------------------------------------- write tools
