@@ -59,7 +59,12 @@ def ensure_database() -> None:
     """
     global _initialized
     if _initialized and DB_PATH.exists():
-        return
+        try:
+            with db() as conn:
+                if migrate.current_version(conn) == migrate.CURRENT_SCHEMA_VERSION:
+                    return
+        except sqlite3.OperationalError:
+            pass
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     if not _has_tables():
         with db() as conn:

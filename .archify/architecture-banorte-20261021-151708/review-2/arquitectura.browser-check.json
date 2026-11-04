@@ -8,7 +8,7 @@
   "provenance": "current",
   "deliveryReceiptId": "77eb7b98-3654-4432-9ec9-ed1930e0506f",
   "artifact": {
-    "path": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\docs\\arquitectura.html",
+    "path": ".\\docs\\arquitectura.html",
     "sha256": "f9fec24805e41277c6c3296ae1d5a5850af9af72e6e53b2c5f22c87328d4c384",
     "bytes": 828357
   },
@@ -26,11 +26,11 @@
       "severity": "error",
       "message": "Browser cleanup could not safely finish; inspect the reported retained path.",
       "subject": {
-        "artifact": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\docs\\arquitectura.html"
+        "artifact": ".\\docs\\arquitectura.html"
       },
       "evidence": {
-        "reason": "Chrome did not exit; retained temporary profile \"C:\\Users\\jonna\\AppData\\Local\\Temp\\archify-visual-check-profile-3iQnOa\".",
-        "retainedDirectory": "C:\\Users\\jonna\\AppData\\Local\\Temp\\archify-visual-check-profile-3iQnOa"
+        "reason": "Chrome did not exit; retained temporary profile \"<temp>\\archify-visual-check-profile-3iQnOa\".",
+        "retainedDirectory": "<temp>\\archify-visual-check-profile-3iQnOa"
       },
       "supportedFixes": [
         "resolve the reported process or filesystem failure; verify directory ownership before manual cleanup"
@@ -61,9 +61,9 @@
     "contactSheet": null
   },
   "sidecars": {
-    "directory": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\.archify\\architecture-banorte-20261021-151708\\review-2",
+    "directory": ".\\.archify\\architecture-banorte-20261021-151708\\review-2",
     "receipt": "arquitectura.browser-check.json",
     "files": []
   },
-  "error": "Chrome did not exit; retained temporary profile \"C:\\Users\\jonna\\AppData\\Local\\Temp\\archify-visual-check-profile-3iQnOa\"."
+  "error": "Chrome did not exit; retained temporary profile \"<temp>\\archify-visual-check-profile-3iQnOa\"."
 }

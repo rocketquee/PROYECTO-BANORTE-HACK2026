@@ -349,7 +349,9 @@ UI_SCHEMA_VERSION = "1.0"
 
 class PendingAction(Strict):
     id: str
-    action: Literal["create_savings_goal"]
+    action: Literal[
+        "create_savings_goal", "update_savings_goal", "apply_savings_contribution",
+    ]
     params: dict
     description: str
 

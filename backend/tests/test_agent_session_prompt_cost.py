@@ -3,6 +3,7 @@ import asyncio
 import logging
 
 import pytest
+from pydantic import ValidationError
 
 from app.core import config
 from app.schemas.api import ChatRequest, ConfirmRequest
@@ -26,7 +27,8 @@ def clean_sessions():
 
 def test_chat_requests_get_distinct_sessions_by_default():
     assert ChatRequest(message="hola").session_id != ChatRequest(message="hola").session_id
-    assert ConfirmRequest(action_id="x").session_id is None
+    with pytest.raises(ValidationError):
+        ConfirmRequest(action_id="pa_12345678")
 
 
 def test_session_state_isolated_between_conversations(monkeypatch):
@@ -217,7 +219,7 @@ def test_goal_name_with_alert_word_resolves_existing_goal(monkeypatch):
     assert response.mode == "demo"
 
 
-def test_new_goal_requires_a_declared_name(monkeypatch):
+def test_new_goal_requires_a_declared_name(tmp_db, monkeypatch):
     async def call_tool(name, _arguments):
         assert name == "get_savings_goals"
         return {"goals": []}

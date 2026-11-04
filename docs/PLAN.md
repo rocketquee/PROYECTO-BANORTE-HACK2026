@@ -83,12 +83,12 @@ La Etapa 1 (modelo de dominio, centavos, migraciones, contrato UI, pruebas base)
 
 | ID | Tarea | Estado | Evidencia / archivo | Criterio de cierre |
 |---|---|---|---|---|
-| 4.1 | Verificador de fundamentación | Pendiente | `live_response` usa el texto del proveedor sin contrastarlo con `tool_results` (`orchestrator.py:2092-2208`) | Toda cifra del texto debe existir en una herramienta; si no, se sustituye por respuesta determinista |
-| 4.2 | Minimización de datos antes del proveedor | Pendiente | `live_response` envía resultados de `get_savings_goals` al proveedor; la base real contiene una meta con nombre de persona | Los nombres y datos no necesarios se redactan antes de salir; prueba de fuga |
-| 4.3 | Inventario y limpieza de PII | Pendiente | Meta 4 creada 2026-10-25; 9 archivos versionados contienen rutas personales de Windows | Base de entrega sin PII; repositorio sin rutas personales; política documentada |
-| 4.4 | Confirmaciones con vigencia y alcance | Pendiente | `_PENDING` es global y sin expiración (`orchestrator.py:2278-2304`); el token de compra vive en memoria del proceso | Token de un solo uso, TTL, ligado a sesión/trace y probado contra replay |
-| 4.5 | Autenticación si se publica | Pendiente | No hay `Depends`/`Security` en `routes.py`; escrituras y `/agent/confirm` quedan abiertas | Si hay despliegue público: autenticación, autorización y CSRF; si es local, declararlo y bloquear el despliegue |
-| 4.6 | Inyección de prompt con datos | Pendiente | Resultados de herramientas se envían como mensajes al modelo; las guardas actuales son regex de entrada | Suite de inyección con descripciones/categorías maliciosas; el modelo no gana herramientas ni escrituras |
+| 4.1 | Verificador de fundamentación | **Hecho** | `ground_check()` extrae cifras y las contrasta con `tool_results` (`orchestrator.py:262-280`); la integración corrige `sin_dato`, reintenta una vez y sustituye por respuesta determinista (`orchestrator.py:2486-2533,2556`); pruebas en `test_agent_grounding.py:72-108` | Toda cifra del texto debe existir en una herramienta; si no, se sustituye por respuesta determinista |
+| 4.2 | Minimización de datos antes del proveedor | **Hecho** | `_mask_tool_result()` redacta nombres, correos, teléfonos, números largos y etiquetas sensibles antes de enviar el resultado al modelo (`orchestrator.py:322-336,2447`); prueba de fuga en `test_agent_grounding.py:167-185` | Los nombres y datos no necesarios se redactan antes de salir; prueba de fuga |
+| 4.3 | Inventario y limpieza de PII | **Hecho** | 11 archivos versionados saneados (`.archify/...`, `docs/arquitectura.*.json`, `docs/AUDITORIA-FASE1*.md`, `docs/DATA-DICTIONARY.md`, `docs/bitacora.../Pendientes.md`); `backend/data/banorte.db` y respaldos regenerados sin PII; guardia `test_no_pii.py:41-77`; `git grep` sin coincidencias | Base de entrega sin PII; repositorio sin rutas personales; política documentada |
+| 4.4 | Confirmaciones con vigencia y alcance | **Hecho** | Store persistente con hash, TTL de 30 min, binding sesión/principal/trace, consumo atómico y replay (`confirmations.py:15,33,42,81,131,143`); tabla y migración `confirm-v1` (`seed.py:119-133`, `migrate.py:121-122,478-484`); `register_pending`/`execute_pending` (`orchestrator.py:2668-2707`); error tipado a 410/409 (`routes.py:242-246`); `session_id` obligatorio (`api.py:126-128`); 9 pruebas (`test_confirmations.py:35-170`) | Token de un solo uso, TTL, ligado a sesión/trace y probado contra replay |
+| 4.5 | Autenticación si se publica | **Hecho** | Cookie de sesión firmada, PBKDF2 y CSRF de doble envío (`auth.py:54-257`); sesiones persistentes y migración `auth-v1` (`seed.py:135-146`, `migrate.py:43,487-500`); login/me/logout con rate limit (`routes.py:49,109-149`, `api.py:131-133`); middleware fail-closed y CORS con credenciales (`main.py:30,62-90`); frontend `AuthGate` y `credentials: include` (`api.ts:24-75`, `AuthGate.tsx:15-75`, `layout.tsx:18`); 5 pruebas (`test_auth.py:29-138`) | Local sigue sin auth; público exige auth, cookie Secure y CSRF; sin secretos en repo |
+| 4.6 | Inyección de prompt con datos | **Hecho** | Proveedor falso recibe datos maliciosos en `category`/`description` y luego intenta `create_savings_goal` con `confirm=true`; el orquestador fuerza `confirm=False` y solo registra confirmación (`test_agent_injection.py:82-123`); herramienta fuera de allowlist se rechaza sin llamar MCP (`test_agent_injection.py:126-147`); prueba demo ya no es vacua (`test_bugfixes.py:210-218`); guardas `_mask_tool_result`/allowlist (`orchestrator.py:322-336,2606-2608`) | El modelo no gana herramientas ni escrituras; la inyección queda como dato y requiere confirmación explícita |
 
 ---
 
@@ -228,6 +228,97 @@ $pytestBase = Join-Path $env:TEMP ("banorte-fase-b-" + [guid]::NewGuid().ToStrin
 Set-Location ..\frontend
 npm run build
 ```
+
+**Re-verificación de cierre (2026-11-03):** no había lógica pendiente de Fase B;
+no se reescribió código. Se confirmó por lectura y ejecución:
+
+| ID | Requisito | Estado | Evidencia de la re-verificación |
+|---|---|---|---|
+| B-1 | Aislamiento por sesión | Verificado | `session_store.py:12-15` define TTL 30 min y máximo 200; `session_store.py:37-47` expira y descarta la sesión más antigua; `session_store.py:18-33` contiene todas las claves de sesión; `schemas/api.py:117-120` genera `session_id`; `AgentView.tsx:65,181` lo envía en chat y confirmación. `test_agent_session_prompt_cost.py:32-72` cubre aislamiento, TTL y descarte. |
+| B-2 | Prompt en archivo propio | Verificado | `system_prompt.md:1` declara `1.0.0`; `prompt_loader.py:10-22,36-65` exige versión y secciones; `orchestrator.py:47-50` carga al importar; `orchestrator.py:2418-2426` registra `prompt_version`; `test_agent_session_prompt_cost.py:75-109` prueba archivo ausente/malformado y versión en traza. |
+| B-3 | Límite de costo | Verificado | `providers.py:29-38` expone `prompt_tokens`/`completion_tokens`; `config.py:25-60,95-96` define `AGENT_MAX_COST_USD=0.05` y precios por modelo; `orchestrator.py:2187-2206` acumula y corta; `orchestrator.py:2281-2293` estima; `test_agent_session_prompt_cost.py:112-186` prueba corte con respaldo y ausencia de `usage`. |
+| B-4 | Orden de resolución | Verificado | `orchestrator.py:417-420` resuelve referencias a metas antes de alertas; `test_agent_session_prompt_cost.py:189-217` prueba «Fondo de emergencia»; `test_agent_session_prompt_cost.py:220-237` prueba que sin nombre no hay acción y con nombre declarado queda pendiente de confirmación. |
+
+Resultado de la puerta: `339 passed in 86.22s`; `npm run build` exit 0; sin
+`xfail` ni `skip` en `backend/tests`.
+
+## Fase C — Fundamentación, `sin_dato` y minimización (2026-11-03)
+
+| ID | Requisito | Estado | Evidencia |
+|---|---|---|---|
+| C-1 | Verificador de fundamentación | **Hecho** | `ground_check()` extrae cifras del texto y las contrasta con todos los números de `tool_results`, incluidas diferencias y porcentajes calculados con `money.py` (`orchestrator.py:262-280`). Si falla, `_request_grounding_retry()` pide una sola corrección (`orchestrator.py:2556-2589`); si persiste, `_grounding_fallback()` sustituye el texto (`orchestrator.py:312-319`). La traza registra `grounding_extracted`, `grounding_unsupported` y `grounding_blocked` (`orchestrator.py:2501-2533`). |
+| C-2 | `sin_dato` explícito, sin ceros inventados | **Hecho** | `_correct_sin_dato()` detecta `sin_dato` en cualquier resultado anidado y sustituye ceros o respuestas vacías por el mensaje tipado de la herramienta (`orchestrator.py:303-309`). Un cero real sin `sin_dato` sigue permitido. Pruebas de cero con y sin `sin_dato` en `test_agent_grounding.py:111-164`. |
+| C-3 | Minimización antes del proveedor | **Hecho** | `_mask_tool_result()` copia el resultado y redacta claves sensibles (`name`, `customer`, `email`, `phone`, `card`, `account`, `token`, etc.) y cadenas con NIP, correo o números largos (`orchestrator.py:322-336`); se aplica justo antes de `tool_result_message` (`orchestrator.py:2447`). El resultado completo se conserva para la UI y la fundamentación. Prueba de fuga en `test_agent_grounding.py:167-185`. |
+| C-4 | Registros sin PII | **Hecho** | `mask_pii()` redacta correos, teléfonos, números largos y etiquetas sensibles (`structured_logging.py:39-47`); el formateador lo aplica a los campos permitidos (`structured_logging.py:68-71`). Prueba en `test_observability.py:51-70`. |
+| C-5 | Cobertura de desarrollo y retención | **Hecho** | `GROUNDING_CASES` contiene 10 casos; 4 son retención (40 %, por encima del 30 % exigido): `test_agent_grounding.py:188-239`. Resultado: 10/10 en total y 4/4 en retención. |
+
+**Puerta de salida Fase C:** `358 passed in 154.13s` con
+`..\.venv\Scripts\python.exe -m pytest tests -q --basetemp $pytestBase`;
+`npm run build` en `frontend` terminó con exit 0; reconciliación
+`{"ok": true, "failures": 0, "invariant_count": 13, "failed": []}`.
+
+**Cierre 4.3 (2026-11-03):** se sanearon los 11 archivos versionados con
+rutas personales y se regeneró la base local desde la semilla sintética. La
+guardia `test_no_pii.py:41-77` revisa los archivos versionados y las bases
+locales; el scan manual terminó en `PII_SCAN_CLEAN`. Evidencia:
+
+- `pytest tests/test_no_pii.py -q --basetemp <temp>` → `2 passed in 8.97s`.
+- Base regenerada: metas `Fondo de emergencia`, `Viaje a Japón` y `Enganche
+  del auto`; `pii_name_count=0`; respaldos locales eliminados.
+- Puerta 4.3: `360 passed in 258.02s`; `npm run build` en `frontend` con exit
+  0; reconciliación `{"ok": true, "invariant_count": 13, "failures": 0}`.
+
+**Cierre 4.4 (2026-11-03):** las confirmaciones dejaron de vivir en memoria y
+ahora se persisten en SQLite con token opaco (solo se guarda su SHA-256), TTL de
+30 minutos, vínculo a sesión/principal/trace, consumo atómico con
+`BEGIN IMMEDIATE`, replay del resultado y liberación si la herramienta falla.
+La migración `confirm-v1` crea `pending_confirmations`; el guardián de esquema la
+exige al arrancar. Evidencia:
+
+- `pytest tests/test_confirmations.py ... tests/test_bugfixes.py -q --basetemp
+  <temp>` → `236 passed in 171.45s`.
+- Puerta 4.4: `369 passed in 229.96s`; `npm run build` en `frontend` con exit 0;
+  reconciliación `{"ok": true, "invariant_count": 13, "failures": 0}`.
+- Base local migrada a `confirm-v1` con `pending_confirmations` presente,
+  `pii_name_count=0` y respaldos locales eliminados.
+- `git grep` de rutas personales → `PII_SCAN_CLEAN`; `git diff --check` →
+  `DIFF_CHECK_OK`.
+- Se corrigió `current_version` para ordenar por `rowid DESC` (`migrate.py:90`,
+  `routes.py:88`), de modo que la versión vigente no dependa del orden
+  lexicográfico de los nombres.
+
+**Cierre 4.5 (2026-11-03):** la API quedó protegida por sesión de administrador
+con cookie `HttpOnly` firmada, hash PBKDF2 en entorno, sesiones persistentes y
+CSRF de doble envío. `BANORTE_PUBLIC=1` sin auth o sin cookie `Secure` impide
+arrancar; el modo local queda explícitamente sin auth. Evidencia:
+
+- `pytest tests/test_auth.py -q --basetemp <temp>` → `5 passed in 6.11s`.
+- Puerta 4.5: `374 passed in 84.38s`; `npm test` → `9 passed`; `npm run build`
+  en `frontend` con exit 0; reconciliación `{"ok": true, "invariant_count": 13,
+  "failures": 0}`.
+- Base local migrada a `auth-v1` con `auth_sessions` presente y respaldos
+  eliminados; `PII_SCAN_CLEAN`; `DIFF_CHECK_OK`; `NO_XFAIL_OR_SKIP`.
+- Se corrigió el orden de middleware para que CORS aplique también a 401/403
+  (`main.py:62-90`) y `ensure_database` revalida la versión antes de saltar la
+  migración (`database.py:62-68`).
+
+**Cierre 4.6 (2026-11-03):** la suite de inyección usa un proveedor falso que
+recibe datos maliciosos en `category`/`description` y simula que el modelo
+intenta escribir o llamar una herramienta fuera de la lista. El orquestador
+fuerza `confirm=False`, registra una confirmación pendiente y rechaza la
+herramienta no permitida antes de tocar MCP. Evidencia:
+
+- `pytest tests/test_agent_injection.py -q --basetemp <temp>` → `2 passed in
+  1.36s`.
+- `pytest tests/test_bugfixes.py::TestBug004PromptInjection -q --basetemp
+  <temp>` → `42 passed in 11.35s`.
+- Puerta 4.6: `376 passed in 83.64s`; `npm test` → `9 passed`; `npm run build`
+  en `frontend` con exit 0; reconciliación `{"ok": true, "invariant_count": 13,
+  "failures": 0}`; `PII_SCAN_CLEAN`; `DIFF_CHECK_OK`; `NO_XFAIL_OR_SKIP`.
+- Se sustituyó la aserción vacua `or True` por comprobaciones del texto visible
+  y de los parámetros pendientes (`test_bugfixes.py:210-218`).
+
+**Alcance:** esta fase cierra 4.1, 4.2, 4.3, 4.4, 4.5 y 4.6. Etapa 4 completa.
 
 ## Punto de continuación
 

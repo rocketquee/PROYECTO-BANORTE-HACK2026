@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.routes import router
-from app.core import config, database
+from app.core import auth, config, database
 from app.core.structured_logging import configure_application_logging
 from app.services.mcp_client import mcp_client
 
@@ -27,6 +27,7 @@ GENERIC_ERROR = "No pude hacer eso. ¿Lo intentamos de otra forma?"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    auth.validate_runtime_config()
     database.ensure_db()
     try:
         await mcp_client.start()
@@ -57,22 +58,33 @@ app = FastAPI(
     openapi_url=openapi_url,
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[config.FRONTEND_ORIGIN],
-    allow_credentials=False,
-    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
-    allow_headers=["*"],
-)
-
-
 @app.middleware("http")
-async def hide_server_header(request: Request, call_next):
+async def security_headers_and_auth(request: Request, call_next):
+    if request.url.path.startswith("/api"):
+        try:
+            request.state.principal = auth.enforce_request(request)
+        except auth.AuthError as exc:
+            response = JSONResponse(
+                status_code=exc.status_code, content={"detail": exc.message},
+            )
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            return response
     response = await call_next(request)
     if "server" in response.headers:
         del response.headers["server"]
     response.headers["X-Content-Type-Options"] = "nosniff"
     return response
+
+
+# CORS is registered after the auth middleware so its headers are present even
+# on 401/403 responses.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[config.FRONTEND_ORIGIN],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
+    allow_headers=["Content-Type", "X-CSRF-Token"],
+)
 
 
 @app.exception_handler(Exception)

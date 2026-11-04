@@ -185,7 +185,7 @@ def test_fresh_install_registers_all_versions(tmp_db, tmp_path):
                 for r in conn.execute("SELECT * FROM schema_migrations")}
     finally:
         conn.close()
-    assert set(rows) == {"ledger-v1", "ledger-v2"}
+    assert set(rows) == {"ledger-v1", "ledger-v2", "confirm-v1", "auth-v1"}
     assert all(r.get("mode") == "fresh_install" for r in rows.values())
     # Y el runner no encuentra nada pendiente sobre esa base.
     report = migrate.run_pending(registry)

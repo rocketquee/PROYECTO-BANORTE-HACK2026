@@ -27,7 +27,6 @@ def new_session_state() -> dict[str, Any]:
         "last_amount": None,
         "last_contribution_amount": None,
         "pending_actions": {},
-        "pending_confirmations": {},
         "purchase_plans": {},
         "contribution_states": {},
         "_last_seen": time.monotonic(),
@@ -53,6 +52,7 @@ def get_session(session_id: str) -> dict[str, Any]:
     if state is None:
         state = new_session_state()
         _SESSIONS[session_id] = state
+    state["session_id"] = session_id
     state["_last_seen"] = now
     _prune(now)
     return state
@@ -69,22 +69,6 @@ def get_existing_session(session_id: str) -> dict[str, Any] | None:
     if state is not None:
         state["_last_seen"] = time.monotonic()
     return state
-
-
-def find_confirmation(action_id: str, session_id: str | None = None) -> tuple[dict[str, Any], dict[str, Any]] | None:
-    """Busca una confirmación por sesión o, si no se indica, en el almacén."""
-    if session_id is None:
-        prune_sessions()
-    candidates = (
-        ((session_id, get_session(session_id)),) if session_id is not None
-        else _SESSIONS.items()
-    )
-    for sid, state in candidates:
-        data = state["pending_confirmations"].get(action_id)
-        if data is not None:
-            state["_last_seen"] = time.monotonic()
-            return state, data
-    return None
 
 
 def clear() -> None:

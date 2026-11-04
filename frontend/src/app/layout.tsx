@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import AuthGate from "@/components/AuthGate";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,7 +14,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       {/* The app owns the viewport height (100dvh) and the page itself never
           scrolls: only the message list, the content panel and the history
           list scroll internally (UI-1). */}
-      <body className="h-[100dvh] overflow-hidden">{children}</body>
+      <body className="h-[100dvh] overflow-hidden">
+        <AuthGate>{children}</AuthGate>
+      </body>
     </html>
   );
 }

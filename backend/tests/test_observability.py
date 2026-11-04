@@ -46,3 +46,25 @@ def test_structured_logs_sanitize_untrusted_event_and_trace_values():
     assert event["event"] == "log_event"
     assert "trace_id" not in event
     assert "9876" not in json.dumps(event)
+
+
+def test_structured_logs_mask_pii_in_allowed_detail_field():
+    record = logging.LogRecord(
+        name="banorte.agent",
+        level=logging.INFO,
+        pathname=__file__,
+        lineno=1,
+        msg="agent_detail",
+        args=(),
+        exc_info=None,
+    )
+    record.trace_id = "abcdef0123456789abcdef0123456789"
+    record.detail = "contacto ana@example.com o 5512345678"
+
+    event = json.loads(StructuredJsonFormatter().format(record))
+
+    assert event["trace_id"] == "abcdef0123456789abcdef0123456789"
+    assert "ana@example.com" not in event["detail"]
+    assert "5512345678" not in event["detail"]
+    assert "[correo]" in event["detail"]
+    assert "[teléfono]" in event["detail"]

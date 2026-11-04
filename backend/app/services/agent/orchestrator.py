@@ -21,6 +21,7 @@ import time
 import unicodedata
 import uuid
 from datetime import date
+from decimal import Decimal, InvalidOperation
 
 from pydantic import ValidationError
 
@@ -28,12 +29,13 @@ from app.core import config
 from app.core import money
 from app.core.seed import reference_today
 from app.core.database import db
+from app.core.structured_logging import mask_pii
 from app.schemas.api import ChatRequest, UIEventIn
 from app.schemas.ui import ChatResponse, CreditParams, CreditResult, CreditSimulatorSpec, \
     PendingAction, PurchaseOption, PurchasePlanSpec, SavingsContributionCandidate, \
     SavingsContributionSpec, ScheduleRow
 from app.services import finance
-from app.services.agent import composer, session_store
+from app.services.agent import composer, confirmations, session_store
 from app.services.agent.prompt_loader import load_system_prompt
 from app.services.agent.providers import ProviderError, ProviderTurn, get_provider
 from app.services.mcp_client import MCPClientError, mcp_client
@@ -121,6 +123,216 @@ _EMAIL_ADDRESS = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGN
 def contains_sensitive_data(text: str) -> bool:
     return bool(_SENSITIVE_LABEL.search(text) or _LONG_NUMBER.search(text)
                 or _ACCOUNT_NUMBER.search(text) or _EMAIL_ADDRESS.search(text))
+
+
+_TEXT_NUMBER = re.compile(
+    r"(?<![\w])[-+]?\s*\$?\s*\d(?:[\d.,]*\d)?\s*(?:%|(?:mil|k|m)\b)?",
+    re.IGNORECASE,
+)
+_SENSITIVE_KEY = re.compile(
+    r"(?:^|_)(?:nip|cvv|cvc|password|pass|token|secret|email|correo|phone|"
+    r"telefono|tel|card|tarjeta|account|cuenta|clabe|rfc|curp|address|"
+    r"direccion|name|nombre|holder|titular|customer|cliente|number|numero|"
+    r"pan|iban|swift|ssn)(?:_|$)",
+    re.IGNORECASE,
+)
+_NO_DATA_MARKERS = (
+    "sin dato", "sin datos", "no hay", "no se encontr", "no se detect",
+    "no registr", "no disponible", "no cuenta", "no tiene", "ningun",
+    "ninguna", "vacio", "vacia", "no existen",
+)
+_ZERO_FIGURE = re.compile(
+    r"(?<![\d.,])\$?\s*0(?:[.,]0+)?\s*(?:%|pesos|mxn)?(?!\d|[.,]\d)",
+    re.IGNORECASE,
+)
+
+
+def _decimal_candidates(token: str) -> set[Decimal]:
+    raw = token.strip().lower().replace("$", "").replace("%", "").strip()
+    multiplier = Decimal(1)
+    for suffix, factor in (("mil", Decimal(1000)), ("k", Decimal(1000)),
+                           ("m", Decimal(1000000))):
+        if raw.endswith(suffix):
+            raw = raw[:-len(suffix)].strip()
+            multiplier = factor
+            break
+    raw = raw.replace(" ", "")
+    if not raw:
+        return set()
+    sign = Decimal(-1) if raw.startswith("-") else Decimal(1)
+    raw = raw.lstrip("+-")
+    if not raw:
+        return set()
+    forms: set[str] = set()
+    if "," in raw and "." in raw:
+        if raw.rfind(",") > raw.rfind("."):
+            forms.add(raw.replace(".", "").replace(",", "."))
+        else:
+            forms.add(raw.replace(",", ""))
+    elif "," in raw:
+        forms.add(raw.replace(",", ""))
+        if raw.count(",") == 1 and not raw.startswith("0,"):
+            forms.add(raw.replace(",", "."))
+    elif "." in raw:
+        forms.add(raw)
+        if raw.count(".") == 1 and not raw.startswith("0."):
+            forms.add(raw.replace(".", ""))
+    else:
+        forms.add(raw)
+    values: set[Decimal] = set()
+    for form in forms:
+        try:
+            values.add(sign * Decimal(form) * multiplier)
+        except InvalidOperation:
+            continue
+    return values
+
+
+def _extract_text_numbers(text: str) -> list[tuple[str, set[Decimal]]]:
+    return [
+        (match.group(0), _decimal_candidates(match.group(0)))
+        for match in _TEXT_NUMBER.finditer(text)
+    ]
+
+
+def _collect_numbers(value, found: set[Decimal]) -> None:
+    if isinstance(value, dict):
+        for item in value.values():
+            _collect_numbers(item, found)
+    elif isinstance(value, (list, tuple)):
+        found.add(Decimal(len(value)))
+        for item in value:
+            _collect_numbers(item, found)
+    elif isinstance(value, bool):
+        return
+    elif isinstance(value, (int, float, Decimal)):
+        try:
+            found.add(Decimal(str(value)))
+        except InvalidOperation:
+            return
+    elif isinstance(value, str):
+        for _raw, candidates in _extract_text_numbers(value):
+            found.update(candidates)
+
+
+def _derived_numbers(values: set[Decimal]) -> set[Decimal]:
+    """Valores que el modelo puede obtener con las operaciones de `money.py`."""
+    ordered = sorted(values)
+    if len(ordered) > 200:
+        return set()
+    derived: set[Decimal] = set()
+    for first in ordered:
+        for second in ordered:
+            if first == second:
+                continue
+            try:
+                difference = Decimal(str(money.difference(float(first), float(second))))
+                derived.add(difference)
+                derived.add(abs(difference))
+            except (money.MoneyError, InvalidOperation, ValueError, TypeError):
+                pass
+            if first >= 0 and second > 0:
+                try:
+                    derived.add(Decimal(str(money.pct(
+                        money.to_cents(float(first)), money.to_cents(float(second)),
+                    ))))
+                except (money.MoneyError, InvalidOperation, ValueError, TypeError):
+                    pass
+    return derived
+
+
+def _allowed_numbers(tool_results: dict) -> set[Decimal]:
+    values: set[Decimal] = set()
+    _collect_numbers(tool_results, values)
+    if values:
+        values.update(_derived_numbers(values))
+    return values
+
+
+def _is_ignorable_number(raw: str, candidates: set[Decimal]) -> bool:
+    stripped = raw.strip()
+    if "$" in stripped or "%" in stripped:
+        return False
+    return bool(re.fullmatch(r"\d{4}", stripped)) and any(
+        1900 <= value <= 2100 and value == value.to_integral_value()
+        for value in candidates
+    )
+
+
+def ground_check(text: str, tool_results: dict) -> dict:
+    """Comprueba que toda cifra financiera del texto exista en los resultados."""
+    allowed = _allowed_numbers(tool_results)
+    extracted: list[str] = []
+    unsupported: list[str] = []
+    for raw, candidates in _extract_text_numbers(text):
+        extracted.append(raw)
+        if not candidates or _is_ignorable_number(raw, candidates):
+            continue
+        if candidates.isdisjoint(allowed):
+            unsupported.append(raw)
+    return {
+        "ok": not unsupported,
+        "extracted": extracted,
+        "unsupported": unsupported,
+    }
+
+
+def _sin_dato_messages(value) -> list[str]:
+    messages: list[str] = []
+
+    def walk(item) -> None:
+        if isinstance(item, dict):
+            empty = item.get("sin_dato")
+            if isinstance(empty, dict) and isinstance(empty.get("message"), str):
+                messages.append(empty["message"])
+            for child in item.values():
+                walk(child)
+        elif isinstance(item, (list, tuple)):
+            for child in item:
+                walk(child)
+
+    walk(value)
+    return list(dict.fromkeys(messages))
+
+
+def _mentions_no_data(text: str) -> bool:
+    normalized = _norm(text)
+    return any(marker in normalized for marker in _NO_DATA_MARKERS)
+
+
+def _correct_sin_dato(text: str, tool_results: dict) -> str:
+    messages = _sin_dato_messages(tool_results)
+    if not messages:
+        return text
+    if _mentions_no_data(text) and not _ZERO_FIGURE.search(text):
+        return text
+    return " ".join(messages)
+
+
+def _grounding_fallback(tool_results: dict) -> str:
+    messages = _sin_dato_messages(tool_results)
+    if messages:
+        return " ".join(messages)
+    return (
+        "No pude verificar todas las cifras con los datos consultados. "
+        "Revisa los resultados disponibles en pantalla."
+    )
+
+
+def _mask_tool_result(value):
+    if isinstance(value, dict):
+        masked = {}
+        for key, item in value.items():
+            if _SENSITIVE_KEY.search(str(key)):
+                masked[key] = "********"
+            else:
+                masked[key] = _mask_tool_result(item)
+        return masked
+    if isinstance(value, (list, tuple)):
+        return [_mask_tool_result(item) for item in value]
+    if isinstance(value, str) and contains_sensitive_data(value):
+        return "********"
+    return value
 
 
 def _conversation_response(intent: str, text: str = "") -> ChatResponse:
@@ -1104,7 +1316,8 @@ def _declared_goal_name(text: str) -> str | None:
     return None
 
 
-async def _demo_savings(text: str, session: dict | None = None) -> ChatResponse:
+async def _demo_savings(text: str, session: dict | None = None,
+                        trace_id: str | None = None) -> ChatResponse:
     session = session or session_store.get_session("__internal__")
     goals = await mcp_client.call("get_savings_goals", {})
     amount = extract_amount(text)
@@ -1119,13 +1332,13 @@ async def _demo_savings(text: str, session: dict | None = None) -> ChatResponse:
             )
         deadline = composer.default_savings_deadline()
         pending = PendingAction(
-            id=f"pa_{uuid.uuid4().hex[:12]}",
+            id=confirmations.new_action_id(),
             action="create_savings_goal",
             params={"name": name, "target_amount": amount, "deadline": deadline},
             description=(f"Crearás la meta {name} por {composer.money(amount)} con límite "
                          f"para el {composer.long_date(deadline)}. ¿Confirmas?"),
         )
-        register_pending(pending, session)
+        register_pending(pending, session, trace_id=trace_id)
         ui = composer.savings_goal_form_ui(name=name, amount=amount, deadline=deadline)
         message = (f"Con gusto te ayudo a ahorrar {composer.money(amount)}. Revisé tus metas "
                    "actuales y preparé el formulario: ajusta nombre, importe y fecha límite, y "
@@ -2051,7 +2264,7 @@ async def demo_response(req: ChatRequest, trace_id: str | None = None,
     if intent == "movements":
         return await _demo_movements(text)
     if intent == "savings":
-        return await _demo_savings(text, session)
+        return await _demo_savings(text, session, trace_id=trace_id)
     if intent == "savings_contribution":
         return await _demo_savings_contribution(
             text, trace_id or uuid.uuid4().hex, session=session,
@@ -2218,11 +2431,11 @@ async def live_response(req: ChatRequest, trace_id: str | None = None,
                 if (call.name in WRITE_TOOLS
                         and result.get("status") == "requires_confirmation"):
                     pending = PendingAction(
-                        id=f"pa_{uuid.uuid4().hex[:12]}", action=call.name,
+                        id=confirmations.new_action_id(), action=call.name,
                         params=result.get("params", {}),
                         description=result.get("message", "Confirmar cambio en metas de ahorro."),
                     )
-                    register_pending(pending, session)
+                    register_pending(pending, session, trace_id=trace_id)
                 tool_names.append(call.name)
                 if intent == "purchase_plan" and call.name == "calculate_credit_simulation":
                     months = args.get("months")
@@ -2231,7 +2444,8 @@ async def live_response(req: ChatRequest, trace_id: str | None = None,
                 else:
                     tool_results[call.name] = result
                 messages.append(provider.tool_result_message(
-                    {"id": call.id, "name": call.name, "arguments": call.arguments}, result,
+                    {"id": call.id, "name": call.name, "arguments": call.arguments},
+                    _mask_tool_result(result),
                 ))
             logger.info(
                 "agent_step_complete",
@@ -2270,6 +2484,53 @@ async def live_response(req: ChatRequest, trace_id: str | None = None,
         response.tools_used = list(dict.fromkeys([*tool_names, *response.tools_used]))
         return response
 
+    final_text = _correct_sin_dato(final_text, tool_results)
+    grounding = ground_check(final_text, tool_results)
+    if not grounding["ok"]:
+        corrected_text = await _request_grounding_retry(
+            provider, messages, final_text, system_prompt, trace_id, step,
+        )
+        if corrected_text is not None:
+            corrected_text = _correct_sin_dato(corrected_text, tool_results)
+            retry_grounding = ground_check(corrected_text, tool_results)
+            if retry_grounding["ok"]:
+                final_text = corrected_text
+            grounding = retry_grounding
+        if not grounding["ok"]:
+            final_text = _grounding_fallback(tool_results)
+            logger.warning(
+                "agent_grounding_blocked",
+                extra={
+                    "trace_id": trace_id, "step": step,
+                    "grounding_extracted": len(grounding["extracted"]),
+                    "grounding_unsupported": mask_pii(" ".join(grounding["unsupported"])),
+                    "grounding_blocked": True,
+                    "sin_dato": bool(_sin_dato_messages(tool_results)),
+                },
+            )
+        else:
+            logger.info(
+                "agent_grounding_corrected",
+                extra={
+                    "trace_id": trace_id, "step": step,
+                    "grounding_extracted": len(grounding["extracted"]),
+                    "grounding_unsupported": 0,
+                    "grounding_blocked": False,
+                    "sin_dato": bool(_sin_dato_messages(tool_results)),
+                },
+            )
+    else:
+        logger.info(
+            "agent_grounding_ok",
+            extra={
+                "trace_id": trace_id, "step": step,
+                "grounding_extracted": len(grounding["extracted"]),
+                "grounding_unsupported": 0,
+                "grounding_blocked": False,
+                "sin_dato": bool(_sin_dato_messages(tool_results)),
+            },
+        )
+
     uis = _ui_from_results(tool_results)
     return ChatResponse(
         message=final_text or "Listo, revisa los resultados en pantalla.",
@@ -2291,6 +2552,41 @@ def _estimate_cost(usage, provider) -> float:
         usage.prompt_tokens * prices["input"]
         + usage.completion_tokens * prices["output"]
     )
+
+
+async def _request_grounding_retry(provider, messages: list[dict], final_text: str,
+                                   system_prompt: str, trace_id: str,
+                                   step: int) -> str | None:
+    retry_messages = [
+        *messages,
+        {"role": "assistant", "content": final_text},
+        {
+            "role": "user",
+            "content": (
+                "Corrige la respuesta anterior. Usa solo cifras presentes en los "
+                "resultados de herramientas; no inventes importes, porcentajes ni ceros. "
+                "Si falta un dato, dilo sin cifra. Responde breve y en español."
+            ),
+        },
+    ]
+    try:
+        raw = await asyncio.wait_for(
+            provider.chat_with_tools(system_prompt, retry_messages, []),
+            timeout=config.AI_TIMEOUT_SECONDS,
+        )
+        if not isinstance(raw, dict):
+            return None
+        turn = ProviderTurn.model_validate(raw)
+        if turn.tool_calls:
+            return None
+        return turn.content or ""
+    except (asyncio.TimeoutError, ProviderError, ValidationError, ValueError, TypeError) as exc:
+        logger.warning(
+            "agent_grounding_retry_failed",
+            extra={"trace_id": trace_id, "step": step,
+                   "error_type": type(exc).__name__},
+        )
+        return None
 
 
 async def _request_provider_turn(provider, messages: list[dict], specs: list[dict],
@@ -2369,43 +2665,58 @@ async def _call_mcp_tool(name: str, arguments: dict, trace_id: str, step: int,
 # ---------------------------------------------------------------- pending actions
 
 
-def register_pending(action: PendingAction, session: dict) -> None:
-    params = dict(action.params)
-    if action.action == "create_savings_goal":
-        params["idempotency_key"] = str(uuid.uuid4())
-    session["pending_confirmations"][action.id] = {
-        "action": action.action, "params": params, "result": None,
-    }
+def register_pending(action: PendingAction, session: dict,
+                     trace_id: str | None = None) -> None:
+    confirmations.register(
+        action,
+        session_id=session["session_id"],
+        trace_id=trace_id,
+        principal_id=session.get("principal_id", "local"),
+    )
 
 
-async def execute_pending(action_id: str, session_id: str | None = None) -> dict:
-    """Ejecuta la acción pendiente y devuelve su resultado con la acción real.
+async def execute_pending(action_id: str, session_id: str | None = None,
+                          principal_id: str = "local") -> dict:
+    """Ejecuta una confirmación persistente, una sola vez, y permite replay.
 
     Se incluye `action` (el nombre de la herramienta) para que el llamador no
     tenga que asumir cuál era: el resultado de una confirmación puede venir de
     crear o editar una meta, no solo de crearla.
     """
-    found = session_store.find_confirmation(action_id, session_id)
-    if found is None:
-        raise MCPClientError("La acción de confirmación no existe o ya fue procesada.")
-    _session, data = found
-    if data["result"] is not None:
-        return {**data["result"], "action": data["action"]}
-    contract = get_contract(data["action"])
-    result = await mcp_client.call(data["action"], {**data["params"], "confirm": True})
+    claim = confirmations.claim(
+        action_id, session_id=session_id, principal_id=principal_id,
+    )
+    if claim.replay is not None:
+        logger.info(
+            "agent_confirmation_replay",
+            extra={
+                "trace_id": claim.trace_id,
+                "tool": claim.action,
+                "idempotent_replay": True,
+            },
+        )
+        return {**claim.replay, "action": claim.action}
+    contract = get_contract(claim.action)
+    try:
+        result = await mcp_client.call(
+            claim.action, {**claim.params, "confirm": True},
+        )
+    except BaseException:
+        confirmations.release(action_id)
+        raise
+    confirmations.finish(action_id, result)
     logger.info(
         "agent_confirmation_complete",
         extra={
-            "tool": data["action"],
+            "trace_id": claim.trace_id,
+            "tool": claim.action,
             "tool_risk": contract.risk if contract else None,
             "requires_confirmation": True,
             "idempotency": contract.idempotency if contract else None,
             "idempotent_replay": bool(result.get("idempotent_replay")),
         },
     )
-    if result.get("status") in ("created", "updated"):
-        data["result"] = result
-    return {**result, "action": data["action"]}
+    return {**result, "action": claim.action}
 
 
 # ---------------------------------------------------------------- entry point

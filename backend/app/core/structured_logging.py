@@ -7,6 +7,13 @@ from datetime import datetime, timezone
 
 _SAFE_EVENT = re.compile(r"^[a-z][a-z0-9_]{0,79}$")
 _SAFE_TRACE_ID = re.compile(r"^[a-f0-9]{32}$")
+_EMAIL = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNORECASE)
+_SENSITIVE_LABEL = re.compile(
+    r"\b(?:nip|cvv|cvc|contrase(?:n|ñ)a|password|token)\b[^\d]{0,12}\d+",
+    re.IGNORECASE,
+)
+_PHONE = re.compile(r"(?<!\d)(?:\+?52[ -]?)?(?:\d[ -]?){9}\d(?!\d)")
+_LONG_NUMBER = re.compile(r"(?<!\d)(?:\d[ -]?){9,}\d(?!\d)")
 _SAFE_FIELDS = (
     "trace_id",
     "step",
@@ -21,7 +28,23 @@ _SAFE_FIELDS = (
     "requires_confirmation",
     "idempotency",
     "idempotent_replay",
+    "detail",
+    "grounding_extracted",
+    "grounding_unsupported",
+    "grounding_blocked",
+    "sin_dato",
 )
+
+
+def mask_pii(value: str) -> str:
+    """Redacta correos, teléfonos, números largos y etiquetas sensibles."""
+    if not isinstance(value, str):
+        return value
+    masked = _EMAIL.sub("[correo]", value)
+    masked = _SENSITIVE_LABEL.sub("[dato sensible]", masked)
+    masked = _PHONE.sub("[teléfono]", masked)
+    masked = _LONG_NUMBER.sub("[número]", masked)
+    return masked
 
 
 class StructuredJsonFormatter(logging.Formatter):
@@ -42,6 +65,8 @@ class StructuredJsonFormatter(logging.Formatter):
                     not isinstance(value, str) or not _SAFE_TRACE_ID.fullmatch(value)
                 ):
                     continue
+                if isinstance(value, str) and field != "trace_id":
+                    value = mask_pii(value)
                 event[field] = value
         return json.dumps(event, ensure_ascii=False, separators=(",", ":"))
 

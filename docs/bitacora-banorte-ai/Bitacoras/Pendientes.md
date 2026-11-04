@@ -18,7 +18,7 @@ tags: [pendientes]
 - [ ] Commit en Git (sin `.env`, sin claves, sin datos reales)
 - [ ] Revisión final de seguridad: autenticación, CORS, validación, `DEV_MODE` apagado
 - [ ] Decidir nombre propio vs. marca Banorte
-- [ ] Mover el proyecto fuera de OneDrive (ej. `C:\proyectos\`)
+- [ ] Mover el proyecto fuera de almacenamiento sincronizado (ej. `C:\proyectos\`)
 - [ ] Elegir plataforma (Vercel / Render / Netlify) y su skill de despliegue
 - [ ] Conectar `AI_PROVIDER` solo si se acepta el costo por uso
 

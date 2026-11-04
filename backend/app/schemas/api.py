@@ -124,5 +124,10 @@ class ChatRequest(Strict):
 
 
 class ConfirmRequest(Strict):
-    action_id: str
-    session_id: str | None = Field(default=None, min_length=1, max_length=128)
+    action_id: str = Field(min_length=8, max_length=128)
+    session_id: str = Field(min_length=1, max_length=128)
+
+
+class LoginRequest(Strict):
+    username: str = Field(min_length=1, max_length=128)
+    password: str = Field(min_length=1, max_length=256)

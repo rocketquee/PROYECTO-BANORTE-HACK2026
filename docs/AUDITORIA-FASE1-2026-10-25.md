@@ -158,7 +158,7 @@ Sin cambios (C sigue vigente). No hay instancias nuevas; corresponde a la Fase 2
 | Migraciones automáticas e **idempotentes al iniciar** | **No cumple** | `migrate.py` solo corre por CLI; `main.py` (`lifespan`) llama `ensure_db()` y **no** `migrate()` |
 | Respaldo antes de modificar | **Parcial** | `migrate.backup()` lo hace, pero solo si se invoca la migración por CLI |
 | Reset y reconciliación con ruta **configurable** | **No cumple** | no hay endpoint/script de reset ni reconciliación; `migrate.py` sí acepta `db_path` (base reutilizable) |
-| Sin dependencias del entorno (localhost fijo, puertos fijos, OneDrive, estructura del repo) | **No cumple** | `FRONTEND_ORIGIN=http://localhost:3000` (`config.py:25`); `MCP_SERVER_PATH` derivado del repo; `load_dotenv` lee `.env` del repo |
+| Sin dependencias del entorno (localhost fijo, puertos fijos, almacenamiento sincronizado, estructura del repo) | **No cumple** | `FRONTEND_ORIGIN=http://localhost:3000` (`config.py:25`); `MCP_SERVER_PATH` derivado del repo; `load_dotenv` lee `.env` del repo |
 | Pruebas de migración y de reset con ruta configurable | **No cumple** | no existen |
 
 **Nota:** `migrate.migrate(db_path, dry_run)` ya acepta una ruta arbitraria — es el cimiento

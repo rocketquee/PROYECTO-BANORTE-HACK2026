@@ -54,7 +54,7 @@ Conclusión del código:
 
 ### 1.2 Estado real de `banorte.db` (medido sobre una copia)
 
-Se copió `backend/data/banorte.db` a `C:\Users\jonna\AppData\Local\Temp\opencode\banorte_d1_inspect.db` y se ejecutaron `PRAGMA table_info`, `PRAGMA index_list`, `PRAGMA foreign_key_list`, `PRAGMA foreign_key_check` y una lectura de `schema_migrations` **sobre la copia**. La base original no se abrió para escritura.
+Se copió `backend/data/banorte.db` a `%TEMP%\opencode\banorte_d1_inspect.db` y se ejecutaron `PRAGMA table_info`, `PRAGMA index_list`, `PRAGMA foreign_key_list`, `PRAGMA foreign_key_check` y una lectura de `schema_migrations` **sobre la copia**. La base original no se abrió para escritura.
 
 Evidencia observada:
 
@@ -1624,7 +1624,7 @@ Comando de validación usado (Node.js, sin Chromium):
 import fs from "node:fs";
 import { pathToFileURL } from "node:url";
 const mermaid = (await import(pathToFileURL(
-  "C:/Users/jonna/AppData/Roaming/npm/node_modules/omniroute/node_modules/mermaid/dist/mermaid.core.mjs"
+  "<npm-global>/omniroute/node_modules/mermaid/dist/mermaid.core.mjs"
 ).href)).default;
 mermaid.initialize({ startOnLoad: false, securityLevel: "strict" });
 console.log(await mermaid.parse(fs.readFileSync("diagram-1.mmd", "utf8")));

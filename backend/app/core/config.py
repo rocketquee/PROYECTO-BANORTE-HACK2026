@@ -65,6 +65,16 @@ FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
 # Disabled by default; never toggleable from the public interface.
 DEV_MODE = os.getenv("DEV_MODE", "") in ("1", "true", "yes")
 
+# Public deployment guard and single-admin cookie authentication.
+PUBLIC_DEPLOYMENT = os.getenv("BANORTE_PUBLIC", "") in ("1", "true", "yes")
+AUTH_ENABLED = os.getenv("BANORTE_AUTH_ENABLED", "") in ("1", "true", "yes")
+AUTH_ADMIN_USER = os.getenv("BANORTE_ADMIN_USER", "admin")
+AUTH_PASSWORD_HASH = os.getenv("BANORTE_ADMIN_PASSWORD_HASH", "")
+AUTH_SESSION_SECRET = os.getenv("BANORTE_SESSION_SECRET", "")
+AUTH_COOKIE_SECURE = os.getenv("BANORTE_COOKIE_SECURE", "") in ("1", "true", "yes")
+AUTH_COOKIE_DOMAIN = os.getenv("BANORTE_COOKIE_DOMAIN", "")
+AUTH_SESSION_TTL_SECONDS = int(os.getenv("BANORTE_SESSION_TTL_SECONDS", "43200"))
+
 
 def load_dotenv() -> None:
     """Minimal .env loader (no external dependency). Values already set in the
@@ -96,6 +106,14 @@ def load_dotenv() -> None:
         "AGENT_TOKEN_COSTS": ("AGENT_TOKEN_COSTS", parse_token_costs),
         "FRONTEND_ORIGIN": ("FRONTEND_ORIGIN", str),
         "DEV_MODE": ("DEV_MODE", lambda value: value.lower() in ("1", "true", "yes")),
+        "BANORTE_PUBLIC": ("PUBLIC_DEPLOYMENT", lambda value: value.lower() in ("1", "true", "yes")),
+        "BANORTE_AUTH_ENABLED": ("AUTH_ENABLED", lambda value: value.lower() in ("1", "true", "yes")),
+        "BANORTE_ADMIN_USER": ("AUTH_ADMIN_USER", str),
+        "BANORTE_ADMIN_PASSWORD_HASH": ("AUTH_PASSWORD_HASH", str),
+        "BANORTE_SESSION_SECRET": ("AUTH_SESSION_SECRET", str),
+        "BANORTE_COOKIE_SECURE": ("AUTH_COOKIE_SECURE", lambda value: value.lower() in ("1", "true", "yes")),
+        "BANORTE_COOKIE_DOMAIN": ("AUTH_COOKIE_DOMAIN", str),
+        "BANORTE_SESSION_TTL_SECONDS": ("AUTH_SESSION_TTL_SECONDS", int),
     }
     for env_name, (setting_name, converter) in converters.items():
         if env_name in os.environ:

@@ -40,7 +40,7 @@ class MigrationError(RuntimeError):
 #: última migración (p. ej. el libro REAL sin tipo `transfer`) se migran hasta
 #: esta versión al arrancar; una base que no pueda llegar a ella se niega a
 #: servir datos en lugar de leer columnas inexistentes.
-CURRENT_SCHEMA_VERSION = "ledger-v2"
+CURRENT_SCHEMA_VERSION = "auth-v1"
 
 
 # ------------------------------------------------------------------ utilidades
@@ -87,7 +87,7 @@ def _column_types(conn, name: str) -> dict[str, str]:
 def current_version(conn) -> str | None:
     """Versión de esquema registrada en la base (la última aplicada)."""
     row = conn.execute(
-        "SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1"
+        "SELECT version FROM schema_migrations ORDER BY rowid DESC LIMIT 1"
     ).fetchone()
     return row["version"] if row else None
 
@@ -118,6 +118,10 @@ def assert_schema_compatible(conn) -> None:
     ddl = _table_ddl(conn, "transactions") or ""
     if "transactions" in tx_types and "type" in tx_types and "transfer" not in ddl:
         problems.append("transactions.type no admite el valor 'transfer'")
+    if not _table_ddl(conn, "pending_confirmations"):
+        problems.append("tabla pending_confirmations ausente")
+    if not _table_ddl(conn, "auth_sessions"):
+        problems.append("tabla auth_sessions ausente")
     if problems:
         raise MigrationError(
             "La base no está en la versión de esquema esperada "
@@ -471,9 +475,29 @@ DROP TRIGGER IF EXISTS trg_transfer_within_goal_bounds;
 DROP TRIGGER IF EXISTS trg_account_balance_non_negative;
 """
 
+def _confirm_v1_needed(conn) -> bool:
+    return not bool(_table_ddl(conn, "pending_confirmations"))
+
+
+def _confirm_v1_apply(conn) -> dict:
+    conn.executescript(seed.TABLE_DDL["pending_confirmations"])
+    return {"created": "pending_confirmations"}
+
+
+def _auth_v1_needed(conn) -> bool:
+    return not bool(_table_ddl(conn, "auth_sessions"))
+
+
+def _auth_v1_apply(conn) -> dict:
+    conn.executescript(seed.TABLE_DDL["auth_sessions"])
+    return {"created": "auth_sessions"}
+
+
 MIGRATIONS: list[tuple[str, object, object]] = [
     ("ledger-v1", _ledger_v1_needed, _ledger_v1_apply),
     ("ledger-v2", _ledger_v2_needed, _ledger_v2_apply),
+    ("confirm-v1", _confirm_v1_needed, _confirm_v1_apply),
+    ("auth-v1", _auth_v1_needed, _auth_v1_apply),
 ]
 
 

@@ -187,13 +187,19 @@ cd frontend && npm run build
 La suite cubre matemática financiera, contrato versionado, proveedor/fallback,
 límite y reintentos, ciclo de eventos del Plan de compra, confirmación e
 idempotencia MCP, inyección, enmascaramiento de datos, logs estructurados,
-integración por stdio y pruebas de frontend. El build comprueba compilación y
-tipos de TypeScript.
+privacidad de archivos y bases locales, integración por stdio y pruebas de
+frontend. El build comprueba compilación y tipos de TypeScript.
 
 ## Seguridad y privacidad
 
 - Solo datos sintéticos; sin credenciales bancarias, CVV ni números completos.
+- Repositorio y bases locales sin rutas personales ni PII conocida; la guardia
+  `backend/tests/test_no_pii.py` falla si reaparecen, y la base local se regenera
+  desde la semilla sintética.
 - SQL 100% parameterizado; CORS restringido al origen del frontend.
+- Las confirmaciones se guardan como hash en SQLite, vencen a los 30 minutos,
+  están ligadas a la sesión y son de un solo uso; un reintento devuelve el mismo
+  resultado sin repetir la escritura.
 - Contrato UI con Pydantic `extra="forbid"`; el frontend solo renderiza tipos
   autorizados desde un registro fijo (nunca evalúa el JSON como código).
 - Escrituras con confirmación explícita del usuario y rechazo de duplicados.
@@ -205,6 +211,25 @@ tipos de TypeScript.
   al usuario ("No pude hacer eso. ¿Lo intentamos de otra forma?") y detalle solo
   en el log; sin encabezados de versión del servidor; límite de 30 mensajes/10 s.
 - El simulador de crédito es **educativo**: no es una oferta, tasa ni aprobación real.
+
+## Autenticación para despliegue público
+
+En local la demo funciona sin login (`BANORTE_AUTH_ENABLED=0`). Para publicarla,
+activa la autenticación de administrador único y configura el hash y el secreto:
+
+```cmd
+cd backend
+..\.venv\Scripts\python -m app.core.auth
+```
+
+Copia el hash en `BANORTE_ADMIN_PASSWORD_HASH`, define un
+`BANORTE_SESSION_SECRET` de al menos 32 caracteres y arranca con
+`BANORTE_PUBLIC=1 BANORTE_AUTH_ENABLED=1 BANORTE_COOKIE_SECURE=1`. Si
+`BANORTE_PUBLIC=1` y falta la autenticación, el backend se niega a arrancar.
+La sesión es una cookie `HttpOnly`, `SameSite=Lax` y firmada; el token CSRF usa
+doble envío (cookie + encabezado `X-CSRF-Token`). Las sesiones se guardan en
+SQLite para permitir logout y revocación, y el frontend muestra el login y
+redirige a él ante un `401`.
 
 ## Accesibilidad (WCAG 2.2 AA)
 

@@ -7,12 +7,12 @@
   "quality": "showcase",
   "startedAt": "2026-10-21T21:23:50.681Z",
   "specification": {
-    "path": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\.archify\\architecture-banorte-20261021-151708\\candidate.json",
+    "path": ".\\.archify\\architecture-banorte-20261021-151708\\candidate.json",
     "sha256": "70ffd31e22a88983cb6e7b057ee1eb45ee0724f47e3bc52ffaa59fbcaedd0671",
     "bytes": 6287
   },
   "artifact": {
-    "path": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\docs\\arquitectura.html",
+    "path": ".\\docs\\arquitectura.html",
     "sha256": "f9fec24805e41277c6c3296ae1d5a5850af9af72e6e53b2c5f22c87328d4c384",
     "bytes": 828357
   },
@@ -24,15 +24,15 @@
       "execution": "embedded-in-deliver",
       "command": [
         "E:\\NODE\\node.exe",
-        "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\.github\\skills\\archify\\bin\\archify.mjs",
+        ".\\.github\\skills\\archify\\bin\\archify.mjs",
         "deliver",
         "architecture",
-        "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\.archify\\architecture-banorte-20261021-151708\\candidate.json",
-        "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\docs\\arquitectura.html",
+        ".\\.archify\\architecture-banorte-20261021-151708\\candidate.json",
+        ".\\docs\\arquitectura.html",
         "--quality",
         "showcase",
         "--repo-root",
-        "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas",
+        ".",
         "--json"
       ],
       "receipt": {
@@ -59,15 +59,15 @@
       "durationMs": 3750,
       "command": [
         "E:\\NODE\\node.exe",
-        "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\.github\\skills\\archify\\bin\\archify.mjs",
+        ".\\.github\\skills\\archify\\bin\\archify.mjs",
         "deliver",
         "architecture",
-        "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\.archify\\architecture-banorte-20261021-151708\\candidate.json",
-        "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\docs\\arquitectura.html",
+        ".\\.archify\\architecture-banorte-20261021-151708\\candidate.json",
+        ".\\docs\\arquitectura.html",
         "--quality",
         "showcase",
         "--repo-root",
-        "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas",
+        ".",
         "--json"
       ],
       "receipt": {
@@ -76,8 +76,8 @@
         "ok": true,
         "command": "deliver",
         "type": "architecture",
-        "input": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\.archify\\architecture-banorte-20261021-151708\\candidate.json",
-        "output": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\docs\\arquitectura.html",
+        "input": ".\\.archify\\architecture-banorte-20261021-151708\\candidate.json",
+        "output": ".\\docs\\arquitectura.html",
         "specification": {
           "sha256": "70ffd31e22a88983cb6e7b057ee1eb45ee0724f47e3bc52ffaa59fbcaedd0671",
           "bytes": 6287
@@ -119,14 +119,14 @@
       "durationMs": 790,
       "command": [
         "E:\\NODE\\node.exe",
-        "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\.github\\skills\\archify\\bin\\archify.mjs",
+        ".\\.github\\skills\\archify\\bin\\archify.mjs",
         "check",
-        "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\docs\\arquitectura.html",
+        ".\\docs\\arquitectura.html",
         "--require-provenance"
       ],
       "receipt": {
         "ok": true,
-        "file": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\docs\\arquitectura.html",
+        "file": ".\\docs\\arquitectura.html",
         "artifact": {
           "sha256": "f9fec24805e41277c6c3296ae1d5a5850af9af72e6e53b2c5f22c87328d4c384",
           "bytes": 828357
@@ -264,9 +264,9 @@
       "durationMs": 7978,
       "command": [
         "E:\\NODE\\node.exe",
-        "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\.github\\skills\\archify\\bin\\archify.mjs",
+        ".\\.github\\skills\\archify\\bin\\archify.mjs",
         "browser-check",
-        "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\docs\\arquitectura.html",
+        ".\\docs\\arquitectura.html",
         "--json",
         "--require-provenance"
       ],
@@ -281,7 +281,7 @@
         "provenance": "current",
         "deliveryReceiptId": "2badc81e-b920-41d2-8854-de23d61161c0",
         "artifact": {
-          "path": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\docs\\arquitectura.html",
+          "path": ".\\docs\\arquitectura.html",
           "sha256": "f9fec24805e41277c6c3296ae1d5a5850af9af72e6e53b2c5f22c87328d4c384",
           "bytes": 828357
         },
@@ -299,11 +299,11 @@
             "severity": "error",
             "message": "Browser cleanup could not safely finish; inspect the reported retained path.",
             "subject": {
-              "artifact": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\docs\\arquitectura.html"
+              "artifact": ".\\docs\\arquitectura.html"
             },
             "evidence": {
-              "reason": "Chrome did not exit; retained temporary profile \"C:\\Users\\jonna\\AppData\\Local\\Temp\\archify-visual-check-profile-UUlXdq\".",
-              "retainedDirectory": "C:\\Users\\jonna\\AppData\\Local\\Temp\\archify-visual-check-profile-UUlXdq"
+              "reason": "Chrome did not exit; retained temporary profile \"<temp>\\archify-visual-check-profile-UUlXdq\".",
+              "retainedDirectory": "<temp>\\archify-visual-check-profile-UUlXdq"
             },
             "supportedFixes": [
               "resolve the reported process or filesystem failure; verify directory ownership before manual cleanup"
@@ -337,7 +337,7 @@
           "receipt": "arquitectura.browser-check.json",
           "files": []
         },
-        "error": "Chrome did not exit; retained temporary profile \"C:\\Users\\jonna\\AppData\\Local\\Temp\\archify-visual-check-profile-UUlXdq\"."
+        "error": "Chrome did not exit; retained temporary profile \"<temp>\\archify-visual-check-profile-UUlXdq\"."
       }
     }
   },
@@ -351,11 +351,11 @@
       "severity": "error",
       "message": "Browser cleanup could not safely finish; inspect the reported retained path.",
       "subject": {
-        "artifact": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\docs\\arquitectura.html"
+        "artifact": ".\\docs\\arquitectura.html"
       },
       "evidence": {
-        "reason": "Chrome did not exit; retained temporary profile \"C:\\Users\\jonna\\AppData\\Local\\Temp\\archify-visual-check-profile-UUlXdq\".",
-        "retainedDirectory": "C:\\Users\\jonna\\AppData\\Local\\Temp\\archify-visual-check-profile-UUlXdq"
+        "reason": "Chrome did not exit; retained temporary profile \"<temp>\\archify-visual-check-profile-UUlXdq\".",
+        "retainedDirectory": "<temp>\\archify-visual-check-profile-UUlXdq"
       },
       "supportedFixes": [
         "resolve the reported process or filesystem failure; verify directory ownership before manual cleanup"
@@ -363,9 +363,9 @@
     }
   ],
   "evidence": {
-    "receipt": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\docs\\arquitectura.finalize.json",
-    "summaryReceipt": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\docs\\arquitectura.finalize-summary.json",
-    "browserCheckReceipt": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\docs\\arquitectura.browser-check.json"
+    "receipt": ".\\docs\\arquitectura.finalize.json",
+    "summaryReceipt": ".\\docs\\arquitectura.finalize-summary.json",
+    "browserCheckReceipt": ".\\docs\\arquitectura.browser-check.json"
   },
   "visualReview": "not-requested",
   "failedStage": "browser-check",

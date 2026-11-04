@@ -4,19 +4,19 @@ import re
 import time
 from collections import defaultdict, deque
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 
-from app.core import config
+from app.core import auth, config
 from app.core.database import db, reconcile_database, reset_database
 from app.schemas.api import (BudgetUpdateRequest, ChatRequest, ConfirmRequest,
                              CreditSimulateRequest, GoalCreateRequest, GoalTransferRequest,
-                             GoalUpdateRequest)
+                             GoalUpdateRequest, LoginRequest)
 from app.schemas.ui import ChatResponse
 from app.services import credit as credit_service
 from app.services import domain
 from app.services import finance
 from app.services import savings
-from app.services.agent import orchestrator
+from app.services.agent import confirmations, orchestrator
 from app.services.agent.providers import provider_mode
 from app.services.mcp_client import MCPClientError, mcp_client
 from datetime import date as date_cls
@@ -26,7 +26,10 @@ router = APIRouter(prefix="/api")
 
 RATE_LIMIT_MAX = 30
 RATE_LIMIT_WINDOW = 10.0  # seconds
+LOGIN_RATE_LIMIT_MAX = 5
+LOGIN_RATE_LIMIT_WINDOW = 60.0  # seconds
 _rate_log: dict[str, deque] = defaultdict(deque)
+_login_rate_log: dict[str, deque] = defaultdict(deque)
 
 
 def _check_rate_limit(client_ip: str) -> None:
@@ -39,6 +42,19 @@ def _check_rate_limit(client_ip: str) -> None:
         raise HTTPException(
             status_code=429,
             detail="Estás enviando mensajes muy rápido. Espera unos segundos e inténtalo de nuevo.",
+        )
+    log.append(now)
+
+
+def _check_login_rate_limit(client_ip: str) -> None:
+    now = time.monotonic()
+    log = _login_rate_log[client_ip]
+    while log and now - log[0] > LOGIN_RATE_LIMIT_WINDOW:
+        log.popleft()
+    if len(log) >= LOGIN_RATE_LIMIT_MAX:
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiados intentos de acceso. Espera un minuto e inténtalo de nuevo.",
         )
     log.append(now)
 
@@ -85,9 +101,51 @@ def _parse_month(month: str | None) -> tuple[int, int]:
 
 def _last_schema_version(conn) -> str | None:
     row = conn.execute(
-        "SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1"
+        "SELECT version FROM schema_migrations ORDER BY rowid DESC LIMIT 1"
     ).fetchone()
     return row["version"] if row else None
+
+
+@router.post("/auth/login")
+def auth_login(request: Request, body: LoginRequest, response: Response):
+    _check_login_rate_limit(request.client.host if request.client else "unknown")
+    try:
+        session_token, csrf_token = auth.login(body.username, body.password)
+    except auth.AuthError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message)
+    auth.set_auth_cookies(response, session_token, csrf_token)
+    return {
+        "authenticated": True,
+        "auth_required": True,
+        "username": config.AUTH_ADMIN_USER,
+        "csrf_token": csrf_token,
+    }
+
+
+@router.get("/auth/me")
+def auth_me(request: Request, response: Response):
+    if not auth.is_enabled():
+        return {"authenticated": True, "auth_required": False, "username": "local"}
+    principal = getattr(request.state, "principal", None)
+    if principal is None:
+        principal = auth.authenticate(request.cookies.get(auth.SESSION_COOKIE))
+    if principal is None:
+        raise HTTPException(status_code=401, detail="Inicia sesión para continuar.")
+    csrf_token = auth.csrf_for(principal)
+    auth.set_csrf_cookie(response, csrf_token)
+    return {
+        "authenticated": True,
+        "auth_required": True,
+        "username": principal.username,
+        "csrf_token": csrf_token,
+    }
+
+
+@router.post("/auth/logout")
+def auth_logout(request: Request, response: Response):
+    auth.revoke(request.cookies.get(auth.SESSION_COOKIE))
+    auth.clear_auth_cookies(response)
+    return {"ok": True}
 
 
 @router.get("/health")
@@ -243,6 +301,8 @@ async def agent_chat(request: Request, body: ChatRequest):
 async def agent_confirm(body: ConfirmRequest):
     try:
         result = await orchestrator.execute_pending(body.action_id, body.session_id)
+    except confirmations.ConfirmationError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc))
     except MCPClientError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     from app.schemas.ui import SavingsProgressSpec, GoalProgress

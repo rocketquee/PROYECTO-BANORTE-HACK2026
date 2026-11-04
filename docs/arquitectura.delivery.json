@@ -4,8 +4,8 @@
   "status": "current",
   "command": "deliver",
   "type": "architecture",
-  "input": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\.archify\\architecture-banorte-20261021-151708\\candidate.json",
-  "output": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\docs\\arquitectura.html",
+  "input": ".\\.archify\\architecture-banorte-20261021-151708\\candidate.json",
+  "output": ".\\docs\\arquitectura.html",
   "specification": {
     "sha256": "70ffd31e22a88983cb6e7b057ee1eb45ee0724f47e3bc52ffaa59fbcaedd0671",
     "bytes": 6287
