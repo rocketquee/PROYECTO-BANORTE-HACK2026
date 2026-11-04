@@ -88,7 +88,7 @@ La Etapa 1 (modelo de dominio, centavos, migraciones, contrato UI, pruebas base)
 | 4.3 | Inventario y limpieza de PII | **Hecho** | 11 archivos versionados saneados (`.archify/...`, `docs/arquitectura.*.json`, `docs/AUDITORIA-FASE1*.md`, `docs/DATA-DICTIONARY.md`, `docs/bitacora.../Pendientes.md`); `backend/data/banorte.db` y respaldos regenerados sin PII; guardia `test_no_pii.py:41-77`; `git grep` sin coincidencias | Base de entrega sin PII; repositorio sin rutas personales; política documentada |
 | 4.4 | Confirmaciones con vigencia y alcance | **Hecho** | Store persistente con hash, TTL de 30 min, binding sesión/principal/trace, consumo atómico y replay (`confirmations.py:15,33,42,81,131,143`); tabla y migración `confirm-v1` (`seed.py:119-133`, `migrate.py:121-122,478-484`); `register_pending`/`execute_pending` (`orchestrator.py:2668-2707`); error tipado a 410/409 (`routes.py:242-246`); `session_id` obligatorio (`api.py:126-128`); 9 pruebas (`test_confirmations.py:35-170`) | Token de un solo uso, TTL, ligado a sesión/trace y probado contra replay |
 | 4.5 | Autenticación si se publica | **Hecho** | Cookie de sesión firmada, PBKDF2 y CSRF de doble envío (`auth.py:54-257`); sesiones persistentes y migración `auth-v1` (`seed.py:135-146`, `migrate.py:43,487-500`); login/me/logout con rate limit (`routes.py:49,109-149`, `api.py:131-133`); middleware fail-closed y CORS con credenciales (`main.py:30,62-90`); frontend `AuthGate` y `credentials: include` (`api.ts:24-75`, `AuthGate.tsx:15-75`, `layout.tsx:18`); 5 pruebas (`test_auth.py:29-138`) | Local sigue sin auth; público exige auth, cookie Secure y CSRF; sin secretos en repo |
-| 4.6 | Inyección de prompt con datos | **Hecho** | Proveedor falso recibe datos maliciosos en `category`/`description` y luego intenta `create_savings_goal` con `confirm=true`; el orquestador fuerza `confirm=False` y solo registra confirmación (`test_agent_injection.py:82-123`); herramienta fuera de allowlist se rechaza sin llamar MCP (`test_agent_injection.py:126-147`); prueba demo ya no es vacua (`test_bugfixes.py:210-218`); guardas `_mask_tool_result`/allowlist (`orchestrator.py:322-336,2606-2608`) | El modelo no gana herramientas ni escrituras; la inyección queda como dato y requiere confirmación explícita |
+| 4.6 | Inyección de prompt con datos | **Hecho** | Proveedor falso recibe datos maliciosos en `category`/`description`/nombre de meta y luego intenta `create_savings_goal` con `confirm=true`; el orquestador fuerza `confirm=False` y solo registra confirmación (`test_agent_injection.py:89-132`); herramienta fuera de allowlist se rechaza sin llamar MCP (`test_agent_injection.py:238-259`); UI y eco del modelo se sanean (`orchestrator.py:595-617,2350-2377,2561-2566`); solo `/agent/confirm` ejecuta el token (`test_agent_injection.py:262-303`); prueba demo ya no es vacua (`test_bugfixes.py:210-218`); guardas `_mask_tool_result`/allowlist (`orchestrator.py:322-336,2640-2642`) | El modelo no gana herramientas ni escrituras; la inyección queda como dato, se redacta en UI y requiere confirmación explícita |
 
 ---
 
@@ -308,15 +308,20 @@ intenta escribir o llamar una herramienta fuera de la lista. El orquestador
 fuerza `confirm=False`, registra una confirmación pendiente y rechaza la
 herramienta no permitida antes de tocar MCP. Evidencia:
 
-- `pytest tests/test_agent_injection.py -q --basetemp <temp>` → `2 passed in
-  1.36s`.
-- `pytest tests/test_bugfixes.py::TestBug004PromptInjection -q --basetemp
-  <temp>` → `42 passed in 11.35s`.
-- Puerta 4.6: `376 passed in 83.64s`; `npm test` → `9 passed`; `npm run build`
+- `pytest tests/test_agent_injection.py -q --basetemp <temp>` → `7 passed in
+  2.65s`.
+- `pytest tests/test_agent_injection.py
+  tests/test_bugfixes.py::TestBug004PromptInjection tests/test_confirmations.py
+  -q --basetemp <temp>` → `58 passed in 15.25s`.
+- Puerta 4.6: `381 passed in 87.62s`; `npm test` → `9 passed`; `npm run build`
   en `frontend` con exit 0; reconciliación `{"ok": true, "invariant_count": 13,
   "failures": 0}`; `PII_SCAN_CLEAN`; `DIFF_CHECK_OK`; `NO_XFAIL_OR_SKIP`.
 - Se sustituyó la aserción vacua `or True` por comprobaciones del texto visible
   y de los parámetros pendientes (`test_bugfixes.py:210-218`).
+- La UI y el eco del modelo se sanean con `_sanitize_injected_text` /
+  `_has_output_injection` (`orchestrator.py:595-617,2350-2377,2561-2566`); la
+  prueba de ruta confirma que solo `/agent/confirm` ejecuta el token y que el
+  replay no repite la escritura (`test_agent_injection.py:262-303`).
 
 **Alcance:** esta fase cierra 4.1, 4.2, 4.3, 4.4, 4.5 y 4.6. Etapa 4 completa.
 

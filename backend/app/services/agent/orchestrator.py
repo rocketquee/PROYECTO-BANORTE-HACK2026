@@ -592,6 +592,30 @@ _INJECTION_PATTERNS = [
     r"lista de (herramientas|tools)", r"aplica (un )?reset", r"est[aá]s en modo",
 ]
 
+_OUTPUT_INJECTION_PATTERNS = [
+    r"ignora (tus |las |sus )?(reglas|instrucciones|indicaciones)",
+    r"(revela|muestra|dime).{0,20}(prompt|instrucciones del sistema)",
+    r"system prompt", r"confirm\s*=\s*true",
+    r"\bcreate_savings_goal\b", r"\bjailbreak\b",
+    r"ignore (all )?previous",
+]
+
+
+def _has_output_injection(text: str) -> bool:
+    normalized = normalize(text)
+    return any(re.search(p, normalized) for p in _OUTPUT_INJECTION_PATTERNS)
+
+
+def _sanitize_injected_text(value):
+    if isinstance(value, dict):
+        return {key: _sanitize_injected_text(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_sanitize_injected_text(item) for item in value]
+    if isinstance(value, str) and _has_output_injection(value):
+        return "********"
+    return value
+
+
 _OUT_OF_SCOPE_PATTERNS = [
     r"clima", r"tiempo (hara|hace|va a hacer)", r"pron[oó]stico", r"chiste", r"broma",
     r"pol[ií]tica", r"presidente", r"elecciones", r"bolsa", r"acciones", r"cripto",
@@ -2323,6 +2347,7 @@ def _intent_from_tools(tool_results: dict) -> str:
 
 
 def _ui_from_results(tool_results: dict) -> list:
+    tool_results = _sanitize_injected_text(tool_results)
     intent = _intent_from_tools(tool_results)
     y, m = _month_defaults()
     if intent == "trend" and "series" in tool_results.get("get_spending_trend", {}):
@@ -2337,18 +2362,19 @@ def _ui_from_results(tool_results: dict) -> list:
     if intent == "movements" and "transactions" in tool_results.get("get_transactions", {}):
         txs = tool_results["get_transactions"]
         with db() as conn:
-            cats = finance.category_taxonomy(conn)
+            cats = _sanitize_injected_text(finance.category_taxonomy(conn))
         return [composer.transactions_table_ui(txs["transactions"], txs.get("total_count", 0),
                                                cats, "Mes actual")]
     if intent == "savings":
         with db() as conn:
-            return [composer.savings_progress_ui(finance.list_goals(conn))]
+            goals = _sanitize_injected_text(finance.list_goals(conn))
+            return [composer.savings_progress_ui(goals)]
     if intent == "credit" and "calculate_credit_simulation" in tool_results:
         return [_credit_ui_from_result(tool_results["calculate_credit_simulation"])]
     if intent == "budget" and "categories" in tool_results.get("get_budgets", {}):
         return [composer.budget_planner_ui(tool_results["get_budgets"])]
     with db() as conn:
-        summary = finance.monthly_summary(conn, y, m)
+        summary = _sanitize_injected_text(finance.monthly_summary(conn, y, m))
         return [composer.financial_summary_ui(summary, finance.total_balance(conn))]
 
 
@@ -2433,7 +2459,9 @@ async def live_response(req: ChatRequest, trace_id: str | None = None,
                     pending = PendingAction(
                         id=confirmations.new_action_id(), action=call.name,
                         params=result.get("params", {}),
-                        description=result.get("message", "Confirmar cambio en metas de ahorro."),
+                        description=_sanitize_injected_text(
+                            result.get("message", "Confirmar cambio en metas de ahorro."),
+                        ),
                     )
                     register_pending(pending, session, trace_id=trace_id)
                 tool_names.append(call.name)
@@ -2531,6 +2559,12 @@ async def live_response(req: ChatRequest, trace_id: str | None = None,
             },
         )
 
+    if _has_output_injection(final_text):
+        logger.warning(
+            "agent_injection_output_blocked",
+            extra={"trace_id": trace_id, "step": step},
+        )
+        final_text = "No puedo seguir instrucciones que vengan dentro de los datos consultados."
     uis = _ui_from_results(tool_results)
     return ChatResponse(
         message=final_text or "Listo, revisa los resultados en pantalla.",
