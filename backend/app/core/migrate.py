@@ -40,7 +40,7 @@ class MigrationError(RuntimeError):
 #: última migración (p. ej. el libro REAL sin tipo `transfer`) se migran hasta
 #: esta versión al arrancar; una base que no pueda llegar a ella se niega a
 #: servir datos en lugar de leer columnas inexistentes.
-CURRENT_SCHEMA_VERSION = "auth-v1"
+CURRENT_SCHEMA_VERSION = "goal-status-v1"
 
 
 # ------------------------------------------------------------------ utilidades
@@ -122,12 +122,138 @@ def assert_schema_compatible(conn) -> None:
         problems.append("tabla pending_confirmations ausente")
     if not _table_ddl(conn, "auth_sessions"):
         problems.append("tabla auth_sessions ausente")
+    goals_ddl = " ".join((_table_ddl(conn, "savings_goals") or "").lower().split())
+    if goals_ddl and "status in ('activa', 'completada')" not in goals_ddl:
+        problems.append("savings_goals.status no tiene dominio cerrado")
     if problems:
         raise MigrationError(
             "La base no está en la versión de esquema esperada "
             f"({CURRENT_SCHEMA_VERSION}): " + "; ".join(problems)
             + ". Se recomienda ejecutar `python -m app.core.migrate`."
         )
+
+
+def _db_path_from_conn(conn) -> Path:
+    """Ruta del archivo principal de la conexión (PRAGMA database_list)."""
+    row = conn.execute("PRAGMA database_list").fetchone()
+    if row is None:
+        raise MigrationError(
+            "No se pudo determinar la ruta de la base de datos para verificar el respaldo."
+        )
+    try:
+        path = row["file"]
+    except (TypeError, IndexError, KeyError):
+        path = row[2]
+    if not path:
+        raise MigrationError(
+            "La conexión no apunta a un archivo de base de datos; no se puede verificar el respaldo."
+        )
+    return Path(path)
+
+
+def _latest_backup(db_path: Path) -> Path | None:
+    """Respaldo más reciente de `db_path` en su carpeta `backups`."""
+    backup_dir = db_path.parent / BACKUP_DIRNAME
+    if not backup_dir.is_dir():
+        return None
+    candidates = [
+        path
+        for path in backup_dir.glob(f"{db_path.name}.bak-*")
+        if not path.name.endswith(".sha256")
+    ]
+    return sorted(candidates)[-1] if candidates else None
+
+
+def require_verified_backup(
+    conn,
+    motivo: str,
+    *,
+    db_path: Path | str | None = None,
+    backup_path: Path | str | None = None,
+) -> dict:
+    """Exige un respaldo verificado **antes** de escribir en la base.
+
+    Verifica, en este orden: que el archivo de respaldo existe y no está vacío;
+    que su suma SHA-256 coincide con la declarada en `<respaldo>.sha256`; que
+    `PRAGMA integrity_check` devuelve `ok`; que `PRAGMA foreign_key_check` está
+    vacío; y que el SHA-256 del respaldo es idéntico al de la base actual (es
+    decir, que respalda exactamente el estado previo a la transacción).
+
+    Si cualquiera de estas condiciones falla, lanza `MigrationError` y el
+    llamador no debe abrir la transacción. Es la puerta común para migraciones,
+    reparaciones y cualquier normalización que escriba en `banorte.db`.
+    """
+    if not str(motivo or "").strip():
+        raise MigrationError("La verificación del respaldo exige un motivo no vacío.")
+
+    db_file = Path(db_path) if db_path is not None else _db_path_from_conn(conn)
+    if not db_file.exists():
+        raise MigrationError(f"No existe la base de datos a respaldar: {db_file}")
+
+    backup_file = Path(backup_path) if backup_path is not None else _latest_backup(db_file)
+    if backup_file is None or not backup_file.is_file():
+        backup_dir = db_file.parent / BACKUP_DIRNAME
+        raise MigrationError(
+            f"Escritura bloqueada ({motivo}): se requiere un respaldo verificado "
+            f"antes de la transacción y no hay ninguno válido en {backup_dir}."
+        )
+    if backup_file.stat().st_size == 0:
+        raise MigrationError(
+            f"Escritura bloqueada ({motivo}): el respaldo {backup_file.name} está vacío."
+        )
+
+    sidecar = backup_file.with_name(backup_file.name + ".sha256")
+    if not sidecar.is_file():
+        raise MigrationError(
+            f"Escritura bloqueada ({motivo}): falta la suma SHA-256 de "
+            f"{backup_file.name} ({sidecar.name})."
+        )
+    declared = sidecar.read_text(encoding="utf-8").strip().split()
+    declared_sha = declared[0].lower() if declared else ""
+    if len(declared_sha) != 64 or any(c not in "0123456789abcdef" for c in declared_sha):
+        raise MigrationError(
+            f"Escritura bloqueada ({motivo}): la suma SHA-256 declarada para "
+            f"{backup_file.name} no es válida."
+        )
+
+    actual_sha = _sha256(backup_file)
+    if actual_sha != declared_sha:
+        raise MigrationError(
+            f"Escritura bloqueada ({motivo}): el SHA-256 de {backup_file.name} "
+            "no coincide con su archivo de verificación."
+        )
+
+    check_conn = sqlite3.connect(str(backup_file))
+    try:
+        integrity = check_conn.execute("PRAGMA integrity_check").fetchone()[0]
+        foreign_keys = check_conn.execute("PRAGMA foreign_key_check").fetchall()
+    finally:
+        check_conn.close()
+    if integrity != "ok":
+        raise MigrationError(
+            f"Escritura bloqueada ({motivo}): integrity_check del respaldo "
+            f"{backup_file.name} devolvió {integrity!r}."
+        )
+    if foreign_keys:
+        raise MigrationError(
+            f"Escritura bloqueada ({motivo}): el respaldo {backup_file.name} "
+            f"tiene {len(foreign_keys)} referencias foráneas rotas."
+        )
+
+    if _sha256(db_file) != actual_sha:
+        raise MigrationError(
+            f"Escritura bloqueada ({motivo}): el respaldo {backup_file.name} no "
+            "corresponde al estado actual de la base; crea uno nuevo antes de escribir."
+        )
+
+    return {
+        "motivo": motivo,
+        "db_path": str(db_file),
+        "backup_file": str(backup_file),
+        "backup_sha256": actual_sha,
+        "integrity_check": integrity,
+        "foreign_key_check": [],
+    }
 
 
 def backup(db_path: Path) -> Path:
@@ -493,11 +619,80 @@ def _auth_v1_apply(conn) -> dict:
     return {"created": "auth_sessions"}
 
 
+def _goal_status_v1_needed(conn) -> bool:
+    ddl = " ".join((_table_ddl(conn, "savings_goals") or "").lower().split())
+    if not ddl:
+        return False  # tabla ausente: la crea la semilla o una migración previa
+    return "status in ('activa', 'completada')" not in ddl
+
+
+def _goal_status_v1_apply(conn) -> dict:
+    """Cierra el dominio de `savings_goals.status` con un CHECK (INV-11).
+
+    Reconstruye la tabla con el DDL canónico de `seed` sin inventar datos:
+    acepta tanto el esquema anterior en pesos como el de centavos, y si hay
+    estados fuera del dominio aborta sin dejar cambios.
+    """
+    existing = {row["name"] for row in conn.execute("PRAGMA table_info(savings_goals)")}
+    if not existing:
+        raise MigrationError("goal-status-v1: falta la tabla savings_goals.")
+    has_cents = {"target_amount_cents", "saved_amount_cents"} <= existing
+    target_col = "target_amount_cents" if has_cents else "target_amount"
+    saved_col = "saved_amount_cents" if has_cents else "saved_amount"
+    source_columns = ["id", "name", target_col, saved_col, "deadline",
+                      "status", "created_at"]
+    missing = [name for name in source_columns if name not in existing]
+    if missing:
+        raise MigrationError(
+            "goal-status-v1: faltan columnas en savings_goals: "
+            + ", ".join(missing)
+        )
+    rows = [dict(row) for row in conn.execute(
+        "SELECT " + ",".join(source_columns) + " FROM savings_goals"
+    )]
+    invalid = [row for row in rows if row["status"] not in ("activa", "completada")]
+    if invalid:
+        raise MigrationError(
+            "goal-status-v1: hay metas con estado fuera del dominio "
+            f"({len(invalid)}); corrígelas antes de migrar."
+        )
+    if not has_cents:
+        for row in rows:
+            row["target_amount_cents"] = money.to_cents(row.pop(target_col))
+            row["saved_amount_cents"] = money.to_cents(row.pop(saved_col))
+    else:
+        for row in rows:
+            row["target_amount_cents"] = row.pop(target_col)
+            row["saved_amount_cents"] = row.pop(saved_col)
+    columns = ["id", "name", "target_amount_cents", "saved_amount_cents",
+               "deadline", "status", "created_at"]
+    new_table = seed.TABLE_DDL["savings_goals"].replace(
+        "CREATE TABLE IF NOT EXISTS savings_goals",
+        "CREATE TABLE savings_goals_new",
+        1,
+    )
+    conn.execute(new_table)
+    conn.executemany(
+        "INSERT INTO savings_goals_new (" + ",".join(columns) + ")"
+        " VALUES (" + ",".join("?" * len(columns)) + ")",
+        [tuple(row[name] for name in columns) for row in rows],
+    )
+    conn.executescript(_DROP_TRIGGERS)
+    conn.execute("DROP TABLE savings_goals")
+    conn.execute("ALTER TABLE savings_goals_new RENAME TO savings_goals")
+    conn.executescript(seed.TRIGGERS)
+    conn.executescript(seed.TRANSACTIONS_INDEXES)
+    if conn.execute("PRAGMA foreign_key_check").fetchall():
+        raise MigrationError("goal-status-v1: integridad referencial rota.")
+    return {"rows": len(rows), "check": "status IN ('activa','completada')"}
+
+
 MIGRATIONS: list[tuple[str, object, object]] = [
     ("ledger-v1", _ledger_v1_needed, _ledger_v1_apply),
     ("ledger-v2", _ledger_v2_needed, _ledger_v2_apply),
     ("confirm-v1", _confirm_v1_needed, _confirm_v1_apply),
     ("auth-v1", _auth_v1_needed, _auth_v1_apply),
+    ("goal-status-v1", _goal_status_v1_needed, _goal_status_v1_apply),
 ]
 
 
@@ -516,25 +711,49 @@ def run_pending(db_path: Path | str = DB_PATH, *, dry_run: bool = False) -> dict
 
     conn = _connect(db_path)
     try:
-        conn.executescript(REGISTRY_DDL)
-        applied = _applied(conn)
-        pending = []
+        # Diagnóstico de solo lectura: no se crea ni se registra nada antes de
+        # que la puerta de respaldo verificada haya pasado.
+        has_registry = bool(_table_ddl(conn, "schema_migrations"))
+        applied = _applied(conn) if has_registry else {}
+        pending: list[str] = []
+        not_needed: list[str] = []
         for version, needed, _apply in MIGRATIONS:
             if version in applied:
                 continue
             if needed(conn):
                 pending.append(version)
             else:
-                # No necesaria: se registra para no reevaluar en cada arranque.
-                conn.execute("BEGIN IMMEDIATE")
-                _register(conn, version, {"mode": "not_needed"}, None)
-                conn.execute("COMMIT")
+                not_needed.append(version)
 
         report = {"db": str(db_path), "pending": pending, "applied": [], "dry_run": dry_run}
-        if dry_run or not pending:
+        if dry_run:
+            return report
+        if has_registry and not pending and not not_needed:
             return report
 
+        # A partir de aquí se escribirán metadatos (registro de versiones) o
+        # datos: el respaldo verificado es obligatorio antes de la primera
+        # transacción.
         backup_path = backup(db_path)
+        require_verified_backup(
+            conn,
+            "migraciones: " + ", ".join(pending or not_needed or ["registro de versiones"]),
+            db_path=db_path,
+            backup_path=backup_path,
+        )
+        conn.executescript(REGISTRY_DDL)
+        for version in not_needed:
+            # No necesaria: se registra para no reevaluar en cada arranque.
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                _register(conn, version, {"mode": "not_needed"}, None)
+                conn.execute("COMMIT")
+            except BaseException:
+                try:
+                    conn.execute("ROLLBACK")
+                except sqlite3.Error:
+                    pass
+                raise
         # Receta estándar de SQLite para rebuilds de tablas con FK: las llaves
         # foráneas se desactivan ANTES de abrir la transacción (dentro sería un
         # no-op) y la integridad se verifica con `foreign_key_check` antes del

@@ -131,6 +131,38 @@ def test_write_tool_from_tool_data_still_requires_confirmation(tmp_db, monkeypat
     assert MALICIOUS_TEXT not in _payload(response)
 
 
+def test_malicious_goal_name_in_pending_params_is_sanitized(tmp_db, monkeypatch):
+    provider = ScriptedProvider([
+        _tool_turn(
+            "create_savings_goal",
+            json.dumps({
+                "name": MALICIOUS_TEXT,
+                "target_amount": 3000,
+                "deadline": "2099-12-31",
+                "confirm": True,
+            }),
+        ),
+        _text_turn("Listo."),
+    ])
+
+    async def call_tool(_name, arguments):
+        return {
+            "status": "requires_confirmation",
+            "params": arguments,
+            "message": "Revisa la meta y confirma.",
+        }
+
+    specs = [{
+        "name": "create_savings_goal",
+        "description": "Crear meta",
+        "input_schema": {"type": "object"},
+    }]
+    response = _run_live(monkeypatch, provider, call_tool, specs)
+
+    assert response.pending_action is not None
+    assert MALICIOUS_TEXT not in _payload(response)
+
+
 def test_malicious_transaction_fields_are_redacted_in_ui(tmp_db, monkeypatch):
     provider = ScriptedProvider([
         _tool_turn("get_transactions"),

@@ -1,0 +1,445 @@
+{
+  "antes": {
+    "plan": {
+      "goals": [
+        {
+          "difference_cents": 0,
+          "goal_id": 1,
+          "goal_name": "Fondo de emergencia",
+          "ledger_cents": 1850000,
+          "saved_cents": 1850000,
+          "status": "activa",
+          "target_cents": 3000000
+        },
+        {
+          "difference_cents": 0,
+          "goal_id": 2,
+          "goal_name": "Viaje a Japón",
+          "ledger_cents": 820000,
+          "saved_cents": 820000,
+          "status": "activa",
+          "target_cents": 4500000
+        },
+        {
+          "difference_cents": 0,
+          "goal_id": 3,
+          "goal_name": "Enganche del auto",
+          "ledger_cents": 2250000,
+          "saved_cents": 2250000,
+          "status": "activa",
+          "target_cents": 4500000
+        }
+      ],
+      "goals_after_swaps": [
+        {
+          "difference_cents": 0,
+          "goal_id": 1,
+          "goal_name": "Fondo de emergencia",
+          "ledger_cents": 1850000,
+          "saved_cents": 1850000,
+          "status": "activa",
+          "target_cents": 3000000
+        },
+        {
+          "difference_cents": 0,
+          "goal_id": 2,
+          "goal_name": "Viaje a Japón",
+          "ledger_cents": 820000,
+          "saved_cents": 820000,
+          "status": "activa",
+          "target_cents": 4500000
+        },
+        {
+          "difference_cents": 0,
+          "goal_id": 3,
+          "goal_name": "Enganche del auto",
+          "ledger_cents": 2250000,
+          "saved_cents": 2250000,
+          "status": "activa",
+          "target_cents": 4500000
+        }
+      ],
+      "missing_legs": [],
+      "mode": "plan",
+      "opening_candidates": [],
+      "schema_has_transfer_legs": true,
+      "swapped_rows": []
+    },
+    "reconcile": {
+      "failures": 0,
+      "invariant_count": 13,
+      "non_pass": [
+        {
+          "detail": "Porcentajes con ROUND_HALF_UP: verificado en capa de dominio (money.py).",
+          "invariant": "INV-7",
+          "rows_affected": 0,
+          "status": "info"
+        },
+        {
+          "detail": "Última cuota absorbe residuo: verificado en capa de dominio (credit.py).",
+          "invariant": "INV-8",
+          "rows_affected": 0,
+          "status": "info"
+        },
+        {
+          "detail": "Capa única de dominio: verificado en código (domain.py, finance.py, savings.py).",
+          "invariant": "INV-9",
+          "rows_affected": 0,
+          "status": "info"
+        }
+      ],
+      "ok": true
+    },
+    "snapshot": {
+      "savings_goals": [
+        {
+          "id": 1,
+          "name": "Fondo de emergencia",
+          "saved_amount_cents": 1850000,
+          "status": "activa",
+          "target_amount_cents": 3000000
+        },
+        {
+          "id": 2,
+          "name": "Viaje a Japón",
+          "saved_amount_cents": 820000,
+          "status": "activa",
+          "target_amount_cents": 4500000
+        },
+        {
+          "id": 3,
+          "name": "Enganche del auto",
+          "saved_amount_cents": 2250000,
+          "status": "activa",
+          "target_amount_cents": 4500000
+        }
+      ],
+      "transactions_967_968_969": [
+        {
+          "account_id": 2,
+          "amount_cents": 11813,
+          "category": "Tiendas de conveniencia",
+          "date": "2026-10-20",
+          "description": "OXXO",
+          "direction": null,
+          "goal_id": null,
+          "id": 967,
+          "type": "expense"
+        },
+        {
+          "account_id": 1,
+          "amount_cents": 9137,
+          "category": "Tiendas de conveniencia",
+          "date": "2026-10-20",
+          "description": "Café La Parroquia",
+          "direction": null,
+          "goal_id": null,
+          "id": 968,
+          "type": "expense"
+        },
+        {
+          "account_id": 1,
+          "amount_cents": 20399,
+          "category": "Transporte",
+          "date": "2026-10-20",
+          "description": "Uber",
+          "direction": null,
+          "goal_id": null,
+          "id": 969,
+          "type": "expense"
+        }
+      ],
+      "transfer_legs": [
+        {
+          "account_id": 2,
+          "amount_cents": 1850000,
+          "transaction_id": 997
+        },
+        {
+          "account_id": 2,
+          "amount_cents": 820000,
+          "transaction_id": 998
+        },
+        {
+          "account_id": 2,
+          "amount_cents": 2250000,
+          "transaction_id": 999
+        }
+      ]
+    }
+  },
+  "backup_file": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\backend\\data\\backups\\banorte.db.bak-20261104-214641",
+  "backup_sha256": "b4bb7220f95e7487ccaf9465f78f5f5c6e42da7891e408a6e59fb0a7277f8366",
+  "backup_sha256_declarado": "b4bb7220f95e7487ccaf9465f78f5f5c6e42da7891e408a6e59fb0a7277f8366",
+  "backup_sidecar_matches": true,
+  "cambios": {
+    "accept_openings": false,
+    "applied_legs": [],
+    "applied_openings": [],
+    "applied_swaps": []
+  },
+  "db_path": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\backend\\data\\banorte.db",
+  "db_sha256_after": "b4bb7220f95e7487ccaf9465f78f5f5c6e42da7891e408a6e59fb0a7277f8366",
+  "db_sha256_before": "b4bb7220f95e7487ccaf9465f78f5f5c6e42da7891e408a6e59fb0a7277f8366",
+  "db_sha256_unchanged": true,
+  "despues": {
+    "plan": {
+      "goals": [
+        {
+          "difference_cents": 0,
+          "goal_id": 1,
+          "goal_name": "Fondo de emergencia",
+          "ledger_cents": 1850000,
+          "saved_cents": 1850000,
+          "status": "activa",
+          "target_cents": 3000000
+        },
+        {
+          "difference_cents": 0,
+          "goal_id": 2,
+          "goal_name": "Viaje a Japón",
+          "ledger_cents": 820000,
+          "saved_cents": 820000,
+          "status": "activa",
+          "target_cents": 4500000
+        },
+        {
+          "difference_cents": 0,
+          "goal_id": 3,
+          "goal_name": "Enganche del auto",
+          "ledger_cents": 2250000,
+          "saved_cents": 2250000,
+          "status": "activa",
+          "target_cents": 4500000
+        }
+      ],
+      "goals_after_swaps": [
+        {
+          "difference_cents": 0,
+          "goal_id": 1,
+          "goal_name": "Fondo de emergencia",
+          "ledger_cents": 1850000,
+          "saved_cents": 1850000,
+          "status": "activa",
+          "target_cents": 3000000
+        },
+        {
+          "difference_cents": 0,
+          "goal_id": 2,
+          "goal_name": "Viaje a Japón",
+          "ledger_cents": 820000,
+          "saved_cents": 820000,
+          "status": "activa",
+          "target_cents": 4500000
+        },
+        {
+          "difference_cents": 0,
+          "goal_id": 3,
+          "goal_name": "Enganche del auto",
+          "ledger_cents": 2250000,
+          "saved_cents": 2250000,
+          "status": "activa",
+          "target_cents": 4500000
+        }
+      ],
+      "missing_legs": [],
+      "mode": "plan",
+      "opening_candidates": [],
+      "schema_has_transfer_legs": true,
+      "swapped_rows": []
+    },
+    "reconcile": {
+      "failures": 0,
+      "invariant_count": 13,
+      "non_pass": [
+        {
+          "detail": "Porcentajes con ROUND_HALF_UP: verificado en capa de dominio (money.py).",
+          "invariant": "INV-7",
+          "rows_affected": 0,
+          "status": "info"
+        },
+        {
+          "detail": "Última cuota absorbe residuo: verificado en capa de dominio (credit.py).",
+          "invariant": "INV-8",
+          "rows_affected": 0,
+          "status": "info"
+        },
+        {
+          "detail": "Capa única de dominio: verificado en código (domain.py, finance.py, savings.py).",
+          "invariant": "INV-9",
+          "rows_affected": 0,
+          "status": "info"
+        }
+      ],
+      "ok": true
+    },
+    "snapshot": {
+      "savings_goals": [
+        {
+          "id": 1,
+          "name": "Fondo de emergencia",
+          "saved_amount_cents": 1850000,
+          "status": "activa",
+          "target_amount_cents": 3000000
+        },
+        {
+          "id": 2,
+          "name": "Viaje a Japón",
+          "saved_amount_cents": 820000,
+          "status": "activa",
+          "target_amount_cents": 4500000
+        },
+        {
+          "id": 3,
+          "name": "Enganche del auto",
+          "saved_amount_cents": 2250000,
+          "status": "activa",
+          "target_amount_cents": 4500000
+        }
+      ],
+      "transactions_967_968_969": [
+        {
+          "account_id": 2,
+          "amount_cents": 11813,
+          "category": "Tiendas de conveniencia",
+          "date": "2026-10-20",
+          "description": "OXXO",
+          "direction": null,
+          "goal_id": null,
+          "id": 967,
+          "type": "expense"
+        },
+        {
+          "account_id": 1,
+          "amount_cents": 9137,
+          "category": "Tiendas de conveniencia",
+          "date": "2026-10-20",
+          "description": "Café La Parroquia",
+          "direction": null,
+          "goal_id": null,
+          "id": 968,
+          "type": "expense"
+        },
+        {
+          "account_id": 1,
+          "amount_cents": 20399,
+          "category": "Transporte",
+          "date": "2026-10-20",
+          "description": "Uber",
+          "direction": null,
+          "goal_id": null,
+          "id": 969,
+          "type": "expense"
+        }
+      ],
+      "transfer_legs": [
+        {
+          "account_id": 2,
+          "amount_cents": 1850000,
+          "transaction_id": 997
+        },
+        {
+          "account_id": 2,
+          "amount_cents": 820000,
+          "transaction_id": 998
+        },
+        {
+          "account_id": 2,
+          "amount_cents": 2250000,
+          "transaction_id": 999
+        }
+      ]
+    }
+  },
+  "filas_967_968_969": {
+    "antes": [
+      {
+        "account_id": 2,
+        "amount_cents": 11813,
+        "category": "Tiendas de conveniencia",
+        "date": "2026-10-20",
+        "description": "OXXO",
+        "direction": null,
+        "goal_id": null,
+        "id": 967,
+        "type": "expense"
+      },
+      {
+        "account_id": 1,
+        "amount_cents": 9137,
+        "category": "Tiendas de conveniencia",
+        "date": "2026-10-20",
+        "description": "Café La Parroquia",
+        "direction": null,
+        "goal_id": null,
+        "id": 968,
+        "type": "expense"
+      },
+      {
+        "account_id": 1,
+        "amount_cents": 20399,
+        "category": "Transporte",
+        "date": "2026-10-20",
+        "description": "Uber",
+        "direction": null,
+        "goal_id": null,
+        "id": 969,
+        "type": "expense"
+      }
+    ],
+    "despues": [
+      {
+        "account_id": 2,
+        "amount_cents": 11813,
+        "category": "Tiendas de conveniencia",
+        "date": "2026-10-20",
+        "description": "OXXO",
+        "direction": null,
+        "goal_id": null,
+        "id": 967,
+        "type": "expense"
+      },
+      {
+        "account_id": 1,
+        "amount_cents": 9137,
+        "category": "Tiendas de conveniencia",
+        "date": "2026-10-20",
+        "description": "Café La Parroquia",
+        "direction": null,
+        "goal_id": null,
+        "id": 968,
+        "type": "expense"
+      },
+      {
+        "account_id": 1,
+        "amount_cents": 20399,
+        "category": "Transporte",
+        "date": "2026-10-20",
+        "description": "Uber",
+        "direction": null,
+        "goal_id": null,
+        "id": 969,
+        "type": "expense"
+      }
+    ],
+    "sin_cambios": true
+  },
+  "foreign_key_check": [],
+  "guard_proof": {
+    "backup_file": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\backend\\data\\backups\\banorte.db.bak-20261104-214641",
+    "backup_sha256": "b4bb7220f95e7487ccaf9465f78f5f5c6e42da7891e408a6e59fb0a7277f8366",
+    "db_path": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\backend\\data\\banorte.db",
+    "foreign_key_check": [],
+    "integrity_check": "ok",
+    "motivo": "reparación ledger-v3"
+  },
+  "ids_afectados": [],
+  "integrity_check": "ok",
+  "kind": "ledger_v3_base_real",
+  "ledger_repair_audit_file": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\backend\\data\\backups\\banorte.db.repair-20261104-214641.json",
+  "motivo": "Ejecutar la reparación ledger-v3 sobre backend/data/banorte.db (Etapa 2.5), con respaldo verificado antes de la transacción y auditoría de reconcile antes/después.",
+  "nota_ids": "La base ya estaba consistente: no hubo filas 967/968/969 que reparar. Los ids afectados son los que la transacción modificó.",
+  "reference_today": "2026-10-30",
+  "result_mode": "applied",
+  "timestamp": "2026-11-04T21:46:41"
+}

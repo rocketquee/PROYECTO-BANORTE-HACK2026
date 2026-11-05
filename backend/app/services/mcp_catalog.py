@@ -23,9 +23,10 @@ from typing import Annotated, Any, Literal
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, ValidationError, \
     field_validator, model_validator
 
-from app.core.seed import reference_today
+from app.services import domain
 
 MAX_AMOUNT = 10_000_000.0
+GOAL_TARGET_MIN, GOAL_TARGET_MAX = domain.AMOUNT_LIMITS["goal_target"]
 MIN_CREDIT_AMOUNT = 1_000.0
 MAX_RATE = 200.0
 MIN_MONTHS = 3
@@ -46,19 +47,20 @@ def _iso_date(value: str) -> str:
 
 
 def _deadline(value: str) -> str:
-    value = _iso_date(value)
-    if date.fromisoformat(value) < reference_today():
-        raise ValueError("La fecha límite no puede estar en el pasado.")
-    return value
+    try:
+        validated = domain.validate_deadline(value)
+    except domain.DomainError as exc:
+        raise ValueError(exc.message) from exc
+    if validated is None:
+        raise ValueError("La fecha límite no es válida.")
+    return validated
 
 
 def _goal_name(value: str) -> str:
-    clean = " ".join(str(value or "").split())
-    if not (2 <= len(clean) <= 80):
-        raise ValueError("El nombre debe tener entre 2 y 80 caracteres.")
-    if re.search(r"[<>{}\\`]|script|on\w+=", clean, re.IGNORECASE):
-        raise ValueError("El nombre contiene caracteres o texto no permitido.")
-    return clean
+    try:
+        return domain.validate_goal_name(value)
+    except domain.DomainError as exc:
+        raise ValueError(exc.message) from exc
 
 
 def _month(value: str) -> str:
@@ -186,7 +188,7 @@ class CompareCreditTermsInput(ToolInput):
 
 class CreateSavingsGoalInput(ToolInput):
     name: GoalName
-    target_amount: float = Field(ge=1, le=MAX_AMOUNT)
+    target_amount: float = Field(ge=GOAL_TARGET_MIN, le=GOAL_TARGET_MAX)
     deadline: Deadline | None = None
     confirm: bool = False
     idempotency_key: IdempotencyKey | None = None
@@ -195,7 +197,9 @@ class CreateSavingsGoalInput(ToolInput):
 class UpdateSavingsGoalInput(ToolInput):
     goal_id: int = Field(gt=0)
     name: GoalName | None = None
-    target_amount: float | None = Field(default=None, gt=0, le=MAX_AMOUNT)
+    target_amount: float | None = Field(
+        default=None, ge=GOAL_TARGET_MIN, le=GOAL_TARGET_MAX,
+    )
     deadline: Deadline | None = None
     confirm: bool = False
 

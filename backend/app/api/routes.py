@@ -1,6 +1,5 @@
 """REST API routes."""
 import calendar
-import re
 import time
 from collections import defaultdict, deque
 
@@ -8,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 
 from app.core import auth, config
 from app.core.database import db, reconcile_database, reset_database
+from app.core.seed import reference_today
 from app.schemas.api import (BudgetUpdateRequest, ChatRequest, ConfirmRequest,
                              CreditSimulateRequest, GoalCreateRequest, GoalTransferRequest,
                              GoalUpdateRequest, LoginRequest)
@@ -19,7 +19,6 @@ from app.services import savings
 from app.services.agent import confirmations, orchestrator
 from app.services.agent.providers import provider_mode
 from app.services.mcp_client import MCPClientError, mcp_client
-from datetime import date as date_cls
 import os
 
 router = APIRouter(prefix="/api")
@@ -60,33 +59,21 @@ def _check_login_rate_limit(client_ip: str) -> None:
 
 
 def _sanitize_goal_name(name: str) -> str:
-    """Removes anything that could be used as markup or injection payload."""
-    cleaned = re.sub(r"[<>\{\}`]|script|on\w+=", "", name, flags=re.IGNORECASE).strip()
-    return re.sub(r"\s+", " ", cleaned)
+    """Compatibilidad: el saneamiento vive en la capa de dominio."""
+    return domain.sanitize_goal_name(name)
 
 
 def _validate_goal(body: GoalCreateRequest) -> GoalCreateRequest:
-    name = _sanitize_goal_name(body.name)
-    if not (2 <= len(name) <= 80):
-        raise HTTPException(status_code=422,
-                            detail="El nombre debe tener entre 2 y 80 caracteres.")
-    if body.target_amount <= 0 or body.target_amount > 10_000_000:
-        raise HTTPException(status_code=422,
-                            detail="El importe objetivo debe estar entre $1 y $10,000,000.")
-    if body.deadline:
-        try:
-            d = date_cls.fromisoformat(body.deadline)
-        except ValueError:
-            raise HTTPException(status_code=422, detail="Fecha límite inválida.")
-        if d < date_cls.today():
-            raise HTTPException(status_code=422,
-                                detail="La fecha límite no puede estar en el pasado.")
-    body.name = name
+    """Compatibilidad: valida con la misma autoridad que la escritura."""
+    body.name = domain.validate_goal_name(body.name)
+    domain.validate_amount(body.target_amount, kind="goal_target")
+    if body.deadline is not None:
+        domain.validate_deadline(body.deadline)
     return body
 
 
 def _parse_month(month: str | None) -> tuple[int, int]:
-    today = date_cls.today()
+    today = reference_today()
     if not month:
         return today.year, today.month
     try:
@@ -219,11 +206,14 @@ def goals():
 
 @router.post("/goals", status_code=201)
 def create_goal(body: GoalCreateRequest):
-    body = _validate_goal(body)
     with db() as conn:
         try:
             # El ahorrado nace en cero: se fija solo por transferencias (INV-4).
-            goal = finance.create_goal(conn, body.name, body.target_amount, body.deadline)
+            goal = domain.create_goal(
+                conn, body.name, body.target_amount, body.deadline,
+            )
+        except domain.DomainError as exc:
+            raise HTTPException(status_code=422, detail=exc.message)
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc))
     return goal
@@ -232,9 +222,15 @@ def create_goal(body: GoalCreateRequest):
 @router.patch("/goals/{goal_id}")
 def update_goal(goal_id: int, body: GoalUpdateRequest):
     with db() as conn:
-        goal = finance.update_goal(conn, goal_id, name=body.name,
-                                   target_amount=body.target_amount,
-                                   deadline=body.deadline, status=body.status)
+        try:
+            goal = domain.update_goal(
+                conn, goal_id, name=body.name, target_amount=body.target_amount,
+                deadline=body.deadline, status=body.status,
+            )
+        except domain.DomainError as exc:
+            raise HTTPException(status_code=422, detail=exc.message)
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc))
     if not goal:
         raise HTTPException(status_code=404, detail="Meta no encontrada.")
     return goal
@@ -284,7 +280,7 @@ def budget(month: str | None = None):
 def budget_update(body: BudgetUpdateRequest):
     with db() as conn:
         finance.set_budget_limit(conn, body.category, body.monthly_limit)
-        today = date_cls.today()
+        today = reference_today()
         return finance.budget_overview(conn, today.year, today.month)
 
 

@@ -170,6 +170,26 @@ def test_dry_run_writes_nothing(legacy_db):
     assert _types(legacy_db, "accounts")["balance"] == "REAL"  # intacta
 
 
+def test_run_pending_aborts_without_verified_backup(legacy_db, monkeypatch):
+    """Sin respaldo verificado la migración aborta antes de escribir nada."""
+    missing = legacy_db.parent / "backups" / "no-existe.bak-20260101-000000"
+    monkeypatch.setattr(migrate, "backup", lambda _db: missing)
+
+    with pytest.raises(migrate.MigrationError, match="no hay ninguno válido"):
+        migrate.run_pending(legacy_db)
+
+    conn = sqlite3.connect(legacy_db)
+    try:
+        registry = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table'"
+            " AND name='schema_migrations'"
+        ).fetchone()
+    finally:
+        conn.close()
+    assert registry is None
+    assert _types(legacy_db, "accounts")["balance"] == "REAL"  # intacta
+
+
 def test_fresh_install_registers_all_versions(tmp_db, tmp_path):
     """Una base recién sembrada ya nace en centavos: las versiones se
     registran como cubiertas sin ejecutarse."""
@@ -185,7 +205,9 @@ def test_fresh_install_registers_all_versions(tmp_db, tmp_path):
                 for r in conn.execute("SELECT * FROM schema_migrations")}
     finally:
         conn.close()
-    assert set(rows) == {"ledger-v1", "ledger-v2", "confirm-v1", "auth-v1"}
+    assert set(rows) == {
+        "ledger-v1", "ledger-v2", "confirm-v1", "auth-v1", "goal-status-v1",
+    }
     assert all(r.get("mode") == "fresh_install" for r in rows.values())
     # Y el runner no encuentra nada pendiente sobre esa base.
     report = migrate.run_pending(registry)

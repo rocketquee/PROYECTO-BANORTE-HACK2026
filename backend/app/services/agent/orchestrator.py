@@ -2458,7 +2458,7 @@ async def live_response(req: ChatRequest, trace_id: str | None = None,
                         and result.get("status") == "requires_confirmation"):
                     pending = PendingAction(
                         id=confirmations.new_action_id(), action=call.name,
-                        params=result.get("params", {}),
+                        params=_sanitize_injected_text(result.get("params", {})),
                         description=_sanitize_injected_text(
                             result.get("message", "Confirmar cambio en metas de ahorro."),
                         ),

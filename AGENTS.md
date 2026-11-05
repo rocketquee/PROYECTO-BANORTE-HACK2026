@@ -87,3 +87,20 @@ Se derivan de `docs/PLAN.md` y de las sesiones de corrección de la Fase A.
 - Toda puerta de salida exige suite en verde, compilación de producción y
   reconciliación `ok=true`, `failures=0`, sin regresiones.
 - El trabajo se detiene y se espera aprobación en cada puerta indicada.
+
+## 11. Entorno de pruebas en Windows
+
+- Si `pytest` falla al preparar `pytest-of-<usuario>` con
+  `PermissionError: [WinError 5] Acceso denegado`, el problema es del
+  directorio temporal del sistema, no de la suite ni del código.
+- Antes de ejecutar, redirigir `TEMP` y `TMP` a una carpeta escribible y fijar
+  un `--basetemp` explícito:
+
+  ```powershell
+  $env:TEMP = "$env:LOCALAPPDATA\Temp\opencode"
+  $env:TMP = $env:TEMP
+  python -m pytest -q backend --basetemp="$env:TEMP\pytest-banorte"
+  ```
+
+- No se acepta este error como excusa para omitir pruebas: la puerta exige
+  ejecutar la suite completa con la redirección aplicada.

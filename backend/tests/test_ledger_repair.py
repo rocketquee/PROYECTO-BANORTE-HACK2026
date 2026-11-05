@@ -203,6 +203,79 @@ def test_apply_without_openings_keeps_ambiguity_visible(tmp_path):
         conn.close()
 
 
+def test_guard_aborts_without_backup(tmp_path):
+    """Sin respaldo previo, la puerta común aborta y no escribe nada."""
+    db_file = tmp_path / "defective.db"
+    _defective_db(db_file)
+    before = _sha(db_file)
+
+    conn = sqlite3.connect(db_file)
+    conn.row_factory = sqlite3.Row
+    try:
+        with pytest.raises(migrate.MigrationError, match="no hay ninguno válido"):
+            migrate.require_verified_backup(conn, "normalización de prueba")
+    finally:
+        conn.close()
+
+    assert _sha(db_file) == before
+
+
+def test_guard_accepts_verified_backup(tmp_path):
+    """Con respaldo verificado (existencia, SHA-256 e integridad) la puerta pasa."""
+    db_file = tmp_path / "defective.db"
+    _defective_db(db_file)
+    backup = migrate.backup(db_file)
+
+    conn = sqlite3.connect(db_file)
+    conn.row_factory = sqlite3.Row
+    try:
+        proof = migrate.require_verified_backup(
+            conn, "normalización de prueba",
+            db_path=db_file, backup_path=backup,
+        )
+    finally:
+        conn.close()
+
+    assert proof["backup_file"] == str(backup)
+    assert proof["backup_sha256"] == _sha(backup)
+    assert proof["integrity_check"] == "ok"
+    assert proof["foreign_key_check"] == []
+
+
+def test_guard_rejects_tampered_backup(tmp_path):
+    """Un respaldo alterado no satisface el SHA-256 declarado y aborta."""
+    db_file = tmp_path / "defective.db"
+    _defective_db(db_file)
+    backup = migrate.backup(db_file)
+    with backup.open("ab") as handle:
+        handle.write(b"alterado")
+
+    conn = sqlite3.connect(db_file)
+    conn.row_factory = sqlite3.Row
+    try:
+        with pytest.raises(migrate.MigrationError, match="no coincide"):
+            migrate.require_verified_backup(
+                conn, "normalización de prueba",
+                db_path=db_file, backup_path=backup,
+            )
+    finally:
+        conn.close()
+
+
+def test_apply_aborts_when_backup_creation_fails(tmp_path, monkeypatch):
+    """El punto de entrada de repair valida el respaldo antes de la transacción."""
+    db_file = tmp_path / "defective.db"
+    _defective_db(db_file)
+    before = _sha(db_file)
+    missing = tmp_path / "backups" / "no-existe.bak-20260101-000000"
+    monkeypatch.setattr(migrate, "backup", lambda _db: missing)
+
+    with pytest.raises(migrate.MigrationError, match="no hay ninguno válido"):
+        ledger_repair.run(db_file, apply=True, accept_openings=True)
+
+    assert _sha(db_file) == before
+
+
 def test_real_database_apply_is_blocked(tmp_path, monkeypatch):
     db_file = tmp_path / "real.db"
     _defective_db(db_file)

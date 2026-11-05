@@ -95,7 +95,8 @@ CREATE TABLE IF NOT EXISTS savings_goals (
     target_amount_cents INTEGER NOT NULL CHECK (target_amount_cents > 0),
     saved_amount_cents INTEGER NOT NULL DEFAULT 0 CHECK (saved_amount_cents >= 0),
     deadline TEXT,
-    status TEXT NOT NULL DEFAULT 'activa',
+    status TEXT NOT NULL DEFAULT 'activa'
+        CHECK (status IN ('activa', 'completada')),
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 """,

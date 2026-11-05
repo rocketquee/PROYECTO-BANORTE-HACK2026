@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.services import domain
+
 
 class Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -16,23 +18,32 @@ class CreditSimulateRequest(Strict):
     method: str = "frances"
 
 
+GOAL_TARGET_MIN, GOAL_TARGET_MAX = domain.AMOUNT_LIMITS["goal_target"]
+
+
 class GoalCreateRequest(Strict):
     """Datos declarativos de una meta. El ahorrado **no** se fija aquí: nace en
     cero y solo cambia por transferencias confirmadas (INV-4)."""
 
-    name: str = Field(min_length=2, max_length=80)
-    target_amount: float = Field(gt=0, le=10_000_000)
+    name: str = Field(min_length=domain.GOAL_NAME_MIN,
+                      max_length=domain.GOAL_NAME_MAX)
+    target_amount: float = Field(ge=GOAL_TARGET_MIN, le=GOAL_TARGET_MAX)
     deadline: str | None = None
+
+
+GoalStatus = Literal["activa", "completada"]
 
 
 class GoalUpdateRequest(Strict):
     """Edita los datos declarativos de una meta. El ahorrado no se edita aquí:
     solo cambia por transferencias confirmadas (INV-4)."""
 
-    name: str | None = Field(default=None, min_length=2, max_length=80)
-    target_amount: float | None = Field(default=None, gt=0, le=10_000_000)
+    name: str | None = Field(default=None, min_length=domain.GOAL_NAME_MIN,
+                             max_length=domain.GOAL_NAME_MAX)
+    target_amount: float | None = Field(default=None, ge=GOAL_TARGET_MIN,
+                                        le=GOAL_TARGET_MAX)
     deadline: str | None = None
-    status: str | None = None
+    status: GoalStatus | None = None
 
 
 class GoalTransferRequest(Strict):

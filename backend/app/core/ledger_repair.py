@@ -342,6 +342,14 @@ def run(db_path: Path | str, *, apply: bool = False,
     backup_path = migrate.backup(db_path)
     conn = _connect(db_path)
     try:
+        # Puerta común: ningún cambio se abre sin un respaldo verificado del
+        # estado actual (existencia, SHA-256, integridad y correspondencia).
+        migrate.require_verified_backup(
+            conn,
+            "reparación ledger-v3",
+            db_path=db_path,
+            backup_path=backup_path,
+        )
         conn.execute("PRAGMA foreign_keys = ON")
         conn.execute("BEGIN IMMEDIATE")
         try:

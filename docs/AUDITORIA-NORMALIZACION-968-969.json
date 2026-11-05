@@ -1,0 +1,116 @@
+{
+  "backup_created_with": "app.core.migrate.backup",
+  "backup_file": "backend\\data\\backups\\banorte.db.bak-20261104-184225",
+  "backup_matches_db": true,
+  "backup_sha256": "b4bb7220f95e7487ccaf9465f78f5f5c6e42da7891e408a6e59fb0a7277f8366",
+  "db_path": "backend\\data\\banorte.db",
+  "db_sha256": "b4bb7220f95e7487ccaf9465f78f5f5c6e42da7891e408a6e59fb0a7277f8366",
+  "db_sha256_before_backup": "b4bb7220f95e7487ccaf9465f78f5f5c6e42da7891e408a6e59fb0a7277f8366",
+  "db_size_bytes": 212992,
+  "expected_normalized_date": "2026-10-20",
+  "foreign_key_check": [],
+  "generated_at_real_clock": "2026-11-04T18:42:25",
+  "ids_afectados": [
+    968,
+    969
+  ],
+  "integrity_check": "ok",
+  "kind": "normalizacion_transacciones_968_969",
+  "limitacion": "No existía un respaldo previo a la normalización: no se encontró en backend/data/backups ni en el historial de git. Por tanto, la fecha anterior exacta de las filas 968 y 969 no es recuperable y se registra como null; el respaldo disponible captura el estado ya normalizado.",
+  "motivo": "Corregir la fecha de las transacciones 968 (Café La Parroquia) y 969 (Uber) para alinearlas con el periodo del libro (2026-10-20) antes de cerrar la Fase A.",
+  "note": "No se encontró un respaldo previo a la normalización en backend/data/backups ni en el historial de git. Este respaldo captura el estado ya normalizado (968/969 = 2026-10-20), verificado por SHA-256, PRAGMA integrity_check, PRAGMA foreign_key_check y reconcile.",
+  "reconcile": {
+    "failures": 0,
+    "invariant_count": 13,
+    "non_pass": [
+      {
+        "detail": "Porcentajes con ROUND_HALF_UP: verificado en capa de dominio (money.py).",
+        "invariant": "INV-7",
+        "rows_affected": 0,
+        "status": "info"
+      },
+      {
+        "detail": "Última cuota absorbe residuo: verificado en capa de dominio (credit.py).",
+        "invariant": "INV-8",
+        "rows_affected": 0,
+        "status": "info"
+      },
+      {
+        "detail": "Capa única de dominio: verificado en código (domain.py, finance.py, savings.py).",
+        "invariant": "INV-9",
+        "rows_affected": 0,
+        "status": "info"
+      }
+    ],
+    "ok": true
+  },
+  "reference_today": "2026-10-30",
+  "rows": [
+    {
+      "account_id": 1,
+      "amount_cents": 9137,
+      "category": "Tiendas de conveniencia",
+      "date": "2026-10-20",
+      "date_after": "2026-10-20",
+      "date_before": null,
+      "date_before_note": "No recuperable: no existía respaldo previo a la normalización.",
+      "description": "Café La Parroquia",
+      "direction": null,
+      "goal_id": null,
+      "id": 968,
+      "type": "expense"
+    },
+    {
+      "account_id": 1,
+      "amount_cents": 20399,
+      "category": "Transporte",
+      "date": "2026-10-20",
+      "date_after": "2026-10-20",
+      "date_before": null,
+      "date_before_note": "No recuperable: no existía respaldo previo a la normalización.",
+      "description": "Uber",
+      "direction": null,
+      "goal_id": null,
+      "id": 969,
+      "type": "expense"
+    }
+  ],
+  "rows_match_expected_date": true,
+  "schema_migrations": [
+    {
+      "applied_at": "2026-11-04 04:24:46",
+      "backup_file": null,
+      "version": "ledger-v1"
+    },
+    {
+      "applied_at": "2026-11-04 04:24:46",
+      "backup_file": null,
+      "version": "ledger-v2"
+    },
+    {
+      "applied_at": "2026-11-04 04:48:00",
+      "backup_file": "banorte.db.bak-20261103-224759",
+      "version": "confirm-v1"
+    },
+    {
+      "applied_at": "2026-11-04 05:10:32",
+      "backup_file": "banorte.db.bak-20261103-231032",
+      "version": "auth-v1"
+    }
+  ],
+  "timestamp": "2026-11-04T18:42:25",
+  "transacciones_normalizadas": [
+    {
+      "date_after": "2026-10-20",
+      "date_before": null,
+      "date_before_note": "No recuperable: no existía respaldo previo a la normalización.",
+      "id": 968
+    },
+    {
+      "date_after": "2026-10-20",
+      "date_before": null,
+      "date_before_note": "No recuperable: no existía respaldo previo a la normalización.",
+      "id": 969
+    }
+  ]
+}

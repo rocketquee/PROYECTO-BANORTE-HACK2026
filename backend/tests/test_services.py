@@ -75,3 +75,21 @@ def test_invalid_month_rejected(tmp_db):
     with pytest.raises(HTTPException):
         _parse_month("basura")
     assert _parse_month("2026-10") == (2026, 10)
+
+
+def test_default_month_uses_reference_date():
+    from app.api.routes import _parse_month
+    today = reference_today()
+    assert _parse_month(None) == (today.year, today.month)
+
+
+def test_goal_deadline_on_reference_date_is_not_past():
+    from app.api.routes import _validate_goal
+    from app.schemas.api import GoalCreateRequest
+    today = reference_today()
+    request = GoalCreateRequest(
+        name="Meta de referencia",
+        target_amount=1_000,
+        deadline=today.isoformat(),
+    )
+    assert _validate_goal(request).deadline == today.isoformat()

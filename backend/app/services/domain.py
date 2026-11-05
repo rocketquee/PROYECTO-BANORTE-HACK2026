@@ -13,6 +13,7 @@ Relación con `finance.py`:
 from __future__ import annotations
 
 import math
+import re
 from datetime import date
 
 from app.core import money
@@ -26,7 +27,7 @@ TRANSFER_DIRECTIONS = finance.TRANSFER_DIRECTIONS
 
 # Límites de importe: una sola definición por tipo de operación.
 AMOUNT_LIMITS: dict[str, tuple[float, float]] = {
-    "goal_target": (1.0, 100_000_000.0),
+    "goal_target": (1.0, 10_000_000.0),
     "income": (0.01, 1_000_000_000.0),
     "expense": (0.01, 1_000_000_000.0),
     "transfer": (0.01, 1_000_000_000.0),
@@ -34,6 +35,7 @@ AMOUNT_LIMITS: dict[str, tuple[float, float]] = {
 
 GOAL_NAME_MIN = 2
 GOAL_NAME_MAX = 80
+GOAL_STATUSES = ("activa", "completada")
 
 
 class DomainError(ValueError):
@@ -93,28 +95,50 @@ def validate_money_range(value, *, lo: float, hi: float, label: str) -> float:
 
 # ------------------------------------------------------------- nombres
 
-def validate_goal_name(conn, name) -> str:
-    """Sanea y valida el nombre de una meta: longitud, contenido y unicidad.
+_GOAL_NAME_FORBIDDEN = re.compile(r"[<>{}`\\]|script|on\w+=", re.IGNORECASE)
 
-    La unicidad se comprueba sobre los nombres existentes sin distinguir
-    mayúsculas ni espacios repetidos. Es la única definición de esta regla.
-    """
+
+def sanitize_goal_name(name) -> str:
+    """Normaliza espacios y retira marcas no permitidas de un nombre."""
     clean = " ".join(str(name or "").split())
+    return _GOAL_NAME_FORBIDDEN.sub("", clean).strip()
+
+
+def validate_goal_name(name) -> str:
+    """Valida el nombre de una meta: longitud y contenido, sin duplicarlo.
+
+    La unicidad vive en `finance.create_goal`/`finance.update_goal`, que son
+    quienes consultan la tabla; aquí solo se decide qué texto puede entrar.
+    REST, MCP y el agente usan esta misma función (INV-9).
+    """
+    raw = " ".join(str(name or "").split())
+    clean = sanitize_goal_name(raw)
+    if clean != raw:
+        raise DomainError(
+            "goal_name_invalid",
+            "El nombre contiene caracteres o texto no permitido.",
+        )
     if not (GOAL_NAME_MIN <= len(clean) <= GOAL_NAME_MAX):
         raise DomainError(
             "goal_name_length",
             f"El nombre debe tener entre {GOAL_NAME_MIN} y {GOAL_NAME_MAX} caracteres.",
         )
-    existing = {
-        " ".join(row["name"].split()).casefold()
-        for row in conn.execute("SELECT name FROM savings_goals")
-    }
-    if clean.casefold() in existing:
-        raise DomainError(
-            "goal_name_duplicate",
-            f"Ya tienes una meta llamada '{clean}'. Elige otro nombre.",
-        )
     return clean
+
+
+def validate_goal_status(value) -> str:
+    """Valida el estado de una meta contra el dominio cerrado (INV-11).
+
+    El estado no se acepta como texto libre: solo `activa` o `completada`.
+    La base repite la misma restricción con un CHECK como defensa en
+    profundidad, pero la autoridad de la regla es esta función.
+    """
+    if value not in GOAL_STATUSES:
+        raise DomainError(
+            "goal_status_invalid",
+            "El estado de la meta debe ser 'activa' o 'completada'.",
+        )
+    return value
 
 
 # ------------------------------------------------------------- fechas
@@ -241,3 +265,39 @@ def validate_transfer(conn, *, goal_id, amount: float, direction: str) -> dict:
         "target_amount": money.to_pesos(row["target_amount_cents"]),
         "saved_amount": money.to_pesos(row["saved_amount_cents"]),
     }
+
+
+# ------------------------------------------------------------- metas
+
+def create_goal(conn, name, target_amount: float,
+                deadline: str | None = None) -> dict:
+    """Valida y crea una meta en un solo punto para REST y MCP."""
+    clean_name = validate_goal_name(name)
+    amount = validate_amount(target_amount, kind="goal_target")
+    if deadline is not None:
+        deadline = validate_deadline(deadline)
+    return finance.create_goal(conn, clean_name, amount, deadline)
+
+
+def update_goal(conn, goal_id: int, *, name: str | None = None,
+                target_amount: float | None = None,
+                deadline: str | None = None,
+                status: str | None = None) -> dict | None:
+    """Valida y aplica la edición de una meta en un solo punto.
+
+    REST y MCP llaman a esta función; ninguna capa escribe `name`,
+    `target_amount`, `deadline` ni `status` sin pasar por las reglas de
+    dominio (INV-9, INV-11).
+    """
+    if name is not None:
+        name = validate_goal_name(name)
+    if target_amount is not None:
+        target_amount = validate_amount(target_amount, kind="goal_target")
+    if status is not None:
+        status = validate_goal_status(status)
+    if deadline is not None:
+        deadline = validate_deadline(deadline)
+    return finance.update_goal(
+        conn, goal_id, name=name, target_amount=target_amount,
+        deadline=deadline, status=status,
+    )

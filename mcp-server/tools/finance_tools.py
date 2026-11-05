@@ -21,6 +21,7 @@ from app.core.database import db  # noqa: E402
 from app.core import money  # noqa: E402
 from app.core.seed import reference_today  # noqa: E402
 from app.services import credit as credit_service  # noqa: E402
+from app.services import domain  # noqa: E402
 from app.services import finance  # noqa: E402
 from app.services import savings  # noqa: E402
 from app.services.mcp_catalog import add_sin_dato, validated_tool  # noqa: E402
@@ -335,8 +336,8 @@ async def update_savings_goal_impl(goal_id: int, name: str | None = None,
             "message": f"¿Confirmas actualizar la meta #{goal_id}?",
         }
     with db() as conn:
-        goal = finance.update_goal(conn, goal_id, name=name, target_amount=target_amount,
-                                   deadline=deadline)
+        goal = domain.update_goal(conn, goal_id, name=name,
+                                  target_amount=target_amount, deadline=deadline)
     if not goal:
         raise ValueError(f"No existe la meta #{goal_id}.")
     return {"status": "updated", "goal": goal,

@@ -20,9 +20,9 @@ La Etapa 1 (modelo de dominio, centavos, migraciones, contrato UI, pruebas base)
 | Etapa | Nombre | Estado | Depende de | Punto de entrada |
 |---|---|---|---|---|
 | 1 | Integridad contable base | **Parcial / roja** | — | `apply_transfer`, triggers, reconciliación |
-| 2 | Reparación y reconciliación del libro | **2.1–2.8 cerradas en copia; 2.5 real pendiente de aprobación** | 1 | `backend/app/core/ledger_repair.py` |
+| 2 | Reparación y reconciliación del libro | **2.1–2.9 cerradas; 2.5 real ejecutada (sin cambios)** | 1 | `backend/app/core/ledger_repair.py` |
 | 3 | Validación única y paridad REST/MCP | **Pendiente** | 2 | `backend/app/services/domain.py`, `routes.py` |
-| 4 | IA: fundamentación, privacidad y confirmaciones | **Pendiente** | 2, 3 | `backend/app/services/agent/orchestrator.py` |
+| 4 | IA: fundamentación, privacidad y confirmaciones | **Hecho (4.1–4.6)** | 2, 3 | `backend/app/services/agent/orchestrator.py` |
 | 5 | UI/UX: contrato en ejecución y ciclo cerrado | **Pendiente** | 3, 4 | `frontend/src/components/dynamic/DynamicRenderer.tsx` |
 | 6 | Calidad: propiedades, concurrencia, E2E y CI | **Pendiente** | 2–5 | `backend/tests/`, `frontend/tests/` |
 | 7 | Portabilidad y empaquetado | **Pendiente** | 2, 3, 6 | `scripts/`, `vercel.json`, `mcp-server/` |
@@ -41,7 +41,7 @@ La Etapa 1 (modelo de dominio, centavos, migraciones, contrato UI, pruebas base)
 | 2.2 | Corregir el trigger de transferencias | **Hecho** | `finance.py:550-561` inserta la transferencia antes del `UPDATE`; el trigger `seed.py:123-133` compara contra el estado previo; prueba de aportación exacta y retiro | El trigger valida contra el estado previo y el orden de escritura ya no lo duplica; no hay 500 en ningún monto válido |
 | 2.3 | Reconciliar `saved_amount` contra `SUM(transfers)` | **Hecho** | `reconcile.py` invariantes `goal_ledger`, `goal_status`, `orphan_transfers`; `tests/test_reconcile.py` (11 pruebas) reproduce las diferencias +$18,500 / -$14,300 / +$22,500 con meta y monto | `reconcile` falla con fila, meta y diferencia; se agrega a la suite |
 | 2.4 | Reconciliar estado contra objetivo | **Hecho** | `reconcile.py` exige `completada ⇒ saved == target` y `saved == target ⇒ completada`; pruebas de borde en `tests/test_reconcile.py` | `status='completada'` exige `saved_amount == target_amount`; prueba de borde |
-| 2.5 | Reparar la base real con migración versionada | **Hecho en copia; base real pendiente de aprobación** | `backend/app/core/ledger_repair.py` (plan/apply, `BEGIN IMMEDIATE`, respaldo + SHA-256, auditoría); `tests/test_ledger_repair.py` (4 pruebas). Copia reparada: fila 967 → cuenta 2/meta 3, 1 pierna, aperturas 968/969, `reconcile` verde, `failures=0`. Base real intacta: SHA-256 `48AED474…C287BB`, 237,568 bytes | Corregir el `INSERT` de `ledger-v1` y su verificación por fila; migración `ledger-v3` con respaldo verificado deja los tres saldos y el movimiento 967 consistentes; `reconcile` verde |
+| 2.5 | Reparar la base real con migración versionada | **Hecho (base real, 2026-11-04)** | `backend/app/core/ledger_repair.py` (plan/apply, `BEGIN IMMEDIATE`, respaldo + SHA-256, auditoría); ejecutado con `--apply --allow-real`: respaldo verificado `backend/data/backups/banorte.db.bak-20261104-221035`, SHA-256 `b4bb7220…f8366`, `integrity_check=ok`, FK `[]`; `ledger-v3` no requirió cambios (0 swaps, 0 piernas, 0 aperturas), `ids_afectados=[]`; `reconcile` antes/después `ok=true`, `failures=0`, 13 invariantes. Auditoría: `docs/AUDITORIA-LEDGER-V3-20261104-221035.json` | Corregir el `INSERT` de `ledger-v1` y su verificación por fila; migración `ledger-v3` con respaldo verificado deja los tres saldos y el movimiento 967 consistentes; `reconcile` verde |
 | 2.6 | Corregir el fondeo de la semilla | **Hecho** | `seed.py` inserta metas con `saved=0` y las fondea con `finance.apply_transfer`; `tests/test_transfer_accounting.py` verifica que toda meta con ahorro tiene libro y que dos siembras dan el mismo SHA-256 | Toda meta sembrada con ahorro > 0 tiene su transferencia; base nueva reconcilia al 100% |
 | 2.7 | Registrar todas las cuentas debitadas | **Hecho** | `TRANSFER_LEGS_DDL` + `transfer_legs`; `_debit_accounts_cents` devuelve todas las piernas y `apply_transfer` las inserta; `tests/test_transfer_accounting.py` cubre multi-cuenta y reconstrucción por cuenta | Una transferencia multi-cuenta conserva todas las piernas y permite reconstruir cada saldo |
 | 2.8 | Congelar el calendario de la semilla | **Hecho** | `DEFAULT_REFERENCE_DATE = 2026-10-30`; `BANORTE_DEMO_TODAY` lo sobrescribe; `tests/test_transfer_accounting.py` compara SHA-256 de dos siembras | Semilla reproducible con fecha fija por defecto o documentada como variable obligatoria |
@@ -50,7 +50,7 @@ La Etapa 1 (modelo de dominio, centavos, migraciones, contrato UI, pruebas base)
 **Aceptación de Etapa 2**
 
 1. Base nueva: completar una meta funciona; al 50% sigue activa; `reconcile` verde.
-2. Base real reparada (**pendiente de aprobación**): metas 1–4 cuadran con el libro; movimiento 967 apunta a la meta correcta. La copia ya cumple.
+2. Base real reparada (**ejecutada y verificada 2026-11-04**): metas 1–4 cuadran con el libro; movimiento 967 apunta a la meta correcta. La copia ya cumple.
 3. Aportación multi-cuenta reconstruible por cuenta.
 4. Suite backend (317) y build de frontend en verde, con pruebas nuevas de borde.
 
@@ -64,8 +64,8 @@ La Etapa 1 (modelo de dominio, centavos, migraciones, contrato UI, pruebas base)
 
 | ID | Tarea | Estado | Evidencia / archivo | Criterio de cierre |
 |---|---|---|---|---|
-| 3.1 | Validar `status` con dominio cerrado | Pendiente | `schemas/api.py:34` lo declara `str`; `finance.py:466-467` lo escribe sin validar; prueba: `PATCH {"status":"banana"}` devuelve 200 | `status` es `Literal` y la base tiene CHECK; valor inválido devuelve 422 |
-| 3.2 | Validar fecha límite en PATCH y MCP | Pendiente | `finance.py:464-465` asigna la fecha sin parsear; `PATCH {"deadline":"2000-01-01"}` devuelve 200; MCP no valida `deadline` (`finance_tools.py:196-245`) | Fecha inválida o pasada devuelve 422 en REST y error de herramienta en MCP |
+| 3.1 | Validar `status` con dominio cerrado | **Hecho** | `GoalStatus = Literal["activa","completada"]` (`api.py:28,38`); `domain.validate_goal_status` y `domain.update_goal` (`domain.py:121-132,264-281`); PATCH usa la capa única y traduce a 422 (`routes.py:234-244`); MCP usa `domain.update_goal` (`finance_tools.py:339`); CHECK en DDL (`seed.py:99`) y migración `goal-status-v1` (`migrate.py:43,695`); 4 pruebas (`test_goal_validation.py:29-66`) | `status` es `Literal` y la base tiene CHECK; valor inválido devuelve 422 |
+| 3.2 | Validar fecha límite en PATCH y MCP | **Hecho** | `domain.validate_deadline` (`domain.py:138`); `domain.update_goal` valida antes de escribir (`domain.py:264-281`); PATCH traduce a 422 (`routes.py:237-242`); MCP delega en el dominio (`finance_tools.py:339`); catálogo MCP usa la misma función (`mcp_catalog.py:48-54`); 6 pruebas (`test_goal_validation.py:69-124`) | Fecha inválida o pasada devuelve 422 en REST y error de herramienta en MCP |
 | 3.3 | Sanitizar y limitar el nombre en toda escritura | Pendiente | `routes.py:46-64` solo sanea POST; `PATCH` guarda `<script>alert(1)</script>` (200); MCP no sanea | Toda creación/edición pasa por la misma función de dominio |
 | 3.4 | Unificar límites REST/MCP | Pendiente | REST: $10,000,000 (`routes.py:58-62`); MCP: $100,000,000 (`finance_tools.py:207`) | Un solo límite probado en ambos transportes |
 | 3.5 | Igualar capacidades de transferencia | Pendiente | REST acepta `goal_to_account` (`savings.py`); MCP fija `account_to_goal` (`finance_tools.py:288-297`) | Misma matriz de direcciones o diferencia documentada y probada |
@@ -88,7 +88,7 @@ La Etapa 1 (modelo de dominio, centavos, migraciones, contrato UI, pruebas base)
 | 4.3 | Inventario y limpieza de PII | **Hecho** | 11 archivos versionados saneados (`.archify/...`, `docs/arquitectura.*.json`, `docs/AUDITORIA-FASE1*.md`, `docs/DATA-DICTIONARY.md`, `docs/bitacora.../Pendientes.md`); `backend/data/banorte.db` y respaldos regenerados sin PII; guardia `test_no_pii.py:41-77`; `git grep` sin coincidencias | Base de entrega sin PII; repositorio sin rutas personales; política documentada |
 | 4.4 | Confirmaciones con vigencia y alcance | **Hecho** | Store persistente con hash, TTL de 30 min, binding sesión/principal/trace, consumo atómico y replay (`confirmations.py:15,33,42,81,131,143`); tabla y migración `confirm-v1` (`seed.py:119-133`, `migrate.py:121-122,478-484`); `register_pending`/`execute_pending` (`orchestrator.py:2668-2707`); error tipado a 410/409 (`routes.py:242-246`); `session_id` obligatorio (`api.py:126-128`); 9 pruebas (`test_confirmations.py:35-170`) | Token de un solo uso, TTL, ligado a sesión/trace y probado contra replay |
 | 4.5 | Autenticación si se publica | **Hecho** | Cookie de sesión firmada, PBKDF2 y CSRF de doble envío (`auth.py:54-257`); sesiones persistentes y migración `auth-v1` (`seed.py:135-146`, `migrate.py:43,487-500`); login/me/logout con rate limit (`routes.py:49,109-149`, `api.py:131-133`); middleware fail-closed y CORS con credenciales (`main.py:30,62-90`); frontend `AuthGate` y `credentials: include` (`api.ts:24-75`, `AuthGate.tsx:15-75`, `layout.tsx:18`); 5 pruebas (`test_auth.py:29-138`) | Local sigue sin auth; público exige auth, cookie Secure y CSRF; sin secretos en repo |
-| 4.6 | Inyección de prompt con datos | **Hecho** | Proveedor falso recibe datos maliciosos en `category`/`description`/nombre de meta y luego intenta `create_savings_goal` con `confirm=true`; el orquestador fuerza `confirm=False` y solo registra confirmación (`test_agent_injection.py:89-132`); herramienta fuera de allowlist se rechaza sin llamar MCP (`test_agent_injection.py:238-259`); UI y eco del modelo se sanean (`orchestrator.py:595-617,2350-2377,2561-2566`); solo `/agent/confirm` ejecuta el token (`test_agent_injection.py:262-303`); prueba demo ya no es vacua (`test_bugfixes.py:210-218`); guardas `_mask_tool_result`/allowlist (`orchestrator.py:322-336,2640-2642`) | El modelo no gana herramientas ni escrituras; la inyección queda como dato, se redacta en UI y requiere confirmación explícita |
+| 4.6 | Inyección de prompt con datos | **Hecho** | Proveedor falso recibe datos maliciosos en `category`/`description`/nombre de meta y luego intenta `create_savings_goal` con `confirm=true`; el orquestador fuerza `confirm=False` y solo registra confirmación (`test_agent_injection.py:89-132`); herramienta fuera de allowlist se rechaza sin llamar MCP (`test_agent_injection.py:238-259`); UI y eco del modelo se sanean (`orchestrator.py:595-617,2350-2377,2561-2566`); los `params` de la confirmación pendiente también se sanean (`orchestrator.py:2461`; `test_agent_injection.py:134-164`); solo `/agent/confirm` ejecuta el token (`test_agent_injection.py:262-303`); prueba demo ya no es vacua (`test_bugfixes.py:210-218`); guardas `_mask_tool_result`/allowlist (`orchestrator.py:322-336,2640-2642`) | El modelo no gana herramientas ni escrituras; la inyección queda como dato, se redacta en UI y requiere confirmación explícita |
 
 ---
 
@@ -178,18 +178,40 @@ tenía datos. Se corrigió la causa raíz, no las pruebas.
 | A-5 | Aperturas de reparación fechadas con reloj real | `ledger_repair.py` fecha el asiento con la referencia; el sello de auditoría sigue con reloj real | `ledger_repair.py:358` |
 | A-6 | Pruebas dependientes del día de ejecución | Pruebas derivan de `reference_today()`; sin literales | `test_bugfixes.py:16`; `test_services.py:5`; `test_purchase_plan.py:8`; `test_savings_contribution.py:4` |
 | A-7 | Propagación incompleta | `start-all.cmd` propaga `BANORTE_DEMO_TODAY`; README lo documenta | `scripts/start-all.cmd:9-17,42,61`; `README.md:94-97` |
+| A-8 | Reloj real encubierto en las rutas REST | `routes.py` usa `seed.reference_today()` en la fecha límite, el mes por defecto y la respuesta de presupuesto; pruebas nuevas | `backend/app/api/routes.py:11,82,90,288`; `backend/tests/test_services.py:80-96` |
 
-**Puerta de salida de Fase A:** `319 passed`; `npm run build` exit 0;
-`grep date.today()` → 0; `AGENTS.md` y `.github/copilot-instructions.md`
-presentes.
+**Puerta de salida de Fase A (verificada 2026-11-04):**
+`reconcile(conn)` con referencia por defecto (`2026-10-30`) → `ok=true`,
+`failures=0`, 13 invariantes; `npm run build` (frontend) → exit 0;
+`grep date.today()` (incluye alias `date_cls.today()` y `datetime.today()`)
+en `backend` y `mcp-server` → 0 coincidencias; `xfail`/`skip` en
+`test_agent_grounding.py` → 0. Suite: `384 passed`. `AGENTS.md` y
+`.github/copilot-instructions.md` presentes.
 
-**Bloqueo de datos resuelto:** las aperturas 968 y 969 de
-`backend/data/banorte.db` se normalizaron a `2026-10-30` con respaldo previo
-`backend/data/backups/banorte.db.bak-20261102-121909` (SHA-256
-`d5097b...e9544d70`). Comprobación actual: filas 968/969 con fecha
-`2026-10-30`; `PRAGMA integrity_check` = `ok`; `PRAGMA foreign_key_check` = `[]`;
-reconciliación `ok=true`, `failures=0`, 13 invariantes; SHA-256 de la base
-`3d14b2d29efa4c867c9c586a5349a027f171018f15caeac020e1b3b12490ae1a`.
+**Bloqueo de datos resuelto:** las transacciones 968 y 969 de
+`backend/data/banorte.db` están normalizadas a `2026-10-20`. No se halló el
+respaldo previo a la normalización (ni en `backend/data/backups` ni en el
+historial de git), por lo que se registró un respaldo verificado del estado ya
+normalizado: `backend/data/backups/banorte.db.bak-20261104-184225` con SHA-256
+`b4bb7220f95e7487ccaf9465f78f5f5c6e42da7891e408a6e59fb0a7277f8366`, idéntico
+al de la base. Comprobación: filas 968/969 con fecha `2026-10-20`;
+`PRAGMA integrity_check` = `ok`; `PRAGMA foreign_key_check` = `[]`;
+reconciliación `ok=true`, `failures=0`, 13 invariantes. Auditoría completa en
+`docs/AUDITORIA-NORMALIZACION-968-969.json`.
+
+**Guardrail de escritura (código, no solo documentación):**
+`migrate.require_verified_backup(conn, motivo)` exige, antes de cualquier
+transacción, que el respaldo exista, no esté vacío, coincida con su SHA-256
+declarado, pase `PRAGMA integrity_check`, no tenga referencias foráneas rotas y
+sea idéntico al estado actual de la base; si falla, lanza `MigrationError` y no
+se escribe nada (`migrate.py:164`). Se invoca en `migrate.run_pending` (antes
+de crear el registro de versiones o aplicar migraciones, `migrate.py:664-671`)
+y en `ledger_repair.run` (antes de `BEGIN IMMEDIATE`, `ledger_repair.py:347`).
+Pruebas sobre bases
+temporales: `test_migration_cents.py::test_run_pending_aborts_without_verified_backup`,
+`test_ledger_repair.py::test_guard_aborts_without_backup`,
+`test_guard_accepts_verified_backup`, `test_guard_rejects_tampered_backup` y
+`test_apply_aborts_when_backup_creation_fails`.
 
 ## Fase A — Catálogo MCP y contratos (2026-11-02)
 
@@ -323,30 +345,62 @@ herramienta no permitida antes de tocar MCP. Evidencia:
   prueba de ruta confirma que solo `/agent/confirm` ejecuta el token y que el
   replay no repite la escritura (`test_agent_injection.py:262-303`).
 
+**Re-verificación de puerta (2026-11-04):** el inventario de Fase A detectó un
+reloj real encubierto: `routes.py` usaba `date_cls.today()` en la validación de
+`deadline`, en el mes por defecto de dashboard/presupuesto y en la respuesta de
+`budget/update`. Se sustituyó por `seed.reference_today()` (`routes.py:11,82,90,288`)
+y se añadieron dos pruebas que fallaban antes del cambio
+(`test_services.py:80-96`). En 4.6 se detectó que la confirmación pendiente
+exponía `params` sin sanear; ahora se aplica `_sanitize_injected_text()` a los
+`params` (`orchestrator.py:2461`) y la prueba nueva
+`test_agent_injection.py:134-164` fallaba antes y pasa después.
+
+Evidencia de la puerta re-ejecutada:
+
+- `pytest tests/test_no_pii.py -q` → `2 passed`; `git grep` de rutas/PII →
+  `PII_SCAN_CLEAN`.
+- `pytest tests/test_confirmations.py -q` → `9 passed`.
+- `pytest tests/test_auth.py -q` → `5 passed`.
+- `pytest tests/test_agent_injection.py -q` → `8 passed`.
+- Suite completa: `384 passed in 253.59s`; `npm test` → `9 passed`.
+- `npm run build` en `frontend` → exit 0; reconciliación
+  `{"ok": true, "failures": 0, "invariant_count": 13}`.
+- `date.today()`/`date_cls.today()`/`datetime.today()` en `backend` y
+  `mcp-server` → 0; `xfail`/`skip` en `test_agent_grounding.py` → 0;
+  `git diff --check` → `DIFF_CHECK_OK`.
+
 **Alcance:** esta fase cierra 4.1, 4.2, 4.3, 4.4, 4.5 y 4.6. Etapa 4 completa.
 
 ## Punto de continuación
 
-**Etapa 2 cerrada en copia.** Falta una sola autorización: aplicar `ledger-v3` a `backend/data/banorte.db`.
+**Fase A y Etapa 4 cerradas (2026-11-04).** La base real reconcilia `ok=true`,
+`failures=0`; el respaldo de la normalización 968/969 está verificado
+(`backend/data/backups/banorte.db.bak-20261104-184225`, SHA-256
+`b4bb7220…f8366`). Ver `docs/AUDITORIA-NORMALIZACION-968-969.json`.
 
-Comando previsto (con la app detenida; el script se niega a correr sobre la base real sin `--apply` explícito y guarda respaldo + SHA-256):
+**Etapa 2.5 ejecutada (2026-11-04).** `ledger-v3` se aplicó a
+`backend/data/banorte.db` con respaldo verificado y transacción única. La base
+ya era consistente: no hubo filas que reparar (`ids_afectados=[]`), el SHA-256
+quedó sin cambios (`b4bb7220…f8366`) y `reconcile` antes/después dio
+`ok=true`, `failures=0`, 13 invariantes. Respaldo:
+`backend/data/backups/banorte.db.bak-20261104-221035`; auditoría:
+`docs/AUDITORIA-LEDGER-V3-20261104-221035.json`.
 
-```
-cd backend
-..\.venv\Scripts\python.exe -m app.core.ledger_repair --apply --accept-openings
-```
+**Puerta re-ejecutada tras 2.5 (2026-11-04):** `pytest -q backend` →
+`389 passed`; `npm test` → `9 passed`; `npm run build` → exit 0; reconciliación
+`{"ok": true, "failures": 0, "invariant_count": 13}`; sin coincidencias de
+`date.today()`/`date_cls.today()`/`datetime.today()` en `backend` y
+`mcp-server`; sin `xfail`/`skip` en `backend/tests`; `git diff --check` →
+`DIFF_CHECK_OK`; filas 968/969 con fecha `2026-10-20`.
 
-Después de aplicarlo: repetir `reconcile` sobre la base real, verificar el SHA-256 del respaldo y conservar el JSON de auditoría.
-
-**Siguiente tarea tras la aprobación:** Etapa 3 (validación única y paridad
-REST/MCP). El catálogo MCP de Fase A ya está implementado; no iniciar la Etapa 3
-hasta que el usuario apruebe el cierre de Fase A.
+**Siguiente etapa:** Etapa 3 (validación única y paridad REST/MCP), todavía
+pendiente en 3.1–3.8. No avanzar a Etapa 5 hasta cerrar 3.
 
 ---
 
 ## Decisiones de la Etapa 2
 
-1. **Reparar, no resembrar** (resuelto para la copia): `ledger-v3` corrige 967, rellena piernas y crea aperturas explícitas 968/969. La base real espera aprobación.
+1. **Reparar, no resembrar** (resuelto): `ledger-v3` corrige 967, rellena piernas y crea aperturas explícitas 968/969. La base real quedó reparada y verificada.
 2. **Ahorro inicial = apertura explícita** (resuelto): no se inventan transferencias en silencio; cada apertura se reporta como movimiento propio y requiere `--accept-openings`.
 3. **Piernas de transferencia** (resuelto): se acepta `transfer_legs` para reconstruir cada cuenta debitada.
 4. ¿El producto se entrega solo local o se publica? De esto dependen autenticación y la decisión sobre Vercel. **Pendiente.**
