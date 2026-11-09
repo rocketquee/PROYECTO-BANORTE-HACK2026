@@ -279,7 +279,12 @@ def budget(month: str | None = None):
 @router.post("/budget/update")
 def budget_update(body: BudgetUpdateRequest):
     with db() as conn:
-        finance.set_budget_limit(conn, body.category, body.monthly_limit)
+        try:
+            domain.set_budget_limit(conn, body.category, body.monthly_limit)
+        except domain.DomainError as exc:
+            raise HTTPException(status_code=422, detail=exc.message)
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc))
         today = reference_today()
         return finance.budget_overview(conn, today.year, today.month)
 

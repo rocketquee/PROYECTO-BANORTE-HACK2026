@@ -2,7 +2,7 @@
 import uuid
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.services import domain
 
@@ -19,6 +19,7 @@ class CreditSimulateRequest(Strict):
 
 
 GOAL_TARGET_MIN, GOAL_TARGET_MAX = domain.AMOUNT_LIMITS["goal_target"]
+BUDGET_LIMIT_MIN, BUDGET_LIMIT_MAX = domain.AMOUNT_LIMITS["budget_limit"]
 
 
 class GoalCreateRequest(Strict):
@@ -54,10 +55,22 @@ class GoalTransferRequest(Strict):
     direction: str = "account_to_goal"
     idempotency_key: str = Field(min_length=36, max_length=36)
 
+    @field_validator("idempotency_key")
+    @classmethod
+    def _validate_idempotency_key(cls, value: str) -> str:
+        try:
+            uuid.UUID(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "La clave de idempotencia no es un UUID válido."
+            ) from exc
+        return value
+
 
 class BudgetUpdateRequest(Strict):
-    category: str = Field(min_length=2, max_length=60)
-    monthly_limit: float = Field(ge=0, le=1_000_000)
+    category: str = Field(min_length=domain.BUDGET_CATEGORY_MIN,
+                          max_length=domain.BUDGET_CATEGORY_MAX)
+    monthly_limit: float = Field(ge=BUDGET_LIMIT_MIN, le=BUDGET_LIMIT_MAX)
 
 
 class PurchaseOptionSelectedPayload(Strict):

@@ -168,7 +168,7 @@
       ]
     }
   },
-  "backup_file": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\backend\\data\\backups\\banorte.db.bak-20261104-214641",
+  "backup_file": "backend\\data\\backups\\banorte.db.bak-20261104-214641",
   "backup_sha256": "b4bb7220f95e7487ccaf9465f78f5f5c6e42da7891e408a6e59fb0a7277f8366",
   "backup_sha256_declarado": "b4bb7220f95e7487ccaf9465f78f5f5c6e42da7891e408a6e59fb0a7277f8366",
   "backup_sidecar_matches": true,
@@ -178,7 +178,7 @@
     "applied_openings": [],
     "applied_swaps": []
   },
-  "db_path": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\backend\\data\\banorte.db",
+  "db_path": "backend\\data\\banorte.db",
   "db_sha256_after": "b4bb7220f95e7487ccaf9465f78f5f5c6e42da7891e408a6e59fb0a7277f8366",
   "db_sha256_before": "b4bb7220f95e7487ccaf9465f78f5f5c6e42da7891e408a6e59fb0a7277f8366",
   "db_sha256_unchanged": true,
@@ -426,9 +426,9 @@
   },
   "foreign_key_check": [],
   "guard_proof": {
-    "backup_file": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\backend\\data\\backups\\banorte.db.bak-20261104-214641",
+    "backup_file": "backend\\data\\backups\\banorte.db.bak-20261104-214641",
     "backup_sha256": "b4bb7220f95e7487ccaf9465f78f5f5c6e42da7891e408a6e59fb0a7277f8366",
-    "db_path": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\backend\\data\\banorte.db",
+    "db_path": "backend\\data\\banorte.db",
     "foreign_key_check": [],
     "integrity_check": "ok",
     "motivo": "reparación ledger-v3"
@@ -436,7 +436,7 @@
   "ids_afectados": [],
   "integrity_check": "ok",
   "kind": "ledger_v3_base_real",
-  "ledger_repair_audit_file": "C:\\Users\\jonna\\OneDrive\\Escaneos\\Escritorio\\BANORTE-IA-FINANZAS\\proyecto-banorte-ai-finanzas\\backend\\data\\backups\\banorte.db.repair-20261104-214641.json",
+  "ledger_repair_audit_file": "backend\\data\\backups\\banorte.db.repair-20261104-214641.json",
   "motivo": "Ejecutar la reparación ledger-v3 sobre backend/data/banorte.db (Etapa 2.5), con respaldo verificado antes de la transacción y auditoría de reconcile antes/después.",
   "nota_ids": "La base ya estaba consistente: no hubo filas 967/968/969 que reparar. Los ids afectados son los que la transacción modificó.",
   "reference_today": "2026-10-30",

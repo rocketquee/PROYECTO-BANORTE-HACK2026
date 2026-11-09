@@ -273,10 +273,6 @@ async def create_savings_goal_impl(name: str, target_amount: float, deadline: st
             "params": {"name": name, "target_amount": target_amount, "deadline": deadline},
             "message": f"¿Confirmas crear la meta '{name}' con objetivo ${target_amount:,.0f}?",
         }
-    if not (2 <= len(name) <= 80):
-        raise ValueError("El nombre debe tener entre 2 y 80 caracteres.")
-    if not (1 <= target_amount <= 100_000_000):
-        raise ValueError("El importe objetivo debe estar entre $1 y $100,000,000.")
     if idempotency_key:
         try:
             uuid.UUID(idempotency_key)
@@ -302,7 +298,7 @@ async def create_savings_goal_impl(name: str, target_amount: float, deadline: st
                 result = json.loads(existing["result_json"])
                 result["idempotent_replay"] = True
                 return result
-            goal = finance.create_goal(conn, name, target_amount, deadline)
+            goal = domain.create_goal(conn, name, target_amount, deadline)
             result = {"status": "created", "goal": goal,
                       "message": f"Meta '{name}' creada."}
             conn.execute(
@@ -313,7 +309,7 @@ async def create_savings_goal_impl(name: str, target_amount: float, deadline: st
             )
         return result
     with db() as conn:
-        goal = finance.create_goal(conn, name, target_amount, deadline)
+        goal = domain.create_goal(conn, name, target_amount, deadline)
     return {"status": "created", "goal": goal,
             "message": f"Meta '{name}' creada."}
 
@@ -322,6 +318,7 @@ async def create_savings_goal_impl(name: str, target_amount: float, deadline: st
 async def update_savings_goal_impl(goal_id: int, name: str | None = None,
                                    target_amount: float | None = None,
                                    deadline: str | None = None,
+                                   status: str | None = None,
                                    confirm: bool = False) -> dict:
     """Edita los datos declarativos de una meta.
 
@@ -332,12 +329,13 @@ async def update_savings_goal_impl(goal_id: int, name: str | None = None,
         return {
             "status": "requires_confirmation",
             "params": {"goal_id": goal_id, "name": name, "target_amount": target_amount,
-                       "deadline": deadline},
+                       "deadline": deadline, "status": status},
             "message": f"¿Confirmas actualizar la meta #{goal_id}?",
         }
     with db() as conn:
         goal = domain.update_goal(conn, goal_id, name=name,
-                                  target_amount=target_amount, deadline=deadline)
+                                  target_amount=target_amount, deadline=deadline,
+                                  status=status)
     if not goal:
         raise ValueError(f"No existe la meta #{goal_id}.")
     return {"status": "updated", "goal": goal,
@@ -351,20 +349,39 @@ async def apply_savings_contribution_impl(
     confirm: bool = False,
     idempotency_key: str | None = None,
     goal_name: str | None = None,
+    direction: str = "account_to_goal",
 ) -> dict:
-    """Aporta dinero a una meta como **transferencia** cuenta→meta (INV-4).
+    """Aporta o retira dinero de una meta como **transferencia** (INV-4).
 
     Mismo caso de uso que la API REST (`app.services.savings`): valida las
     cotas y el disponible en la capa de dominio, escribe de forma atómica e
     idempotente y **no** registra un gasto ni fija `saved_amount` a mano.
+    `direction` acepta `account_to_goal` (aportación) o `goal_to_account` (retiro).
     """
     if not confirm:
         return {"status": "requires_confirmation"}
     if not idempotency_key:
-        raise ValueError("El abono requiere una clave de idempotencia.")
+        raise ValueError("La transferencia requiere una clave de idempotencia.")
     with db() as conn:
         conn.execute("BEGIN IMMEDIATE")
         return savings.apply_contribution(
             conn, goal_id=goal_id, goal_name=goal_name, amount=amount,
-            idempotency_key=idempotency_key, direction="account_to_goal",
+            idempotency_key=idempotency_key, direction=direction,
         )
+
+
+@validated_tool("set_budget_limit")
+async def set_budget_limit_impl(category: str, monthly_limit: float,
+                                confirm: bool = False) -> dict:
+    """Crea o actualiza el límite mensual de una categoría de gasto."""
+    if not confirm:
+        return {
+            "status": "requires_confirmation",
+            "params": {"category": category, "monthly_limit": monthly_limit},
+            "message": f"¿Confirmas fijar el presupuesto de '{category}' en "
+                       f"${monthly_limit:,.2f}?",
+        }
+    with db() as conn:
+        budget = domain.set_budget_limit(conn, category, monthly_limit)
+    return {"status": "updated", "budget": budget,
+            "message": f"Presupuesto de '{budget['category']}' actualizado."}

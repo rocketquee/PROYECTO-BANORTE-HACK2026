@@ -16,14 +16,15 @@ from app.services.mcp_catalog import (
 )
 
 
-def test_catalog_has_exactly_the_twenty_tools():
+def test_catalog_has_exactly_the_twenty_one_tools():
     names = [contract.name for contract in CATALOG]
-    assert len(names) == 20
-    assert len(set(names)) == 20
+    assert len(names) == 21
+    assert len(set(names)) == 21
     assert MCP_ALLOWED_TOOLS == frozenset(names)
     assert set(TOOL_BY_NAME) == MCP_ALLOWED_TOOLS
     assert WRITE_TOOLS == {
         "create_savings_goal", "update_savings_goal", "apply_savings_contribution",
+        "set_budget_limit",
     }
     assert DESTRUCTIVE_TOOLS == frozenset()
 
@@ -53,6 +54,8 @@ def test_write_contracts_declare_confirmation_and_idempotency():
     assert get_contract("create_savings_goal").idempotency == "optional"
     assert get_contract("update_savings_goal").idempotency == "none"
     assert get_contract("apply_savings_contribution").idempotency == "required"
+    assert get_contract("set_budget_limit").idempotency == "none"
+    assert get_contract("set_budget_limit").requires_confirmation is True
     assert get_contract("get_balance").idempotency == "none"
     assert get_contract("get_balance").sensitive_output is False
     assert get_contract("get_cards").sensitive_output is True
@@ -81,6 +84,14 @@ def test_validation_rejects_unknown_fields_and_invalid_values():
         validate_arguments("create_savings_goal", {
             "name": "<script>alerta</script>", "target_amount": 1_000,
         })
+    with pytest.raises(ToolValidationError, match="status"):
+        validate_arguments("update_savings_goal", {
+            "goal_id": 1, "status": "archivada",
+        })
+    with pytest.raises(ToolValidationError, match="monthly_limit"):
+        validate_arguments("set_budget_limit", {
+            "category": "Supermercado", "monthly_limit": 0,
+        })
 
 
 def test_validation_accepts_valid_boundary_values():
@@ -106,6 +117,6 @@ async def test_direct_implementation_uses_the_same_validation(tmp_db):
 
 def test_snapshot_is_serializable_and_matches_catalog():
     snapshot = catalog_snapshot()
-    assert len(snapshot) == 20
+    assert len(snapshot) == 21
     assert {item["name"] for item in snapshot} == MCP_ALLOWED_TOOLS
     assert all(item["input_schema"]["additionalProperties"] is False for item in snapshot)

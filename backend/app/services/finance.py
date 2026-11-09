@@ -157,17 +157,18 @@ def count_transactions(conn, date_from: str | None = None, date_to: str | None =
     return conn.execute(sql, params).fetchone()[0]
 
 
-def category_taxonomy(conn, limit: int = 500) -> list[str]:
+def category_taxonomy(conn) -> list[str]:
     """Categorías de gasto presentes en el libro.
 
     El tipo `transfer` no tiene categoría (INV-1), así que se excluye del
     conjunto: comparar `None` con texto en un `sorted` falla. Es la única
     definición de la taxonomía para todos los consumidores (REST, MCP, agente).
     """
-    return sorted({
-        t["category"] for t in list_transactions(conn, limit=limit)
-        if t["category"] is not None
-    })
+    rows = conn.execute(
+        "SELECT DISTINCT category FROM transactions"
+        " WHERE type='expense' AND category IS NOT NULL ORDER BY category"
+    ).fetchall()
+    return [row["category"] for row in rows]
 
 
 # ---------- analysis ----------

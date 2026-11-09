@@ -27,6 +27,7 @@ from app.services import domain
 
 MAX_AMOUNT = 10_000_000.0
 GOAL_TARGET_MIN, GOAL_TARGET_MAX = domain.AMOUNT_LIMITS["goal_target"]
+BUDGET_LIMIT_MIN, BUDGET_LIMIT_MAX = domain.AMOUNT_LIMITS["budget_limit"]
 MIN_CREDIT_AMOUNT = 1_000.0
 MAX_RATE = 200.0
 MIN_MONTHS = 3
@@ -63,6 +64,20 @@ def _goal_name(value: str) -> str:
         raise ValueError(exc.message) from exc
 
 
+def _goal_status(value: str) -> str:
+    try:
+        return domain.validate_goal_status(value)
+    except domain.DomainError as exc:
+        raise ValueError(exc.message) from exc
+
+
+def _transfer_direction(value: str) -> str:
+    try:
+        return domain.validate_transfer_direction(value)
+    except domain.DomainError as exc:
+        raise ValueError(exc.message) from exc
+
+
 def _month(value: str) -> str:
     if not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}", value):
         raise ValueError("El mes debe usar el formato AAAA-MM.")
@@ -85,6 +100,8 @@ def _idempotency_key(value: str) -> str:
 IsoDate = Annotated[str, AfterValidator(_iso_date)]
 Deadline = Annotated[str, AfterValidator(_deadline)]
 GoalName = Annotated[str, AfterValidator(_goal_name)]
+GoalStatus = Annotated[str, AfterValidator(_goal_status)]
+TransferDirection = Annotated[str, AfterValidator(_transfer_direction)]
 Month = Annotated[str, AfterValidator(_month)]
 IdempotencyKey = Annotated[str, AfterValidator(_idempotency_key)]
 
@@ -201,6 +218,7 @@ class UpdateSavingsGoalInput(ToolInput):
         default=None, ge=GOAL_TARGET_MIN, le=GOAL_TARGET_MAX,
     )
     deadline: Deadline | None = None
+    status: GoalStatus | None = None
     confirm: bool = False
 
 
@@ -210,12 +228,20 @@ class ApplySavingsContributionInput(ToolInput):
     confirm: bool = False
     idempotency_key: IdempotencyKey | None = None
     goal_name: GoalName | None = None
+    direction: TransferDirection = "account_to_goal"
 
     @model_validator(mode="after")
     def _validate_goal_reference(self):
         if self.goal_id is None and not self.goal_name:
             raise ValueError("Indica goal_id o goal_name para identificar la meta.")
         return self
+
+
+class SetBudgetLimitInput(ToolInput):
+    category: str = Field(min_length=domain.BUDGET_CATEGORY_MIN,
+                          max_length=domain.BUDGET_CATEGORY_MAX)
+    monthly_limit: float = Field(ge=BUDGET_LIMIT_MIN, le=BUDGET_LIMIT_MAX)
+    confirm: bool = False
 
 
 ToolRisk = Literal["read", "write", "sensitive", "destructive"]
@@ -328,7 +354,8 @@ CATALOG: tuple[ToolContract, ...] = (
         "update_savings_goal", "Actualizar meta de ahorro",
         "Actualiza los datos declarativos de una meta existente. Sin confirm=True "
         "devuelve requires_confirmation y no escribe; con confirm=True escribe. "
-        "No permite cambiar el ahorrado ni el estado mediante esta herramienta.",
+        "No permite cambiar el ahorrado; el estado solo acepta 'activa' o "
+        "'completada'. Devuelve la meta actualizada en MXN.",
         UpdateSavingsGoalInput,
         risk="write",
         permissions=("savings:write",),
@@ -336,17 +363,30 @@ CATALOG: tuple[ToolContract, ...] = (
         requires_confirmation=True,
     ),
     _contract(
-        "apply_savings_contribution", "Aportar a una meta",
-        "Aplica una transferencia confirmada de una cuenta a una meta. Requiere "
-        "confirm=True e idempotency_key; valida el disponible y lo que falta en la "
-        "capa de dominio. No registra un gasto ni mueve dinero real. Devuelve el "
-        "movimiento y los saldos resultantes en MXN.",
+        "apply_savings_contribution", "Aportar o retirar de una meta",
+        "Aplica una transferencia confirmada entre una cuenta y una meta. Usa "
+        "direction='account_to_goal' para aportar o 'goal_to_account' para retirar. "
+        "Requiere confirm=True e idempotency_key; valida las cotas y el disponible "
+        "en la capa de dominio. No registra un gasto ni mueve dinero real. Devuelve "
+        "el movimiento, el sentido y los saldos resultantes en MXN.",
         ApplySavingsContributionInput,
         risk="write",
         permissions=("savings:write", "transactions:write"),
-        output_contract="Transferencia aplicada, meta y saldos en MXN; estado applied.",
+        output_contract="Transferencia aplicada, dirección, meta y saldos en MXN; estado applied.",
         requires_confirmation=True,
         idempotency="required",
+    ),
+    _contract(
+        "set_budget_limit", "Configurar presupuesto",
+        "Crea o actualiza el límite mensual de una categoría de gasto existente en "
+        "la taxonomía. Sin confirm=True devuelve requires_confirmation y no escribe; "
+        "con confirm=True escribe una sola vez. No mueve dinero real. Devuelve la "
+        "categoría y el límite aplicado en MXN.",
+        SetBudgetLimitInput,
+        risk="write",
+        permissions=("budget:write",),
+        output_contract="Presupuesto actualizado con categoría y límite en MXN; estado updated.",
+        requires_confirmation=True,
     ),
     _contract(
         "analyze_spending", "Análisis de gastos",

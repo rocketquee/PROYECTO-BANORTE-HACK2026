@@ -124,11 +124,11 @@ def test_api_requires_login_and_csrf(tmp_db, monkeypatch):
         assert me.json()["csrf_token"] == csrf
 
         assert client.post("/api/budget/update", json={
-            "category": "Comida", "monthly_limit": 1000,
+            "category": "Supermercado", "monthly_limit": 1000,
         }).status_code == 403
         assert client.post(
             "/api/budget/update",
-            json={"category": "Comida", "monthly_limit": 1000},
+            json={"category": "Supermercado", "monthly_limit": 1000},
             headers={"X-CSRF-Token": csrf},
         ).status_code == 200
 

@@ -21,7 +21,7 @@ La Etapa 1 (modelo de dominio, centavos, migraciones, contrato UI, pruebas base)
 |---|---|---|---|---|
 | 1 | Integridad contable base | **Parcial / roja** | — | `apply_transfer`, triggers, reconciliación |
 | 2 | Reparación y reconciliación del libro | **2.1–2.9 cerradas; 2.5 real ejecutada (sin cambios)** | 1 | `backend/app/core/ledger_repair.py` |
-| 3 | Validación única y paridad REST/MCP | **Pendiente** | 2 | `backend/app/services/domain.py`, `routes.py` |
+| 3 | Validación única y paridad REST/MCP | **3.1–3.8 hechos; Bloque 4 cerrado, pendiente de aprobación para commit** | 2 | `backend/app/services/domain.py`, `routes.py` |
 | 4 | IA: fundamentación, privacidad y confirmaciones | **Hecho (4.1–4.6)** | 2, 3 | `backend/app/services/agent/orchestrator.py` |
 | 5 | UI/UX: contrato en ejecución y ciclo cerrado | **Pendiente** | 3, 4 | `frontend/src/components/dynamic/DynamicRenderer.tsx` |
 | 6 | Calidad: propiedades, concurrencia, E2E y CI | **Pendiente** | 2–5 | `backend/tests/`, `frontend/tests/` |
@@ -66,12 +66,12 @@ La Etapa 1 (modelo de dominio, centavos, migraciones, contrato UI, pruebas base)
 |---|---|---|---|---|
 | 3.1 | Validar `status` con dominio cerrado | **Hecho** | `GoalStatus = Literal["activa","completada"]` (`api.py:28,38`); `domain.validate_goal_status` y `domain.update_goal` (`domain.py:121-132,264-281`); PATCH usa la capa única y traduce a 422 (`routes.py:234-244`); MCP usa `domain.update_goal` (`finance_tools.py:339`); CHECK en DDL (`seed.py:99`) y migración `goal-status-v1` (`migrate.py:43,695`); 4 pruebas (`test_goal_validation.py:29-66`) | `status` es `Literal` y la base tiene CHECK; valor inválido devuelve 422 |
 | 3.2 | Validar fecha límite en PATCH y MCP | **Hecho** | `domain.validate_deadline` (`domain.py:138`); `domain.update_goal` valida antes de escribir (`domain.py:264-281`); PATCH traduce a 422 (`routes.py:237-242`); MCP delega en el dominio (`finance_tools.py:339`); catálogo MCP usa la misma función (`mcp_catalog.py:48-54`); 6 pruebas (`test_goal_validation.py:69-124`) | Fecha inválida o pasada devuelve 422 en REST y error de herramienta en MCP |
-| 3.3 | Sanitizar y limitar el nombre en toda escritura | Pendiente | `routes.py:46-64` solo sanea POST; `PATCH` guarda `<script>alert(1)</script>` (200); MCP no sanea | Toda creación/edición pasa por la misma función de dominio |
-| 3.4 | Unificar límites REST/MCP | Pendiente | REST: $10,000,000 (`routes.py:58-62`); MCP: $100,000,000 (`finance_tools.py:207`) | Un solo límite probado en ambos transportes |
-| 3.5 | Igualar capacidades de transferencia | Pendiente | REST acepta `goal_to_account` (`savings.py`); MCP fija `account_to_goal` (`finance_tools.py:288-297`) | Misma matriz de direcciones o diferencia documentada y probada |
-| 3.6 | Convertir errores de validación en 4xx | Pendiente | `PATCH` con objetivo menor a lo ahorrado lanza `ValueError` sin captura; presupuesto 0 devuelve 500 (`budget_update`, `finance.py:597`) | Ningún dato de usuario produce 500; todos los rechazos son 409/422 con mensaje |
-| 3.7 | Validar presupuesto | Pendiente | `schemas/api.py:48` permite 0, la tabla exige `> 0` (`seed.py:96-101`); categoría arbitraria se inserta (200) | 0 se rechaza o se interpreta como borrar; categoría se valida contra la taxonomía |
-| 3.8 | Pruebas de paridad | Pendiente | No hay suite que compare REST y MCP | Tabla de casos idénticos ejecutada contra ambos |
+| 3.3 | Sanitizar y limitar el nombre en toda escritura | **Hecho (2026-11-07)** | Autoridad única `domain.sanitize_goal_name`/`validate_goal_name` (`domain.py:101,107`); REST POST/PATCH pasan por `domain.create_goal`/`update_goal` (`routes.py:212,226`); MCP crea con `domain.create_goal` (`finance_tools.py:301,312`) y edita con `domain.update_goal` (`finance_tools.py:335`); 6 pruebas en `test_goal_validation.py:128-234` (rechazo REST/MCP y sin escritura) | Toda creación/edición pasa por la misma función de dominio |
+| 3.4 | Unificar límites REST/MCP | **Hecho (2026-11-07)** | Un solo límite en `domain.AMOUNT_LIMITS["goal_target"]` (`domain.py:29-34`); REST lo deriva (`schemas/api.py:21,30`); catálogo MCP lo deriva (`mcp_catalog.py:29,191`); MCP ya no define `$100,000,000` y usa `domain.create_goal` (`finance_tools.py:301,312`); paridad de frontera y autoridad en `test_goal_validation.py:169-224` | Un solo límite probado en ambos transportes |
+| 3.5 | Igualar capacidades de transferencia | **Hecho (2026-11-07)** | Sentido único `domain.validate_transfer_direction` (`domain.py:209`), usado por `domain.validate_transfer` (`domain.py:230`) y por el catálogo MCP (`mcp_catalog.py:66,95,221`); MCP ya recibe y reenvía `direction` (`finance_tools.py:350,367`); REST lo pasa al mismo caso de uso (`routes.py:250-252`); pruebas de aportación y retiro en ambos transportes y rechazo de sentido inválido (`test_goal_validation.py:227-304`) | Misma matriz de direcciones o diferencia documentada y probada |
+| 3.6 | Convertir errores de validación en 4xx | **Hecho (2026-11-07)** | Presupuesto validado en el dominio (`domain.set_budget_limit`, `domain.py:313-316`) y el endpoint traduce `DomainError` a 422 (`routes.py:283-287`); `PATCH` bajo lo ahorrado ya se traduce a 409 (`routes.py:230-233`); pruebas de presupuesto 0 sin escritura y PATCH bajo ahorro (`test_goal_validation.py:306-349`) | Ningún dato de usuario produce 500; todos los rechazos son 409/422 con mensaje |
+| 3.7 | Validar presupuesto | **Hecho (2026-11-07)** | `domain.validate_budget_category` (`domain.py:315`) valida contra la taxonomía única de gastos (`finance.category_taxonomy`, `finance.py:160`) y `domain.set_budget_limit` (`domain.py:334`) es la única entrada; REST deriva límites de dominio (`api.py:22,70-73`) y el catálogo MCP declara `SetBudgetLimitInput` (`mcp_catalog.py:240`) con la tool `set_budget_limit` (`finance_tools.py:374`); pruebas 3.7 en `test_goal_validation.py:331-414` y paridad de presupuesto | 0 se rechaza; categoría arbitraria devuelve 422 sin escribir; categoría válida se normaliza y aplica |
+| 3.8 | Pruebas de paridad | **Hecho (2026-11-07)** | `test_rest_mcp_parity.py` ejecuta las mismas entradas contra dos bases y compara éxito/error: metas (`:221`), edición con estado/fecha/nombre (`:299`), transferencias (`:392`) y presupuesto (`:494`); el arnés demuestra que detecta divergencias (`:588`); MCP actualiza `status` (`mcp_catalog.py:67,221`, `finance_tools.py:318`) y REST valida el UUID de idempotencia (`api.py:60`) | Tabla de casos idénticos ejecutada contra ambos; una divergencia real hace fallar la suite |
 
 **Aceptación de Etapa 3:** no existe escritura que evite `domain.py`; REST y MCP comparten límites, saneamiento y validación de fechas/estado; pruebas de paridad y de errores 4xx en verde.
 
@@ -217,7 +217,7 @@ temporales: `test_migration_cents.py::test_run_pending_aborts_without_verified_b
 
 | ID | Tarea | Estado | Evidencia |
 |---|---|---|---|
-| MCP-1 | Catálogo único de las 20 herramientas | **Hecho** | `backend/app/services/mcp_catalog.py` define nombre, descripción, modelo de entrada, riesgo, permisos, auditoría, confirmación, idempotencia y contrato de salida |
+| MCP-1 | Catálogo único de las 21 herramientas | **Hecho** | `backend/app/services/mcp_catalog.py` define nombre, descripción, modelo de entrada, riesgo, permisos, auditoría, confirmación, idempotencia y contrato de salida |
 | MCP-2 | Validación estricta de argumentos | **Hecho** | Modelos Pydantic con `extra="forbid"`, límites, enums, fechas, UUID y nombres; `validate_arguments()` y `validated_tool()` |
 | MCP-3 | Servidor MCP guiado por catálogo | **Hecho** | `mcp-server/server.py` registra implementaciones desde `CATALOG`, publica el esquema estricto y rechaza campos desconocidos antes de ejecutar |
 | MCP-4 | Sin listas paralelas en el agente | **Hecho** | `orchestrator.py` importa `MCP_ALLOWED_TOOLS` y `WRITE_TOOLS` del catálogo |
@@ -393,8 +393,90 @@ quedó sin cambios (`b4bb7220…f8366`) y `reconcile` antes/después dio
 `mcp-server`; sin `xfail`/`skip` en `backend/tests`; `git diff --check` →
 `DIFF_CHECK_OK`; filas 968/969 con fecha `2026-10-20`.
 
-**Siguiente etapa:** Etapa 3 (validación única y paridad REST/MCP), todavía
-pendiente en 3.1–3.8. No avanzar a Etapa 5 hasta cerrar 3.
+**Siguiente etapa:** cerrar el Bloque 4 de la Etapa 3 (3.7–3.8). No avanzar a
+Etapa 5 hasta cerrar 3.
+
+**Bloque 2 de Etapa 3 (3.3 y 3.4) cerrado el 2026-11-07, pendiente de
+aprobación para commit.** El Bloque 1 (3.1–3.2) ya estaba versionado en
+`ad6073e`. Cambios del Bloque 2 en el árbol de trabajo:
+
+- 3.3: `create_savings_goal_impl` dejó de llamar a `finance.create_goal` y ahora
+  usa `domain.create_goal` en las dos ramas, con idempotencia y sin idempotencia
+  (`finance_tools.py:301,312`). Se eliminaron las comprobaciones locales de
+  nombre e importe que duplicaban el dominio. REST POST/PATCH ya pasan por
+  `domain.create_goal`/`domain.update_goal` (`routes.py:212,226`); MCP update
+  también (`finance_tools.py:335`). Pruebas nuevas: nombre malicioso rechazado
+  sin escribir en REST y MCP (`test_goal_validation.py:128-167`).
+- 3.4: el límite `$100,000,000` de MCP desapareció; el único límite es
+  `domain.AMOUNT_LIMITS["goal_target"]` (`domain.py:29-34`), del que derivan REST
+  (`schemas/api.py:21,30`) y el catálogo MCP (`mcp_catalog.py:29,191`). Pruebas
+  de frontera idéntica y de autoridad de dominio en
+  `test_goal_validation.py:169-224`.
+- Se sanearon las rutas personales de
+  `docs/AUDITORIA-LEDGER-V3-20261104-214641.json` y
+  `docs/AUDITORIA-LEDGER-V3-20261104-221035.json` (ahora rutas relativas); la
+  guardia `test_no_pii.py` pasa.
+
+Evidencia de la puerta del Bloque 2:
+
+- Suite completa: `405 passed in 135.45s` con
+  `..\.venv\Scripts\python.exe -m pytest tests -q --basetemp=<temp>`.
+- `npm run build` en `frontend` → exit 0.
+- Reconciliación: `{"ok": true, "failures": 0, "invariant_count": 13}`.
+- Filas 968/969: `date=2026-10-20`, montos `9137` y `20399` centavos.
+- Pruebas dirigidas antes del cambio: `2 failed, 14 passed` (MCP llamaba a
+  `finance.create_goal`); después: `36 passed` en
+  `test_goal_validation.py`, `test_mcp_catalog.py` y `test_mcp_tools.py`.
+
+**Verificación de cierre previa al Bloque 3 (2026-11-07).** `goal-status-v1`
+estaba pendiente en la base real (`auth-v1`); se aplicó con
+`python -m app.core.migrate`, que crea respaldo y llama a
+`require_verified_backup` (`migrate.py:737-743`) antes de `BEGIN IMMEDIATE`
+(`migrate.py:764`). Respaldo previo:
+`backend/data/backups/banorte.db.bak-20261107-140756`, SHA-256
+`b4bb7220…f8366`; resultado: 3 filas, CHECK
+`status IN ('activa','completada')`. La base quedó en `goal-status-v1`, con
+`integrity_check=ok`, FK `[]`, `reconcile` `ok=true`/`failures=0`/13 invariantes
+y filas 968/969 intactas (`2026-10-20`, `9137`/`20399`). Respaldo posterior
+verificado: `backend/data/backups/banorte.db.bak-20261107-140829`, SHA-256
+`30f1c1d0…21e32`, idéntico al estado actual. Greps: `date.today()`/
+`date_cls.today()`/`datetime.today()` en `backend` y `mcp-server` → 0;
+`xfail`/`skip`/`skipif` en `backend/tests` → 0; `npm test` → 9 passed;
+`npm run build` → exit 0. `git diff --check` solo emite dos avisos de fin de
+línea (LF→CRLF), sin errores de whitespace.
+
+**Bloque 3 de Etapa 3 (3.5 y 3.6) cerrado el 2026-11-07, pendiente de
+aprobación para commit.** Cambios en el árbol de trabajo:
+
+- 3.5: `domain.validate_transfer_direction` (`domain.py:209`) es la única
+  autoridad del sentido y la usa `domain.validate_transfer` (`domain.py:230`);
+  el catálogo MCP valida el mismo dominio (`mcp_catalog.py:66,95,221`) y la
+  implementación MCP recibe y reenvía `direction` (`finance_tools.py:350,367`);
+  REST ya pasaba el sentido al caso de uso único (`routes.py:250-252`). Pruebas
+  de aportación y retiro en ambos transportes y rechazo de sentido inválido
+  (`test_goal_validation.py:227-304`).
+- 3.6: `domain.set_budget_limit` valida el importe antes de escribir
+  (`domain.py:313-316`) y `/budget/update` traduce `DomainError` a 422 y
+  `ValueError` a 409 (`routes.py:283-287`); `PATCH` bajo lo ahorrado conserva su
+  409 (`routes.py:230-233`). Pruebas de presupuesto 0 sin escritura y PATCH bajo
+  ahorro (`test_goal_validation.py:306-347`).
+
+Evidencia de la puerta del Bloque 3:
+
+- Pruebas dirigidas: `28 passed` en `test_goal_validation.py` y
+  `test_mcp_catalog.py`.
+- Suite completa: `409 passed in 138.53s` con
+  `..\.venv\Scripts\python.exe -m pytest tests -q --basetemp=<temp>`.
+- `npm test` en `frontend`: `9 passed`, `0 failed`, `0 skipped`.
+- `npm run build` en `frontend`: exit 0.
+- Reconciliación: `{"ok": true, "failures": 0, "invariant_count": 13}`.
+- Migraciones pendientes: `[]`; versiones aplicadas hasta `goal-status-v1`.
+- Filas 968/969: `date=2026-10-20`, montos `9137` y `20399` centavos.
+- Base real SHA-256 `30f1c1d0…21e32`, idéntica al respaldo verificado
+  `backend/data/backups/banorte.db.bak-20261107-140829`.
+- `date.today()`/`date_cls.today()`/`datetime.today()` en `backend` y
+  `mcp-server` → 0; `xfail`/`skip`/`skipif` en `backend/tests` → 0;
+  `git diff --check` → `DIFF_CHECK_OK` (solo avisos LF→CRLF).
 
 ---
 

@@ -37,6 +37,7 @@ from tools.finance_tools import (
     get_transactions_impl,
     get_weekly_spending_impl,
     project_savings_impl,
+    set_budget_limit_impl,
     update_savings_goal_impl,
 )
 from app.services.mcp_catalog import (  # noqa: E402
@@ -56,6 +57,7 @@ TOOL_IMPLS = {
     "create_savings_goal": create_savings_goal_impl,
     "update_savings_goal": update_savings_goal_impl,
     "apply_savings_contribution": apply_savings_contribution_impl,
+    "set_budget_limit": set_budget_limit_impl,
     "analyze_spending": analyze_spending_impl,
     "calculate_credit_simulation": calculate_credit_simulation_impl,
     "get_monthly_summary": get_monthly_summary_impl,

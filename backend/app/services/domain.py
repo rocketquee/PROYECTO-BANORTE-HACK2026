@@ -31,11 +31,14 @@ AMOUNT_LIMITS: dict[str, tuple[float, float]] = {
     "income": (0.01, 1_000_000_000.0),
     "expense": (0.01, 1_000_000_000.0),
     "transfer": (0.01, 1_000_000_000.0),
+    "budget_limit": (0.01, 1_000_000.0),
 }
 
 GOAL_NAME_MIN = 2
 GOAL_NAME_MAX = 80
 GOAL_STATUSES = ("activa", "completada")
+BUDGET_CATEGORY_MIN = 2
+BUDGET_CATEGORY_MAX = 60
 
 
 class DomainError(ValueError):
@@ -205,6 +208,16 @@ def assert_period_has_data(conn, year: int, month: int) -> str:
 
 # ------------------------------------------------------------- transferencias
 
+def validate_transfer_direction(value) -> str:
+    """Valida el sentido de una transferencia contra el dominio cerrado."""
+    if value not in TRANSFER_DIRECTIONS:
+        raise DomainError(
+            "transfer_bad_direction",
+            "La transferencia debe indicar si es una aportación o un retiro.",
+        )
+    return value
+
+
 def validate_transfer(conn, *, goal_id, amount: float, direction: str) -> dict:
     """Valida una transferencia cuenta↔meta contra INV-3 e INV-4.
 
@@ -216,11 +229,7 @@ def validate_transfer(conn, *, goal_id, amount: float, direction: str) -> dict:
     La comparación ocurre en centavos exactos; los mensajes se formatean en
     pesos con la conversión única de `money`.
     """
-    if direction not in TRANSFER_DIRECTIONS:
-        raise DomainError(
-            "transfer_bad_direction",
-            "La transferencia debe indicar si es una aportación o un retiro.",
-        )
+    direction = validate_transfer_direction(direction)
     amount = validate_amount(amount, kind="transfer")
     row = conn.execute(
         "SELECT id, name, target_amount_cents, saved_amount_cents"
@@ -301,3 +310,29 @@ def update_goal(conn, goal_id: int, *, name: str | None = None,
         conn, goal_id, name=name, target_amount=target_amount,
         deadline=deadline, status=status,
     )
+
+
+def validate_budget_category(conn, category) -> str:
+    """Valida la categoría de presupuesto contra la taxonomía única."""
+    if not isinstance(category, str):
+        raise DomainError("budget_category_invalid", "La categoría no es válida.")
+    clean = " ".join(category.split())
+    if not (BUDGET_CATEGORY_MIN <= len(clean) <= BUDGET_CATEGORY_MAX):
+        raise DomainError(
+            "budget_category_length",
+            f"La categoría debe tener entre {BUDGET_CATEGORY_MIN} y "
+            f"{BUDGET_CATEGORY_MAX} caracteres.",
+        )
+    if clean not in finance.category_taxonomy(conn):
+        raise DomainError(
+            "budget_category_unknown",
+            "La categoría no está en la taxonomía de gastos.",
+        )
+    return clean
+
+
+def set_budget_limit(conn, category: str, monthly_limit: float) -> dict:
+    """Valida y aplica un límite mensual en el punto único de escritura."""
+    category = validate_budget_category(conn, category)
+    limit = validate_amount(monthly_limit, kind="budget_limit")
+    return finance.set_budget_limit(conn, category, limit)
