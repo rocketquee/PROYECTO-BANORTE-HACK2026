@@ -478,6 +478,41 @@ Evidencia de la puerta del Bloque 3:
   `mcp-server` → 0; `xfail`/`skip`/`skipif` en `backend/tests` → 0;
   `git diff --check` → `DIFF_CHECK_OK` (solo avisos LF→CRLF).
 
+**Bloque 4 de Etapa 3 (3.7 y 3.8) cerrado el 2026-11-09.** Los cambios de
+3.7/3.8 ya están integrados en el commit existente `ac4db3d`; esta sesión solo
+añade esta evidencia, sin commit nuevo.
+
+- 3.7: `domain.validate_budget_category` (`domain.py:315`) valida contra la
+  taxonomía única (`finance.category_taxonomy`, `finance.py:160`) y
+  `domain.set_budget_limit` (`domain.py:334`) es la única entrada de escritura;
+  REST deriva los límites de `domain.AMOUNT_LIMITS["budget_limit"]`
+  (`api.py:22,70-73`) y traduce `DomainError` a 422 / `ValueError` a 409
+  (`routes.py:280-287`); MCP declara `SetBudgetLimitInput`
+  (`mcp_catalog.py:240`) y `set_budget_limit_impl` llama al mismo dominio
+  (`finance_tools.py:374`). Pruebas en `test_goal_validation.py:331-414`
+  (caso feliz, límite exacto, 0, categoría desconocida, saneamiento) y en la
+  matriz de paridad (`test_rest_mcp_parity.py:494`).
+- 3.8: `test_rest_mcp_parity.py` ejecuta las mismas entradas contra dos bases y
+  compara éxito/error: metas (`:221`), edición con estado/fecha/nombre/importe
+  (`:299`), transferencias (`:392`), presupuesto (`:494`) y el arnés que
+  demuestra que detecta divergencias (`:588`).
+
+Evidencia de la puerta del Bloque 4:
+
+- Suite completa: `417 passed in 242.26s` con
+  `..\.venv\Scripts\python.exe -m pytest tests -q --basetemp=<temp>`.
+- Suite de paridad aislada: `5 passed in 52.72s`.
+- `npm test` en `frontend`: `9 passed`, `0 failed`, `0 skipped`.
+- `npm run build` en `frontend`: exit 0.
+- Reconciliación: `{"ok": true, "failures": 0, "invariant_count": 13}`.
+- Migraciones pendientes: `[]`; versiones aplicadas hasta `goal-status-v1`.
+- Filas 968/969: `date=2026-10-20`, montos `9137` y `20399` centavos.
+- Base real SHA-256 `30f1c1d0…21e32`, idéntica al respaldo verificado
+  `backend/data/backups/banorte.db.bak-20261107-140829`.
+- `date.today()`/`date_cls.today()`/`datetime.today()` en `backend` y
+  `mcp-server` → 0; `xfail`/`skip`/`skipif` en `backend/tests` → 0;
+  `git diff --check` → `DIFF_CHECK_OK` (sin errores).
+
 ---
 
 ## Decisiones de la Etapa 2
