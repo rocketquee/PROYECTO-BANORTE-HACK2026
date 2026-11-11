@@ -204,6 +204,14 @@ GROUNDING_CASES = [
     ("meses", True, {"months": 12}, "Revisa 12 meses.", "allowed"),
     ("tasa", True, {"annual_rate": 15.9}, "La tasa es 15.9%.", "allowed"),
     ("cero_real", True, {"total_balance": 0}, "Tu saldo es $0.", "allowed"),
+    ("ingresos_y_gastos", False, {"income": 20_000, "expense": 15_000},
+     "Ingresaste $20,000 y gastaste $15,000.", "allowed"),
+    ("porcentaje_mitad", True, {"saved_amount": 5_000, "target_amount": 10_000},
+     "Llevas 50%.", "allowed"),
+    ("inventado_centavos", True, {"total_balance": 20_000},
+     "Tu saldo es $20,000.50.", "blocked"),
+    ("sin_cifras_holdout", True, {"total_balance": 20_000},
+     "Revisa el detalle en pantalla.", "allowed"),
 ]
 
 HOLDOUT_CASES = [case for case in GROUNDING_CASES if case[1]]

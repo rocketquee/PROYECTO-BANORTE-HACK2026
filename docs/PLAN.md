@@ -106,6 +106,39 @@ una línea base reproducible, sin sobreajustar a entidades concretas.
 | 5A.3 | `/api/health` y aviso en la UI | **Hecho** | `routes.py:140-177` expone proveedor, modo, prompt, app, MCP y base; `AgentView.tsx:40-59,240-246,312-315` muestra `IA activa`/`Ayuda local` y aviso inline al degradarse | El usuario ve el modo real y la degradación a mitad de conversación |
 | 5A.4 | Pruebas de proveedor y salud | **Hecho** | `test_provider_health.py` cubre no configurado, sano, caído, timeout, sin tools, respuesta inválida, arranque sano/degradado y compatibilidad legacy OpenAI/Anthropic: `10 passed` | La suite demuestra cada estado sin red real |
 | 5B | Etapa 5B (fuera de alcance de esta sesión) | **No implementada** | No se tocó este bloque; las pruebas existentes de fundamentación siguen cubriendo cifra inventada, cifra correcta, sin cifras y reintento | No se declara hecha ni se simula su cierre |
+| 5C.1 | Casos generados desde entidades reales | **Hecho** | `eval_harness.py` genera metas, categorías, cuentas, follow-ups, ambigüedad, honestidad, seguridad, coloquial, comparaciones, escritura y UI; expectativas desde `finance`, `credit` y `money` | Los casos usan entidades de la base, no listas manuales |
+| 5C.2 | Modos `rules`, `sim` y `live` | **Hecho** | `rules` usa el agente local; `sim` usa el orquestador con `SimProvider` determinista; `live` queda documentado para prueba manual y no corre en CI | CI determinista; `live` no se presenta como verde |
+| 5C.3 | Línea base y compuerta de regresión | **Hecho** | `test_agent_evaluation.py` compara aprobación global y holdout contra `eval_baseline.json`; `rules` 46/64 (71.9 %), holdout 17/23 (73.9 %); `sim` 64/64 y 23/23 | Una regresión baja de la línea base hace fallar la suite |
+| 5C.4 | Reporte por categoría/entidad, latencia y cifras bloqueadas | **Hecho** | `summarize()` agrega aprobación, latencia media y cifras no respaldadas por categoría y entidad | El reporte señala dónde falla, no solo el total |
+| 5C.5 | Guardia contra nombres de entidades en el orquestador | **Hecho** | `test_orchestrator_has_no_seed_entity_literals` analiza el AST y falla si metas o categorías de la base aparecen como literales fuera del vocabulario genérico y la navegación | La evaluación no se puede “arreglar” codificando entidades |
+| 5C.6 | Extender fundamentación y retención sin borrar casos | **Hecho** | `GROUNDING_CASES` pasa de 10 a 14; `HOLDOUT_CASES` de 4 a 7 (50 %); 26 pruebas dirigidas en verde | Se conservan los casos existentes y la retención sigue ≥ 30 % |
+
+**Cierre 5A/5C (2026-11-09):** `test_provider_health.py` → `10 passed`;
+`test_agent_evaluation.py` + `test_agent_grounding.py` → `26 passed`.
+Evaluación `rules`: 46/64 global (71.9 %) y 17/23 holdout (73.9 %);
+`sim`: 64/64 y 23/23. Los fallos de `rules` son brechas reales del agente local
+(categorías fuera de sinónimos, cuentas con intención específica, typo de
+categoría y una consulta de privacidad); no se ocultan con exclusiones.
+`5B` queda explícitamente fuera de alcance.
+
+**Puerta de salida ejecutada (2026-11-09):**
+
+- Suite backend completa: `435 passed in 216.69s` con
+  `..\.venv\Scripts\python.exe -m pytest -q backend --basetemp=<temp>`.
+- Frontend: `npm test` → `10 passed`, `0 failed`; `npm run build` → exit 0.
+- Reconciliación: `{"ok": true, "failures": 0, "invariant_count": 13}`.
+- Base real idéntica al respaldo verificado
+  `backend/data/backups/banorte.db.bak-20261107-140829`:
+  SHA-256 `30f1c1d0c12773e77e559aa01df8f654b49b38b2c1bf910eda8f03aaaca21e32`.
+- `date.today()`/`date_cls.today()`/`datetime.today()` en `backend` y
+  `mcp-server` → 0; `xfail`/`skip`/`skipif` en `backend/tests` → 0;
+  `git diff --check` → exit 0 (solo avisos LF→CRLF).
+
+**Archivos principales:** `backend/app/core/config.py`,
+`backend/app/services/agent/providers.py`, `backend/app/main.py`,
+`backend/app/api/routes.py`, `backend/tests/test_provider_health.py`,
+`backend/tests/eval_harness.py`, `backend/tests/test_agent_evaluation.py`,
+`backend/tests/eval_baseline.json`.
 
 ---
 

@@ -257,6 +257,14 @@ idempotencia MCP, inyección, enmascaramiento de datos, logs estructurados,
 privacidad de archivos y bases locales, integración por stdio y pruebas de
 frontend. El build comprueba compilación y tipos de TypeScript.
 
+La evaluación generada del agente (`backend/tests/test_agent_evaluation.py`)
+corre en dos modos deterministas: `rules` (agente local sin red) y `sim`
+(orquestador en vivo con proveedor simulado). El modo `live` existe para una
+verificación manual con un proveedor real y no se ejecuta en CI porque no es
+determinista. Los casos se generan desde metas, categorías y cuentas sembradas;
+la línea base vive en `backend/tests/eval_baseline.json` y una regresión hace
+fallar la suite.
+
 ## Seguridad y privacidad
 
 - Solo datos sintéticos; sin credenciales bancarias, CVV ni números completos.

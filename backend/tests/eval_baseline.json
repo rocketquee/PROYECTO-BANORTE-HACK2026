@@ -1,0 +1,10 @@
+{
+  "rules": {
+    "overall": 0.7187,
+    "holdout": 0.7391
+  },
+  "sim": {
+    "overall": 1.0,
+    "holdout": 1.0
+  }
+}
