@@ -81,3 +81,12 @@ test("expanded detail overlays the assistant area and can be closed", () => {
   assert.match(agent, /absolute inset-0 z-20 ml-auto/);
   assert.match(agent, /aria-label="Cerrar detalle expandido"/);
 });
+
+test("assistant exposes provider health and inline degradation notice", () => {
+  assert.match(agent, /apiFetch<HealthResponse>\("\/api\/health"\)/);
+  assert.match(agent, /Comprobando IA…/);
+  assert.match(agent, /IA activa: \$\{provider\.model\}/);
+  assert.match(agent, /Ayuda local \(IA no disponible\)/);
+  assert.match(agent, /La IA dejó de responder; esta respuesta usa la ayuda local\./);
+  assert.match(agent, /\{m\.notice && \(/);
+});

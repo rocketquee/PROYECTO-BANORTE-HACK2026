@@ -42,8 +42,10 @@ flowchart LR
 - **Frontend**: Next.js 15 + TypeScript + Tailwind CSS + Recharts.
 - **Backend**: FastAPI + Pydantic v2 + SQLite (datos sintéticos persistentes).
 - **MCP**: SDK oficial de Python (`mcp`), transporte stdio, 19 herramientas.
-- **IA**: proveedor configurable (OpenAI / Anthropic) o **modo demostración**
-  sin API key (agente basado en reglas que usa las mismas herramientas MCP reales).
+- **IA**: proveedor configurable (OpenAI, Anthropic u endpoint local compatible
+  con OpenAI como Ollama) o **modo demostración** sin API key (agente basado en
+  reglas que usa las mismas herramientas MCP reales). Al arrancar se valida que
+  el proveedor responda y soporte herramientas; si no, la app sigue en demo.
 
 ### El ciclo A2UI (interfaz que viaja)
 
@@ -100,9 +102,12 @@ calendario.
 
 | Variable | Descripción |
 |---|---|
-| `AI_PROVIDER` | `demo` (default, sin API key) · `openai` · `anthropic` |
-| `OPENAI_API_KEY` / `OPENAI_MODEL` / `OPENAI_BASE_URL` | Para proveedor OpenAI; modelo predeterminado `gpt-4o-mini` |
-| `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` | Para proveedor Anthropic; modelo predeterminado `claude-sonnet-4-20250514` |
+| `AI_PROVIDER` | Configuración legacy: `demo` (default, sin API key) · `openai` · `anthropic` |
+| `OPENAI_API_KEY` / `OPENAI_MODEL` / `OPENAI_BASE_URL` | Legacy para OpenAI; modelo predeterminado `gpt-4o-mini` |
+| `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` | Legacy para Anthropic; modelo predeterminado `claude-sonnet-4-20250514` |
+| `LLM_PROVIDER` | Proveedor unificado (prioridad sobre `AI_PROVIDER`): `demo` · `openai` · `anthropic` · `ollama` · `local` · `openai-compatible` |
+| `LLM_BASE_URL` / `LLM_MODEL` / `LLM_API_KEY` | Endpoint, modelo y clave del proveedor unificado. Para Ollama local la clave puede quedar vacía |
+| `LLM_HEALTHCHECK_TIMEOUT_SECONDS` | Tiempo máximo del healthcheck de arranque (default `5`) |
 | `AI_TEMPERATURE` / `AI_TIMEOUT_SECONDS` | Temperatura baja y tiempo límite para llamadas al proveedor |
 | `AGENT_MAX_STEPS` / `AGENT_MAX_RETRIES` | Máximo de pasos del agente y reintentos |
 | `AGENT_RETRY_DELAY_SECONDS` / `AGENT_TOOL_TIMEOUT_SECONDS` | Espera entre reintentos y tiempo límite de cada herramienta MCP |
@@ -113,7 +118,44 @@ calendario.
 **No hay secretos en el frontend ni en el código.** Sin API key, la app corre en
 modo demostración con el agente por reglas y las mismas herramientas MCP reales.
 Desde cero, crea `.env` a partir de `.env.example` solo si necesitas configurar
-el proveedor; deja `AI_PROVIDER=demo` para ejecutar completamente en local.
+el proveedor; deja `AI_PROVIDER=demo` o `LLM_PROVIDER=demo` para ejecutar
+completamente en local.
+
+### Configurar un proveedor de IA
+
+El proveedor unificado se elige con `LLM_PROVIDER`. Ejemplos de `.env` local
+(sustituye las claves por las tuyas; nunca las subas a Git):
+
+```ini
+# OpenAI
+LLM_PROVIDER=openai
+LLM_API_KEY=tu-clave
+LLM_MODEL=gpt-4o-mini
+LLM_BASE_URL=https://api.openai.com/v1
+```
+
+```ini
+# Anthropic
+LLM_PROVIDER=anthropic
+LLM_API_KEY=tu-clave
+LLM_MODEL=claude-sonnet-4-20250514
+LLM_BASE_URL=https://api.anthropic.com/v1
+```
+
+```ini
+# Ollama u otro endpoint compatible con OpenAI, en local
+LLM_PROVIDER=ollama
+LLM_MODEL=llama3.2
+LLM_BASE_URL=http://localhost:11434/v1
+```
+
+Al iniciar, el backend hace un healthcheck corto (máximo 5 tokens y
+`LLM_HEALTHCHECK_TIMEOUT_SECONDS`). Si el proveedor no responde o no soporta
+herramientas, el backend arranca en modo demo sin fallar. El chat muestra
+`IA activa: <modelo>` o `Ayuda local`; si la IA deja de responder a mitad de
+conversación, aparece un aviso inline y la respuesta continúa con la ayuda local.
+`GET /api/health` expone el estado del proveedor, el modo, la versión del prompt y
+el estado de la base/MCP.
 
 ### Asistente accesible y seguro
 

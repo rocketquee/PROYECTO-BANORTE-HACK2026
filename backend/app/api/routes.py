@@ -6,6 +6,7 @@ from collections import defaultdict, deque
 from fastapi import APIRouter, HTTPException, Request, Response
 
 from app.core import auth, config
+from app.core.config import DB_PATH
 from app.core.database import db, reconcile_database, reset_database
 from app.core.seed import reference_today
 from app.schemas.api import (BudgetUpdateRequest, ChatRequest, ConfirmRequest,
@@ -17,7 +18,7 @@ from app.services import domain
 from app.services import finance
 from app.services import savings
 from app.services.agent import confirmations, orchestrator
-from app.services.agent.providers import provider_mode
+from app.services.agent.providers import provider_health_report, provider_mode
 from app.services.mcp_client import MCPClientError, mcp_client
 import os
 
@@ -141,7 +142,14 @@ def health():
         "status": "ok",
         "services": "ok" if mcp_client.available else "degraded",
         "version": "0.1.0",
+        "app_version": "0.1.0",
+        "prompt_version": getattr(orchestrator, "PROMPT_VERSION", None),
         "ai_mode": provider_mode(),
+        "provider": provider_health_report(),
+        "mcp": {
+            "available": mcp_client.available,
+            "tool_count": len(mcp_client.tools),
+        },
     }
     with db() as conn:
         data["schema_version"] = _last_schema_version(conn)
@@ -155,6 +163,7 @@ def health():
             fk, table_count = None, None
         data["database"] = {
             "connected": True,
+            "path": DB_PATH.name,
             "foreign_keys": bool(fk),
             "table_count": table_count,
         }

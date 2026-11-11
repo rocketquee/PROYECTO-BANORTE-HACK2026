@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { ChatResponse, PurchaseOption, UIEvent, UISpec } from "@/types/contract";
-import { post } from "@/lib/api";
+import type { ChatResponse, HealthResponse, PurchaseOption, UIEvent, UISpec } from "@/types/contract";
+import { apiFetch, post } from "@/lib/api";
 import DynamicRenderer from "@/components/dynamic/DynamicRenderer";
 import { activeConversation, chatActions, useChatStore, type ChatMsg } from "@/lib/chatStore";
 
@@ -33,12 +33,30 @@ export default function AgentView({
 
   const [input, setInput] = useState("");
   const [lastFailed, setLastFailed] = useState<string | null>(null);
+  const [health, setHealth] = useState<HealthResponse | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    apiFetch<HealthResponse>("/api/health")
+      .then((data) => { if (!cancelled) setHealth(data); })
+      .catch(() => { if (!cancelled) setHealth(null); });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages.length, loading]);
+
+  const provider = health?.provider;
+  const providerLabel = !health
+    ? "Comprobando IA…"
+    : provider?.mode === "live" && provider.model
+      ? `IA activa: ${provider.model}`
+      : provider && provider.name !== "none"
+        ? "Ayuda local (IA no disponible)"
+        : "Ayuda local";
 
   // Questions sent from other sections ("Preguntar al asistente sobre esto").
   const lastNonce = useRef(0);
@@ -66,7 +84,17 @@ export default function AgentView({
         history: conversation.history.slice(-6),
         ui_event: uiEvent,
       }, controller.signal);
-      chatActions.addMessage({ role: "assistant", resp });
+      const previousAssistant = [...conversation.messages]
+        .reverse()
+        .find((m) => m.role === "assistant" && m.resp);
+      const degraded = previousAssistant?.resp?.mode === "live" && resp.mode === "demo";
+      chatActions.addMessage({
+        role: "assistant",
+        resp,
+        notice: degraded
+          ? "La IA dejó de responder; esta respuesta usa la ayuda local."
+          : undefined,
+      });
       if (uiEvent?.type === "purchase_goal_confirmed" &&
           resp.ui.some((spec) => spec.type === "savings_progress")) {
         onGoalsChanged();
@@ -205,10 +233,17 @@ export default function AgentView({
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
       <header className="flex min-h-[56px] shrink-0 items-center gap-2 border-b border-[var(--line)] px-3 py-2">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h2 className="truncate text-[18px] font-semibold">Asistente financiero</h2>
           <p className="truncate text-base text-[var(--muted)]">Prototipo educativo · datos ficticios</p>
         </div>
+        <span
+          className="shrink-0 rounded-full border border-[var(--line)] px-3 py-1 text-sm text-[var(--muted)]"
+          role="status"
+          aria-live="polite"
+        >
+          {providerLabel}
+        </span>
       </header>
     <div className="relative flex min-h-0 flex-1 overflow-hidden">
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
@@ -274,6 +309,11 @@ export default function AgentView({
               <div className="flex justify-start">
                 <div className="max-w-[92%] rounded-2xl rounded-bl-sm bg-white px-4 py-2 text-base shadow-sm">
                   <p className="whitespace-pre-wrap">{m.resp?.message}</p>
+                  {m.notice && (
+                    <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[18px] text-amber-900" role="status">
+                      {m.notice}
+                    </p>
+                  )}
                   {m.resp?.mode === "demo" && (
                     <p className="mt-2 text-[18px] text-neutral-600" role="status">
                       Respuesta con ayuda local; no requiere conexión con un proveedor de IA.

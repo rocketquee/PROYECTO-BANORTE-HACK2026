@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse
 from app.api.routes import router
 from app.core import auth, config, database
 from app.core.structured_logging import configure_application_logging
+from app.services.agent import providers as agent_providers
 from app.services.mcp_client import mcp_client
 
 logger = logging.getLogger("banorte")
@@ -38,6 +39,27 @@ async def lifespan(app: FastAPI):
     except Exception as exc:  # noqa: BLE001 - report, don't crash the API
         logger.error(
             "mcp_server_start_failed",
+            extra={"error_type": type(exc).__name__},
+        )
+    try:
+        status = await agent_providers.check_provider_health()
+        if status["mode"] == "live":
+            logger.info(
+                "llm_provider_ready",
+                extra={"provider": status["name"], "model": status["model"],
+                       "tools_supported": status["tools_supported"],
+                       "latency_ms": status["latency_ms"]},
+            )
+        elif status["name"] != "none":
+            logger.warning(
+                "llm_provider_degraded",
+                extra={"provider": status["name"], "model": status["model"],
+                       "reason": status["reason"],
+                       "latency_ms": status["latency_ms"]},
+            )
+    except Exception as exc:  # noqa: BLE001 - health check must never crash startup
+        logger.error(
+            "llm_provider_healthcheck_failed",
             extra={"error_type": type(exc).__name__},
         )
     yield

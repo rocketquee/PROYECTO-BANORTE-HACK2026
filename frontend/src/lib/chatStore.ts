@@ -16,6 +16,8 @@ export interface ChatMsg {
   text?: string;
   resp?: ChatResponse;
   error?: string;
+  /** Inline warning when the provider degrades mid-conversation. */
+  notice?: string;
 }
 
 export interface Conversation {

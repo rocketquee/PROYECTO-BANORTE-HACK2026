@@ -16,6 +16,15 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
+
+# Unified provider settings (OpenAI, Anthropic and OpenAI-compatible local
+# endpoints such as Ollama). When empty, the legacy AI_PROVIDER settings above
+# keep working unchanged.
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "")
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "")
+LLM_MODEL = os.getenv("LLM_MODEL", "")
+LLM_API_KEY = os.getenv("LLM_API_KEY", "")
+LLM_HEALTHCHECK_TIMEOUT_SECONDS = float(os.getenv("LLM_HEALTHCHECK_TIMEOUT_SECONDS", "5"))
 AI_TEMPERATURE = float(os.getenv("AI_TEMPERATURE", "0.2"))
 AI_TIMEOUT_SECONDS = float(os.getenv("AI_TIMEOUT_SECONDS", "20"))
 AGENT_MAX_STEPS = int(os.getenv("AGENT_MAX_STEPS", "6"))
@@ -96,6 +105,11 @@ def load_dotenv() -> None:
         "OPENAI_BASE_URL": ("OPENAI_BASE_URL", str),
         "ANTHROPIC_API_KEY": ("ANTHROPIC_API_KEY", str),
         "ANTHROPIC_MODEL": ("ANTHROPIC_MODEL", str),
+        "LLM_PROVIDER": ("LLM_PROVIDER", str),
+        "LLM_BASE_URL": ("LLM_BASE_URL", str),
+        "LLM_MODEL": ("LLM_MODEL", str),
+        "LLM_API_KEY": ("LLM_API_KEY", str),
+        "LLM_HEALTHCHECK_TIMEOUT_SECONDS": ("LLM_HEALTHCHECK_TIMEOUT_SECONDS", float),
         "AI_TEMPERATURE": ("AI_TEMPERATURE", float),
         "AI_TIMEOUT_SECONDS": ("AI_TIMEOUT_SECONDS", float),
         "AGENT_MAX_STEPS": ("AGENT_MAX_STEPS", int),

@@ -282,6 +282,23 @@ export interface PendingAction {
   description: string;
 }
 
+export interface ProviderHealth {
+  name: string;
+  model: string | null;
+  reachable: boolean;
+  tools_supported: boolean;
+  mode: "demo" | "live";
+  reason: string | null;
+  latency_ms: number | null;
+}
+
+export interface HealthResponse {
+  status: string;
+  ai_mode: "demo" | "live";
+  prompt_version?: string | null;
+  provider: ProviderHealth;
+}
+
 export interface ChatResponse {
   schema_version: "1.0";
   trace_id?: string | null;
