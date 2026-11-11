@@ -40,7 +40,7 @@ class MigrationError(RuntimeError):
 #: última migración (p. ej. el libro REAL sin tipo `transfer`) se migran hasta
 #: esta versión al arrancar; una base que no pueda llegar a ella se niega a
 #: servir datos en lugar de leer columnas inexistentes.
-CURRENT_SCHEMA_VERSION = "goal-status-v1"
+CURRENT_SCHEMA_VERSION = "agent-memory-v1"
 
 
 # ------------------------------------------------------------------ utilidades
@@ -122,6 +122,8 @@ def assert_schema_compatible(conn) -> None:
         problems.append("tabla pending_confirmations ausente")
     if not _table_ddl(conn, "auth_sessions"):
         problems.append("tabla auth_sessions ausente")
+    if not _table_ddl(conn, "agent_memory"):
+        problems.append("tabla agent_memory ausente")
     goals_ddl = " ".join((_table_ddl(conn, "savings_goals") or "").lower().split())
     if goals_ddl and "status in ('activa', 'completada')" not in goals_ddl:
         problems.append("savings_goals.status no tiene dominio cerrado")
@@ -619,6 +621,15 @@ def _auth_v1_apply(conn) -> dict:
     return {"created": "auth_sessions"}
 
 
+def _agent_memory_v1_needed(conn) -> bool:
+    return not bool(_table_ddl(conn, "agent_memory"))
+
+
+def _agent_memory_v1_apply(conn) -> dict:
+    conn.executescript(seed.TABLE_DDL["agent_memory"])
+    return {"created": "agent_memory"}
+
+
 def _goal_status_v1_needed(conn) -> bool:
     ddl = " ".join((_table_ddl(conn, "savings_goals") or "").lower().split())
     if not ddl:
@@ -693,6 +704,7 @@ MIGRATIONS: list[tuple[str, object, object]] = [
     ("confirm-v1", _confirm_v1_needed, _confirm_v1_apply),
     ("auth-v1", _auth_v1_needed, _auth_v1_apply),
     ("goal-status-v1", _goal_status_v1_needed, _goal_status_v1_apply),
+    ("agent-memory-v1", _agent_memory_v1_needed, _agent_memory_v1_apply),
 ]
 
 

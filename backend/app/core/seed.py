@@ -146,13 +146,28 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires
     ON auth_sessions(expires_at);
 """,
+    "agent_memory": """
+CREATE TABLE IF NOT EXISTS agent_memory (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL CHECK (kind IN ('correction', 'fact', 'turn')),
+    user_msg TEXT NOT NULL,
+    wrong_action TEXT,
+    right_action TEXT,
+    created_at TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    tool_calls_json TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_agent_memory_session
+    ON agent_memory(session_id, kind, id);
+""",
 }
 
 SCHEMA = "".join(TABLE_DDL[name] for name in
                  ("accounts", "cards", "savings_goals", "transactions")) \
     + TRANSACTIONS_INDEXES + TRANSFER_LEGS_DDL \
     + TABLE_DDL["idempotency_records"] + TABLE_DDL["budgets"] \
-    + TABLE_DDL["pending_confirmations"] + TABLE_DDL["auth_sessions"]
+    + TABLE_DDL["pending_confirmations"] + TABLE_DDL["auth_sessions"] \
+    + TABLE_DDL["agent_memory"]
 
 # Restricciones que no se pueden expresar como CHECK de tabla (INV-3 e INV-4).
 # Se aplican en el motor, en centavos enteros, para que ninguna capa pueda

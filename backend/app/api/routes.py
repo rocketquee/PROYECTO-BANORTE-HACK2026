@@ -17,7 +17,7 @@ from app.services import credit as credit_service
 from app.services import domain
 from app.services import finance
 from app.services import savings
-from app.services.agent import confirmations, orchestrator
+from app.services.agent import confirmations, loop, memory, orchestrator, router as agent_router
 from app.services.agent.providers import provider_health_report, provider_mode
 from app.services.mcp_client import MCPClientError, mcp_client
 import os
@@ -145,6 +145,7 @@ def health():
         "app_version": "0.1.0",
         "prompt_version": getattr(orchestrator, "PROMPT_VERSION", None),
         "ai_mode": provider_mode(),
+        "agent_mode": loop.agent_mode(),
         "provider": provider_health_report(),
         "mcp": {
             "available": mcp_client.available,
@@ -153,6 +154,7 @@ def health():
     }
     with db() as conn:
         data["schema_version"] = _last_schema_version(conn)
+        data["memory"] = memory.counts(conn)
         try:
             fk = conn.execute("PRAGMA foreign_keys").fetchone()[0]
             table_count = conn.execute(
@@ -302,6 +304,15 @@ def budget_update(body: BudgetUpdateRequest):
 async def agent_chat(request: Request, body: ChatRequest):
     _check_rate_limit(request.client.host if request.client else "unknown")
     try:
+        if body.mode == "think":
+            return loop.to_chat_response(await loop.run_react(body))
+        if body.mode == "auto":
+            decision = agent_router.decide(body.message)
+            if decision.mode == "think" or decision.degraded:
+                return loop.to_chat_response(await loop.run_react(body))
+            # El router eligió demo: se fuerza el motor local aunque haya
+            # proveedor configurado, para que "auto" cumpla su decisión.
+            return await orchestrator.handle_chat(body, force_demo=True)
         return await orchestrator.handle_chat(body)
     except MCPClientError as exc:
         raise HTTPException(status_code=503, detail=str(exc))

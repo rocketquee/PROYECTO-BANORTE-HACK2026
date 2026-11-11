@@ -2755,7 +2755,7 @@ async def execute_pending(action_id: str, session_id: str | None = None,
 
 # ---------------------------------------------------------------- entry point
 
-async def handle_chat(req: ChatRequest) -> ChatResponse:
+async def handle_chat(req: ChatRequest, *, force_demo: bool = False) -> ChatResponse:
     trace_id = uuid.uuid4().hex
     session = _session_for(req)
     logger.info(
@@ -2781,7 +2781,7 @@ async def handle_chat(req: ChatRequest) -> ChatResponse:
         response = _conversation_response(intent, req.message)
         response.trace_id = trace_id
         return ChatResponse.model_validate(response.model_dump())
-    if intent == "unknown" and _followup(req.message) is None:
+    if intent == "unknown" and _followup(req.message, session) is None:
         response = _conversation_response(intent, req.message)
         response.trace_id = trace_id
         return ChatResponse.model_validate(response.model_dump())
@@ -2793,7 +2793,7 @@ async def handle_chat(req: ChatRequest) -> ChatResponse:
     else:
         if not mcp_client.available:
             raise MCPClientError("El servidor MCP no está disponible. Reinicia el backend.")
-        if get_provider() is None or config.AI_PROVIDER == "demo":
+        if get_provider() is None or force_demo:
             response = await demo_response(req, trace_id, session)
         else:
             try:

@@ -207,6 +207,7 @@ def test_fresh_install_registers_all_versions(tmp_db, tmp_path):
         conn.close()
     assert set(rows) == {
         "ledger-v1", "ledger-v2", "confirm-v1", "auth-v1", "goal-status-v1",
+        "agent-memory-v1",
     }
     assert all(r.get("mode") == "fresh_install" for r in rows.values())
     # Y el runner no encuentra nada pendiente sobre esa base.

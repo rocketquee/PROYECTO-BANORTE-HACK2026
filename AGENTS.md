@@ -57,6 +57,18 @@ Se derivan de `docs/PLAN.md` y de las sesiones de corrección de la Fase A.
 - Descripción escrita para el modelo: cuándo usarla, cuándo no y qué devuelve,
   sin ejemplos de frases memorizables.
 
+## 6 bis. Agente ReAct y memoria
+
+- El agente aprende de correcciones recientes: las correcciones de una sesión se
+  inyectan en el prompt del siguiente turno de esa misma sesión. **No reentrena
+  el modelo**, no ajusta pesos y no comparte memoria entre sesiones.
+- La memoria es la tabla SQLite `agent_memory`; su migración (`agent-memory-v1`)
+  solo se aplica con `require_verified_backup`. La similitud usa `LIKE` por ahora
+  (deuda: embeddings), nunca una base vectorial.
+- El bucle ReAct es opcional: el modo `demo` sigue siendo el predeterminado y
+  debe responder igual que antes. Toda cifra y toda escritura siguen en
+  `domain.*`/herramientas MCP; el modelo solo elige herramientas y narra.
+
 ## 7. Seguridad y secretos
 
 - Sin claves, credenciales ni PII en el repositorio, en la base de entrega ni en

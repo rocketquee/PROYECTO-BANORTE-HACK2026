@@ -145,6 +145,9 @@ class ChatRequest(Strict):
     history: list[dict] = []
     context: dict = {}
     ui_event: UIEventIn | None = None
+    # `demo` conserva el comportamiento actual (motor de reglas); `auto` deja
+    # que el router determinista elija; `think` fuerza el bucle ReAct.
+    mode: Literal["auto", "demo", "think"] = "demo"
 
 
 class ConfirmRequest(Strict):

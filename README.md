@@ -111,6 +111,9 @@ calendario.
 | `AI_TEMPERATURE` / `AI_TIMEOUT_SECONDS` | Temperatura baja y tiempo límite para llamadas al proveedor |
 | `AGENT_MAX_STEPS` / `AGENT_MAX_RETRIES` | Máximo de pasos del agente y reintentos |
 | `AGENT_RETRY_DELAY_SECONDS` / `AGENT_TOOL_TIMEOUT_SECONDS` | Espera entre reintentos y tiempo límite de cada herramienta MCP |
+| `AGENT_MAX_ITERATIONS` | Máximo de iteraciones del bucle ReAct (`think`); default `4` |
+| `AGENT_MEMORY_LIMIT` | Correcciones recientes de la sesión inyectadas en el prompt; default `5`, `0` las desactiva |
+| `AGENT_ROUTER_THRESHOLD` | Umbral `0–1` del router determinista para elegir `think` en `mode="auto"`; default `0.6` |
 | `BANORTE_DEMO_TODAY` | Fecha de referencia de la demo (`AAAA-MM-DD`; default `2026-10-30`). Única fuente de "hoy" para semilla, backend, MCP y pruebas. |
 | `FRONTEND_ORIGIN` | CORS restrictivo (default `http://localhost:3000`) |
 | `DEV_MODE` | `1` habilita `/docs`, `/openapi.json` y detalles técnicos. **Desactivado por defecto**; nunca se activa desde la interfaz pública. |
@@ -120,6 +123,28 @@ modo demostración con el agente por reglas y las mismas herramientas MCP reales
 Desde cero, crea `.env` a partir de `.env.example` solo si necesitas configurar
 el proveedor; deja `AI_PROVIDER=demo` o `LLM_PROVIDER=demo` para ejecutar
 completamente en local.
+
+### Modos del agente: `demo`, `auto` y `think`
+
+`POST /api/agent/chat` acepta `mode`:
+
+- `demo` (predeterminado): motor de reglas actual, respuesta instantánea y sin
+  proveedor. Es el comportamiento que ya existía.
+- `auto`: un router determinista elige `demo` para consultas simples y `think`
+  para escrituras u operaciones multi-paso (umbral `AGENT_ROUTER_THRESHOLD`).
+- `think`: bucle ReAct acotado (`AGENT_MAX_ITERATIONS`). El LLM solo elige
+  herramientas MCP; cada cálculo y escritura sigue en el dominio determinista y
+  el modelo nunca hace aritmética con dinero.
+
+Si el proveedor no está configurado, está caído o falla el healthcheck, `think`
+y `auto` responden con el motor `demo`, `degraded=true` y un motivo
+(`not_configured`/`provider_unavailable`); no hay error 500. La respuesta
+incluye `reply`, `tool_calls`, `provider` y `reason`, y `/api/health` añade
+`agent_mode` y `memory: {corrections, turns}`.
+
+La memoria de correcciones vive en la tabla SQLite `agent_memory` y solo se
+inyecta en la sesión que la registró. No entrena ni ajusta el modelo; la
+similitud entre mensajes es por `LIKE` en esta fase (deuda: embeddings).
 
 ### Configurar un proveedor de IA
 

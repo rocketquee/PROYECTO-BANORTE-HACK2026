@@ -33,6 +33,12 @@ AGENT_RETRY_DELAY_SECONDS = float(os.getenv("AGENT_RETRY_DELAY_SECONDS", "0.2"))
 AGENT_TOOL_TIMEOUT_SECONDS = float(os.getenv("AGENT_TOOL_TIMEOUT_SECONDS", "10"))
 AGENT_MAX_COST_USD = float(os.getenv("AGENT_MAX_COST_USD", "0.05"))
 
+# Mini-agente ReAct (capa opcional). El modo demo sigue siendo el predeterminado
+# del endpoint; `auto` usa el router determinista.
+AGENT_MAX_ITERATIONS = max(1, int(os.getenv("AGENT_MAX_ITERATIONS", "4")))
+AGENT_MEMORY_LIMIT = max(0, int(os.getenv("AGENT_MEMORY_LIMIT", "5")))
+AGENT_ROUTER_THRESHOLD = min(1.0, max(0.0, float(os.getenv("AGENT_ROUTER_THRESHOLD", "0.6"))))
+
 _DEFAULT_TOKEN_COSTS = {
     "gpt-4o-mini": {"input": 0.00000015, "output": 0.00000060},
     "claude-sonnet-4-20250514": {"input": 0.000003, "output": 0.000015},

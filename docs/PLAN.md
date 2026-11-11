@@ -1,4 +1,4 @@
-# PLAN DE TRABAJO — Etapas 2 a 9
+# PLAN DE TRABAJO — Etapas 2 a 10
 
 **Proyecto:** `proyecto-banorte-ai-finanzas`
 **Base auditada:** rama `main`, commit `7062c60`
@@ -23,11 +23,12 @@ La Etapa 1 (modelo de dominio, centavos, migraciones, contrato UI, pruebas base)
 | 2 | Reparación y reconciliación del libro | **2.1–2.9 cerradas; 2.5 real ejecutada (sin cambios)** | 1 | `backend/app/core/ledger_repair.py` |
 | 3 | Validación única y paridad REST/MCP | **3.1–3.8 hechos; Bloque 4 cerrado, pendiente de aprobación para commit** | 2 | `backend/app/services/domain.py`, `routes.py` |
 | 4 | IA: fundamentación, privacidad y confirmaciones | **Hecho (4.1–4.6)** | 2, 3 | `backend/app/services/agent/orchestrator.py` |
-| 5 | UI/UX: contrato en ejecución y ciclo cerrado | **Pendiente** | 3, 4 | `frontend/src/components/dynamic/DynamicRenderer.tsx` |
-| 6 | Calidad: propiedades, concurrencia, E2E y CI | **Pendiente** | 2–5 | `backend/tests/`, `frontend/tests/` |
-| 7 | Portabilidad y empaquetado | **Pendiente** | 2, 3, 6 | `scripts/`, `vercel.json`, `mcp-server/` |
-| 8 | Documentación y limpieza del repositorio | **Pendiente** | 2–7 | `README.md`, `docs/` |
-| 9 | Entrega, aceptación y operación | **Pendiente** | 2–8 | checklist de aceptación |
+| 5 | LLM: proveedor, salud y evaluación | **5A y 5C hechos; 5B pendiente/fuera de alcance** | 2, 3, 4 | `providers.py`, `/api/health`, `test_agent_evaluation.py` |
+| 6 | UI/UX: contrato en ejecución y ciclo cerrado | **Pendiente** | 3, 4, 5 | `frontend/src/components/dynamic/DynamicRenderer.tsx` |
+| 7 | Calidad: propiedades, concurrencia, E2E y CI | **Pendiente** | 2–6 | `backend/tests/`, `frontend/tests/` |
+| 8 | Portabilidad y empaquetado | **Pendiente** | 2, 3, 7 | `scripts/`, `vercel.json`, `mcp-server/` |
+| 9 | Documentación y limpieza del repositorio | **Pendiente** | 2–8 | `README.md`, `docs/` |
+| 10 | Entrega, aceptación y operación | **Pendiente** | 2–9 | checklist de aceptación |
 
 ---
 
@@ -92,62 +93,127 @@ La Etapa 1 (modelo de dominio, centavos, migraciones, contrato UI, pruebas base)
 
 ---
 
-## Etapa 5 — UI/UX: contrato en ejecución y ciclo cerrado
+## Etapa 5 — LLM: proveedor, salud y evaluación
+
+**Objetivo:** conectar un proveedor LLM real de forma segura, detectar su salud al
+arrancar sin tumbar la demo y medir la calidad del agente con casos generados y
+una línea base reproducible, sin sobreajustar a entidades concretas.
 
 | ID | Tarea | Estado | Evidencia / archivo | Criterio de cierre |
 |---|---|---|---|---|
-| 5.1 | Validar el contrato en el cliente | Pendiente | `chatStore.ts:97-105` hace `JSON.parse` y un cast; `DynamicRenderer` solo comprueba el tipo | Validación runtime de `ChatResponse`/`UISpec`; un localStorage manipulado no rompe la pantalla |
-| 5.2 | Cerrar el ciclo o etiquetar lo informativo | Pendiente | Solo compra y aportación envían `ui_event`; otras tarjetas solo mandan preguntas de texto (`SpendingChart.tsx:71`, `CreditSimulator.tsx:115`); filtros y toggles no vuelven; README:20 generaliza | Cada control tiene retorno al agente o se marca explícitamente como solo lectura |
-| 5.3 | Una sola semántica de "disponible" | Pendiente | `finance.py:633` y `BudgetPlanner.tsx:20-21` usan ingreso − gasto; `DOMAIN.md:116` define disponible = saldo en cuentas | El servidor calcula una vez; el cliente muestra, no recalcula |
-| 5.4 | Accesibilidad medida | Pendiente | Solo hay declaraciones; no hay axe/Lighthouse ni pruebas de teclado | axe sin errores críticos, foco visible, contraste y lectores de pantalla |
-| 5.5 | Pruebas de componentes y navegador | Pendiente | `frontend/tests/*.test.mjs` lee archivos y compara regex; no renderiza componentes | Al menos un E2E de compra, aportación, presupuesto y recarga |
+| 5A.1 | Configuración unificada de proveedor | **Hecho** | `config.py:23-27` define `LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` y timeout; `providers.py:186-414` implementa clientes OpenAI/Anthropic compatibles; `providers.py:417-460` resuelve OpenAI, Anthropic, Ollama y legacy; `AI_PROVIDER` sigue funcionando y ahora también pasa por salud | OpenAI, Anthropic y Ollama se configuran sin cambiar código |
+| 5A.2 | Healthcheck de arranque tolerante a fallos | **Hecho** | `providers.py:252-315,366-414` prueba herramienta con 5 tokens y timeout configurable; `providers.py:514-565` cachea el estado; `main.py:45-65` registra `ready`/`degraded` sin abortar | Proveedor caído, lento o sin tools → backend en demo; `/health` lo reporta |
+| 5A.3 | `/api/health` y aviso en la UI | **Hecho** | `routes.py:140-177` expone proveedor, modo, prompt, app, MCP y base; `AgentView.tsx:40-59,240-246,312-315` muestra `IA activa`/`Ayuda local` y aviso inline al degradarse | El usuario ve el modo real y la degradación a mitad de conversación |
+| 5A.4 | Pruebas de proveedor y salud | **Hecho** | `test_provider_health.py` cubre no configurado, sano, caído, timeout, sin tools, respuesta inválida, arranque sano/degradado y compatibilidad legacy OpenAI/Anthropic: `10 passed` | La suite demuestra cada estado sin red real |
+| 5B | Etapa 5B (fuera de alcance de esta sesión) | **No implementada** | No se tocó este bloque; las pruebas existentes de fundamentación siguen cubriendo cifra inventada, cifra correcta, sin cifras y reintento | No se declara hecha ni se simula su cierre |
 
 ---
 
-## Etapa 6 — Calidad: propiedades, concurrencia, E2E y CI
+## Agente ReAct + memoria (2026-11-10)
 
-| ID | Tarea | Estado | Evidencia / archivo | Criterio de cierre |
-|---|---|---|---|---|
-| 6.1 | Propiedades de dinero e invariantes | Pendiente | La suite actual (302) cubre 2.1, pero no tiene property-based ni concurrencia | Property-based tests de aportaciones, retiros, redondeo y reconciliación |
-| 6.2 | Concurrencia real | Pendiente | No hay prueba de dos confirmaciones simultáneas; `BEGIN IMMEDIATE` ayuda, pero `execute_pending` no bloquea | Dos confirmaciones concurrentes producen un solo movimiento |
-| 6.3 | Migración y respaldo | Pendiente | No hay prueba de restaurar un respaldo ni de migrar una base vieja | Migración idempotente, respaldo restaurable y checksum verificado |
-| 6.4 | CI | Pendiente | `.github/workflows/` no existe; solo está el árbol vendido `.github/skills/archify` | Pipeline con lint, typecheck, tests, build y base temporal |
-| 6.5 | Lint y cobertura | Pendiente | `package.json` no tiene `lint`; no hay ruff/eslint/coverage | Comandos únicos documentados y umbral mínimo |
+**Alcance implementado (capa opcional, sin entrenar modelos):**
+
+- `backend/app/services/agent/loop.py`: bucle ReAct acotado
+  (`AGENT_MAX_ITERATIONS`, default 4). El prompt del sistema es
+  `system_prompt.md` más las correcciones recientes de **esa** sesión. El LLM
+  solo elige herramientas del catálogo MCP existente; cada herramienta ejecuta
+  `domain.*`/`finance.*` y el modelo nunca calcula importes ni porcentajes.
+  - Salida: `{reply, tool_calls[], mode:"think", degraded, reason, provider,
+    ui, tools_used, pending_action, trace_id}`.
+  - Proveedor ausente, caído o con healthcheck fallido → respuesta del motor de
+    reglas con `mode="demo"`, `degraded=true` y motivo (`not_configured`,
+    `provider_unavailable`); nunca una excepción 500.
+  - Límite de iteraciones, costo, fundamentación e inyección degradan con
+    `max_iterations`, `cost_limit`, `grounding_blocked` e `injection_blocked`.
+- `backend/app/services/agent/memory.py`: tabla `agent_memory`
+  (`correction` | `fact` | `turn`) en la misma base SQLite.
+  `record_correction`, `recent_corrections` (filtradas por `session_id`),
+  `record_turn` y `counts`. La fecha usa `seed.reference_today()`, no el reloj
+  real.
+- `backend/app/services/agent/router.py`: router determinista, sin ML. Reglas:
+  verbo de escritura u operación multi-paso `+0.60`; marca de secuencia `+0.60`;
+  mensaje ≥ 12 palabras, monto explícito o referencia ambigua `+0.10` cada uno;
+  puntaje acotado a `[0,1]`. `AGENT_ROUTER_THRESHOLD` (default `0.6`) decide
+  `think` vs `demo`; sin proveedor degrada a `demo` con `degraded=true`.
+- `/api/agent/chat` acepta `mode: "auto" | "demo" | "think"` (default `demo`,
+  que conserva el comportamiento previo). `auto` consulta al router; `think`
+  fuerza el bucle. La respuesta mantiene el sobre `ChatResponse` y añade
+  `reply`, `tool_calls`, `degraded`, `provider` y `reason`.
+- `/api/health` añade `agent_mode` (`demo` | `think`; `live` queda reservado
+  para la ruta directa) y `memory: {corrections, turns}`. No se renombran
+  `tools_supported` ni se mueven `model`/`reachable`.
+- Migración `agent-memory-v1` registrada en `migrate.py`, aplicada solo tras
+  `require_verified_backup`; una base sin respaldo aborta con `MigrationError`.
+
+**Límites y deuda documentada:**
+
+- No hay fine-tuning ni entrenamiento: la "memoria" son filas de correcciones
+  recientes inyectadas en el prompt.
+- No hay embeddings ni base vectorial: la similitud es `LIKE`/filtro exacto por
+  `session_id` sobre `agent_memory.user_msg`. Migrar a búsqueda semántica queda
+  como deuda explícita.
+- `agent_memory` añade `tool_calls_json` para trazabilidad además de las
+  columnas mínimas solicitadas.
+- El router es heurístico y determinista; no promete intención perfecta.
 
 ---
 
-## Etapa 7 — Portabilidad y empaquetado
+## Etapa 6 — UI/UX: contrato en ejecución y ciclo cerrado
 
 | ID | Tarea | Estado | Evidencia / archivo | Criterio de cierre |
 |---|---|---|---|---|
-| 7.1 | Fijar dependencias | Pendiente | `backend/requirements.txt` usa `>=`; `package.json` usa `^`; `@next/swc-win32-x64-msvc@16.4.2` convive con `next@15.5.28` | Versiones fijas y `npm ci` reproducible |
-| 7.2 | Scripts multiplataforma | Pendiente | `scripts/*.cmd` es solo Windows; puertos 3000/8000 fijos | Scripts Windows/macOS/Linux o documento único; puertos configurables |
-| 7.3 | Datos fuera del repositorio | Pendiente | `backend/app/core/config.py:7-8` permite `BANORTE_DB_PATH`, pero el valor por defecto vive en `backend/data` | Base en `%LOCALAPPDATA%`/`$XDG_DATA_HOME` con override; migración de ruta |
-| 7.4 | Lanzamiento del MCP empaquetado | Pendiente | `mcp_client.py:36-37` usa `sys.executable`; en un `.exe` se relanzaría el propio ejecutable; `finance_tools.py:18-21` asume el layout del repo | Estrategia explícita para `.exe` (binario/servidor embebido) y prueba de humo |
-| 7.5 | Decisión Vercel | Pendiente | `vercel.json:1-20` declara tres servicios; SQLite local y MCP stdio no son durables en un filesystem efímero | O se elimina el despliegue, o se define base gestionada y MCP remoto; probar `vercel` |
+| 6.1 | Validar el contrato en el cliente | Pendiente | `chatStore.ts:97-105` hace `JSON.parse` y un cast; `DynamicRenderer` solo comprueba el tipo | Validación runtime de `ChatResponse`/`UISpec`; un localStorage manipulado no rompe la pantalla |
+| 6.2 | Cerrar el ciclo o etiquetar lo informativo | Pendiente | Solo compra y aportación envían `ui_event`; otras tarjetas solo mandan preguntas de texto (`SpendingChart.tsx:71`, `CreditSimulator.tsx:115`); filtros y toggles no vuelven; README:20 generaliza | Cada control tiene retorno al agente o se marca explícitamente como solo lectura |
+| 6.3 | Una sola semántica de "disponible" | Pendiente | `finance.py:633` y `BudgetPlanner.tsx:20-21` usan ingreso − gasto; `DOMAIN.md:116` define disponible = saldo en cuentas | El servidor calcula una vez; el cliente muestra, no recalcula |
+| 6.4 | Accesibilidad medida | Pendiente | Solo hay declaraciones; no hay axe/Lighthouse ni pruebas de teclado | axe sin errores críticos, foco visible, contraste y lectores de pantalla |
+| 6.5 | Pruebas de componentes y navegador | Pendiente | `frontend/tests/*.test.mjs` lee archivos y compara regex; no renderiza componentes | Al menos un E2E de compra, aportación, presupuesto y recarga |
 
 ---
 
-## Etapa 8 — Documentación y limpieza del repositorio
+## Etapa 7 — Calidad: propiedades, concurrencia, E2E y CI
 
 | ID | Tarea | Estado | Evidencia / archivo | Criterio de cierre |
 |---|---|---|---|---|
-| 8.1 | Verdad documental | Pendiente | README:44/155 dice 19 herramientas y el servidor registra 20 (`server.py:44-66`); DOMAIN:3 dice "nada aplicado" y hay centavos/migraciones/triggers; REPORTE-QA:3 dice 152 pruebas y hay 302 | Cada cifra y estado coincide con una comprobación |
-| 8.2 | Retirar artefactos | Pendiente | Están versionados 27 artefactos del producto (probes, `_d1*.txt`, `tsconfig.tsbuildinfo`, 18 capturas) y 4 archivos de `.archify`; además, 203 archivos del skill vendido bajo `.github/skills/archify` | Repositorio de producto sin artefactos de depuración ni vendor innecesario |
-| 8.3 | Corregir `.gitignore` | Pendiente | Las líneas 29-31 están corruptas (`. v e n v /` con caracteres UTF-16) | Ignora `.venv/`, bases y respaldos de forma legible |
-| 8.4 | Escaneo final de secretos y PII | Pendiente | `.env` no está versionado y no se hallaron claves; sí hay rutas personales y un nombre de persona en la base | Escaneo de árbol e historia; sin secretos ni PII en el entregable |
+| 7.1 | Propiedades de dinero e invariantes | Pendiente | La suite actual (302) cubre 2.1, pero no tiene property-based ni concurrencia | Property-based tests de aportaciones, retiros, redondeo y reconciliación |
+| 7.2 | Concurrencia real | Pendiente | No hay prueba de dos confirmaciones simultáneas; `BEGIN IMMEDIATE` ayuda, pero `execute_pending` no bloquea | Dos confirmaciones concurrentes producen un solo movimiento |
+| 7.3 | Migración y respaldo | Pendiente | No hay prueba de restaurar un respaldo ni de migrar una base vieja | Migración idempotente, respaldo restaurable y checksum verificado |
+| 7.4 | CI | Pendiente | `.github/workflows/` no existe; solo está el árbol vendido `.github/skills/archify` | Pipeline con lint, typecheck, tests, build y base temporal |
+| 7.5 | Lint y cobertura | Pendiente | `package.json` no tiene `lint`; no hay ruff/eslint/coverage | Comandos únicos documentados y umbral mínimo |
 
 ---
 
-## Etapa 9 — Entrega, aceptación y operación
+## Etapa 8 — Portabilidad y empaquetado
 
 | ID | Tarea | Estado | Evidencia / archivo | Criterio de cierre |
 |---|---|---|---|---|
-| 9.1 | Checklist de aceptación | Pendiente | Ver "Aceptación global" | Checklist firmado con comandos y salidas |
-| 9.2 | Prueba en máquina limpia | Pendiente | `scripts/setup.cmd` no se probó desde cero en otra máquina | Instalación, arranque, demo y apagado sin pasos manuales |
-| 9.3 | Respaldo y restauración | Parcial | El respaldo se restauró en copia, se migró (`ledger-v1/v2`) con integridad `ok` y la app respondió 200 en health/dashboard/goals; la fila 967 reprodujo el intercambio y falta probar rollback completo | Restaurar un respaldo, migrarlo, verificar integridad/datos con la app y documentar el rollback |
-| 9.4 | Salud observable | Pendiente | `/api/health` devuelve `size_bytes: null` por `DB_PATH` no importado (`routes.py:117`) | Tamaño, esquema, herramientas MCP y versión visibles y probados |
-| 9.5 | Operación y rollback | Pendiente | No hay runbook | Runbook de respaldo, migración, rollback y soporte |
+| 8.1 | Fijar dependencias | Pendiente | `backend/requirements.txt` usa `>=`; `package.json` usa `^`; `@next/swc-win32-x64-msvc@16.4.2` convive con `next@15.5.28` | Versiones fijas y `npm ci` reproducible |
+| 8.2 | Scripts multiplataforma | Pendiente | `scripts/*.cmd` es solo Windows; puertos 3000/8000 fijos | Scripts Windows/macOS/Linux o documento único; puertos configurables |
+| 8.3 | Datos fuera del repositorio | Pendiente | `backend/app/core/config.py:7-8` permite `BANORTE_DB_PATH`, pero el valor por defecto vive en `backend/data` | Base en `%LOCALAPPDATA%`/`$XDG_DATA_HOME` con override; migración de ruta |
+| 8.4 | Lanzamiento del MCP empaquetado | Pendiente | `mcp_client.py:36-37` usa `sys.executable`; en un `.exe` se relanzaría el propio ejecutable; `finance_tools.py:18-21` asume el layout del repo | Estrategia explícita para `.exe` (binario/servidor embebido) y prueba de humo |
+| 8.5 | Decisión Vercel | Pendiente | `vercel.json:1-20` declara tres servicios; SQLite local y MCP stdio no son durables en un filesystem efímero | O se elimina el despliegue, o se define base gestionada y MCP remoto; probar `vercel` |
+
+---
+
+## Etapa 9 — Documentación y limpieza del repositorio
+
+| ID | Tarea | Estado | Evidencia / archivo | Criterio de cierre |
+|---|---|---|---|---|
+| 9.1 | Verdad documental | Pendiente | README:44/155 dice 19 herramientas y el servidor registra 20 (`server.py:44-66`); DOMAIN:3 dice "nada aplicado" y hay centavos/migraciones/triggers; REPORTE-QA:3 dice 152 pruebas y hay 302 | Cada cifra y estado coincide con una comprobación |
+| 9.2 | Retirar artefactos | Pendiente | Están versionados 27 artefactos del producto (probes, `_d1*.txt`, `tsconfig.tsbuildinfo`, 18 capturas) y 4 archivos de `.archify`; además, 203 archivos del skill vendido bajo `.github/skills/archify` | Repositorio de producto sin artefactos de depuración ni vendor innecesario |
+| 9.3 | Corregir `.gitignore` | Pendiente | Las líneas 29-31 están corruptas (`. v e n v /` con caracteres UTF-16) | Ignora `.venv/`, bases y respaldos de forma legible |
+| 9.4 | Escaneo final de secretos y PII | Pendiente | `.env` no está versionado y no se hallaron claves; sí hay rutas personales y un nombre de persona en la base | Escaneo de árbol e historia; sin secretos ni PII en el entregable |
+
+---
+
+## Etapa 10 — Entrega, aceptación y operación
+
+| ID | Tarea | Estado | Evidencia / archivo | Criterio de cierre |
+|---|---|---|---|---|
+| 10.1 | Checklist de aceptación | Pendiente | Ver "Aceptación global" | Checklist firmado con comandos y salidas |
+| 10.2 | Prueba en máquina limpia | Pendiente | `scripts/setup.cmd` no se probó desde cero en otra máquina | Instalación, arranque, demo y apagado sin pasos manuales |
+| 10.3 | Respaldo y restauración | Parcial | El respaldo se restauró en copia, se migró (`ledger-v1/v2`) con integridad `ok` y la app respondió 200 en health/dashboard/goals; la fila 967 reprodujo el intercambio y falta probar rollback completo | Restaurar un respaldo, migrarlo, verificar integridad/datos con la app y documentar el rollback |
+| 10.4 | Salud observable | Pendiente | `/api/health` devuelve `size_bytes: null` por `DB_PATH` no importado (`routes.py:117`) | Tamaño, esquema, herramientas MCP y versión visibles y probados |
+| 10.5 | Operación y rollback | Pendiente | No hay runbook | Runbook de respaldo, migración, rollback y soporte |
 
 ---
 
@@ -394,7 +460,7 @@ quedó sin cambios (`b4bb7220…f8366`) y `reconcile` antes/después dio
 `DIFF_CHECK_OK`; filas 968/969 con fecha `2026-10-20`.
 
 **Siguiente etapa:** cerrar el Bloque 4 de la Etapa 3 (3.7–3.8). No avanzar a
-Etapa 5 hasta cerrar 3.
+Etapa 5 (LLM) hasta cerrar 3.
 
 **Bloque 2 de Etapa 3 (3.3 y 3.4) cerrado el 2026-11-07, pendiente de
 aprobación para commit.** El Bloque 1 (3.1–3.2) ya estaba versionado en

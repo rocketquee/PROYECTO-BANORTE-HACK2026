@@ -365,9 +365,15 @@ class ChatResponse(Strict):
     schema_version: Literal["1.0"] = UI_SCHEMA_VERSION
     trace_id: str | None = None
     message: str
-    mode: Literal["demo", "live"]
+    mode: Literal["demo", "live", "think"]
     ui: list[UISpec] = []
     tools_used: list[str] = []
     suggestions: list[str] = []
     pending_action: PendingAction | None = None
     interaction_context: dict = {}
+    # Contrato del bucle ReAct (opcional; vacío en los caminos existentes).
+    reply: str | None = None
+    tool_calls: list[dict] = []
+    degraded: bool = False
+    provider: dict | None = None
+    reason: str | None = None
