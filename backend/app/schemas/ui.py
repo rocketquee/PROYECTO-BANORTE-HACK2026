@@ -377,3 +377,5 @@ class ChatResponse(Strict):
     degraded: bool = False
     provider: dict | None = None
     reason: str | None = None
+    # Pantalla generada y validada por `ui_catalog.validate_ui_plan`.
+    ui_plan: dict | None = None

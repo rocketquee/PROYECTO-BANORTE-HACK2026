@@ -24,7 +24,7 @@ La Etapa 1 (modelo de dominio, centavos, migraciones, contrato UI, pruebas base)
 | 3 | Validación única y paridad REST/MCP | **3.1–3.8 hechos; Bloque 4 cerrado, pendiente de aprobación para commit** | 2 | `backend/app/services/domain.py`, `routes.py` |
 | 4 | IA: fundamentación, privacidad y confirmaciones | **Hecho (4.1–4.6)** | 2, 3 | `backend/app/services/agent/orchestrator.py` |
 | 5 | LLM: proveedor, salud y evaluación | **5A y 5C hechos; 5B pendiente/fuera de alcance** | 2, 3, 4 | `providers.py`, `/api/health`, `test_agent_evaluation.py` |
-| 6 | UI/UX: contrato en ejecución y ciclo cerrado | **Pendiente** | 3, 4, 5 | `frontend/src/components/dynamic/DynamicRenderer.tsx` |
+| 6 | UI/UX: contrato en ejecución y ciclo cerrado | **6.6 hecha (A2UI); 6.1–6.5 pendientes** | 3, 4, 5 | `frontend/src/components/UIRenderer.tsx` |
 | 7 | Calidad: propiedades, concurrencia, E2E y CI | **Pendiente** | 2–6 | `backend/tests/`, `frontend/tests/` |
 | 8 | Portabilidad y empaquetado | **Pendiente** | 2, 3, 7 | `scripts/`, `vercel.json`, `mcp-server/` |
 | 9 | Documentación y limpieza del repositorio | **Pendiente** | 2–8 | `README.md`, `docs/` |
@@ -238,6 +238,7 @@ reconciliación `ok=true`, `failures=0`, `invariant_count=13`;
 | 6.3 | Una sola semántica de "disponible" | Pendiente | `finance.py:633` y `BudgetPlanner.tsx:20-21` usan ingreso − gasto; `DOMAIN.md:116` define disponible = saldo en cuentas | El servidor calcula una vez; el cliente muestra, no recalcula |
 | 6.4 | Accesibilidad medida | Pendiente | Solo hay declaraciones; no hay axe/Lighthouse ni pruebas de teclado | axe sin errores críticos, foco visible, contraste y lectores de pantalla |
 | 6.5 | Pruebas de componentes y navegador | Pendiente | `frontend/tests/*.test.mjs` lee archivos y compara regex; no renderiza componentes | Al menos un E2E de compra, aportación, presupuesto y recarga |
+| 6.6 | Capa A2UI `ui_plan` con componentes validados | **Hecho (2026-11-10, sin commit)** | `backend/app/services/agent/ui_catalog.py` (5 componentes estrictos, `validate_ui_plan` con grounding numérico y respaldo determinista); `loop.py` fase 1 ReAct + fase 2 planificador con reparación (`AGENT_UI_MAX_REPAIRS`); `ChatResponse.ui_plan` y backfill demo en `routes.py:315-318`; `UIRenderer.tsx` montado en `AgentView.tsx`; 9 pruebas en `test_agent_ui_catalog.py`; suite `473 passed`, `npm test` 11/11, build OK, reconcile `ok=true`/`failures=0` y SHA-256 de `banorte.db` sin cambios | Ningún componente/prop fuera del catálogo; cifras del plan existen en las herramientas; reparación inválido→feedback→válido; paridad demo/think |
 
 ---
 

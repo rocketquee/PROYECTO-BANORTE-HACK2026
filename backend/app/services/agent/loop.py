@@ -22,7 +22,7 @@ import uuid
 from app.core import config, database
 from app.schemas.api import ChatRequest
 from app.schemas.ui import ChatResponse, PendingAction
-from app.services.agent import confirmations, memory
+from app.services.agent import confirmations, memory, ui_catalog
 from app.services.agent import orchestrator as orch
 from app.services.agent.providers import (
     ProviderError,
@@ -43,6 +43,37 @@ CONVERSATION_INTENTS = frozenset({
 CONFIRMABLE_WRITE_TOOLS = frozenset({
     "create_savings_goal", "update_savings_goal", "apply_savings_contribution",
 })
+
+#: Instrucción del segundo paso: convierte datos reales en una pantalla A2UI.
+PLANNER_SYSTEM = """Eres el planificador de pantallas A2UI de Banorte.
+Recibes la pregunta del usuario y DATOS reales de las herramientas MCP.
+Devuelve SOLO un objeto JSON con esta forma:
+{"title": "...", "components": [ ... ]}
+
+Componentes permitidos (no inventes tipos ni props):
+- StatCard: {"type":"StatCard","title","value","hint"?,"trend_pct"?,"tone"?}
+- BarChart: {"type":"BarChart","title","series":[{"label","value"}],"unit"?,"note"?}
+- Table: {"type":"Table","title","columns":["..."],"rows":[["..."]],"note"?}
+- ProgressRing: {"type":"ProgressRing","title","label","value","target_label"?,"note"?}
+- TransferForm: {"type":"TransferForm","title","from_account","to_account","amount","concept","confirmation_text"}
+
+Mapa de intención (elige el componente por la pregunta y los DATOS):
+- saldo, cuánto dinero tengo, resumen del mes -> StatCard.
+- en qué gasté, gasto por categoría, tendencia -> BarChart.
+- movimientos, transacciones, últimos cargos -> Table.
+- cómo va mi meta, avance de ahorro -> ProgressRing.
+- abonar o transferir a una meta -> TransferForm.
+- Puedes combinar hasta 5 componentes si la pregunta lo pide.
+
+Ejemplo de composición:
+{"title":"Tu mes","components":[{"type":"StatCard","title":"Saldo total","value":"$85,921"},{"type":"BarChart","title":"Gasto por categoría","series":[{"label":"Comida","value":4200}]},{"type":"Table","title":"Movimientos","columns":["Fecha","Descripción","Monto"],"rows":[["2026-10-30","Nómina","$10,959"]]}]}
+
+Reglas obligatorias:
+1. Usa como máximo 5 componentes.
+2. Copia los números EXACTAMENTE de DATOS. No calcules ni inventes cifras.
+3. No incluyas HTML, código, URLs ni props adicionales.
+4. Si DATOS no alcanza, devuelve "components": [].
+"""
 
 
 def agent_mode() -> str:
@@ -140,6 +171,7 @@ def _conversation_result(response: ChatResponse, provider, started: float,
         "reason": "conversation_intent",
         "provider": _provider_info(provider, int((time.monotonic() - started) * 1000)),
         "ui": [spec.model_dump() for spec in response.ui],
+        "ui_plan": _plan_from_ui([spec.model_dump() for spec in response.ui]),
         "tools_used": list(response.tools_used),
         "pending_action": response.pending_action,
         "trace_id": trace_id,
@@ -159,6 +191,72 @@ def _fallback_info(provider, report: dict | None, latency_ms: int) -> dict:
     }
 
 
+def _plan_payload(plan: ui_catalog.UIPlan) -> dict | None:
+    """Serializa un plan solo si tiene componentes; si no, no hay pantalla."""
+    return plan.model_dump() if plan.components else None
+
+
+def _plan_from_ui(ui: list[dict]) -> dict | None:
+    try:
+        return _plan_payload(ui_catalog.plan_from_ui_specs(ui))
+    except Exception:  # noqa: BLE001 - la pantalla es opcional
+        logger.warning("agent_ui_plan_from_specs_failed", exc_info=True)
+        return None
+
+
+async def _plan_with_provider(provider, req: ChatRequest, tool_results: dict,
+                              trace_id: str) -> tuple[dict | None, str]:
+    """Segundo paso: datos reales → `ui_plan`, con reparación acotada.
+
+    El plan se valida contra el catálogo y contra las cifras de las
+    herramientas. Si falla, el error vuelve al modelo como feedback hasta
+    `AGENT_UI_MAX_REPAIRS` veces. Nunca lanza: devuelve `(None, "fallback")`.
+    """
+    masked = orch._mask_tool_result(tool_results)
+    if not hasattr(provider, "complete"):
+        # Proveedores de prueba sin segundo paso: respaldo determinista.
+        return None, "unsupported"
+    messages = [
+        {"role": "user", "content": req.message},
+        {
+            "role": "user",
+            "content": "DATOS DE HERRAMIENTAS (JSON):\n"
+                       + json.dumps(masked, ensure_ascii=False)[:12_000],
+        },
+    ]
+    for attempt in range(config.AGENT_UI_MAX_REPAIRS + 1):
+        content = ""
+        try:
+            content = await asyncio.wait_for(
+                provider.complete(PLANNER_SYSTEM, messages),
+                timeout=config.AI_TIMEOUT_SECONDS,
+            )
+            if not isinstance(content, str) or not content.strip():
+                raise ui_catalog.UIPlanError("El planificador no devolvió contenido.")
+            plan = ui_catalog.validate_ui_plan(content, tool_results=masked)
+            return _plan_payload(plan), "llm"
+        except ui_catalog.UIPlanError as exc:
+            error = exc.message
+        except (ProviderError, asyncio.TimeoutError, ValueError, TypeError,
+                KeyError, AttributeError) as exc:
+            error = str(exc) or type(exc).__name__
+        logger.warning(
+            "agent_ui_plan_invalid",
+            extra={"trace_id": trace_id, "attempt": attempt + 1,
+                   "error_type": type(error).__name__},
+        )
+        messages = [
+            *messages,
+            {"role": "assistant", "content": content[:4000]},
+            {
+                "role": "user",
+                "content": f"Tu plan fue rechazado: {error[:500]}. "
+                           "Corrige y devuelve solo el JSON válido.",
+            },
+        ]
+    return None, "fallback"
+
+
 async def _demo_fallback(req: ChatRequest, session, trace_id: str, started: float,
                          reason: str, *, provider=None, report: dict | None = None) -> dict:
     response = await orch.demo_response(req, trace_id, session)
@@ -172,6 +270,7 @@ async def _demo_fallback(req: ChatRequest, session, trace_id: str, started: floa
             provider, report, int((time.monotonic() - started) * 1000),
         ),
         "ui": [spec.model_dump() for spec in response.ui],
+        "ui_plan": _plan_from_ui([spec.model_dump() for spec in response.ui]),
         "tools_used": list(response.tools_used),
         "pending_action": response.pending_action,
         "trace_id": trace_id,
@@ -322,6 +421,32 @@ async def run_react(req: ChatRequest, trace_id: str | None = None,
         logger.warning("agent_react_ui_failed", exc_info=True)
         ui = []
 
+    # Fase 2 (Planificador): convierte los datos reales en una pantalla A2UI.
+    # Si el modelo no logra un plan válido, el respaldo determinista usa los
+    # mismos resultados de las herramientas (nunca cifras nuevas).
+    ui_plan: dict | None = None
+    if tool_results:
+        ui_plan, plan_source = await _plan_with_provider(
+            provider, req, tool_results, trace_id,
+        )
+        if ui_plan is None:
+            try:
+                ui_plan = _plan_payload(
+                    ui_catalog.build_ui_plan(tool_results, pending=pending)
+                )
+            except Exception:  # noqa: BLE001 - la pantalla es opcional
+                logger.warning("agent_ui_plan_fallback_failed", exc_info=True)
+            if ui_plan is not None:
+                logger.info(
+                    "agent_ui_plan_fallback",
+                    extra={"trace_id": trace_id, "source": plan_source},
+                )
+                if plan_source == "fallback":
+                    degraded = True
+                    reason = reason or "ui_plan_fallback"
+    if ui_plan is None:
+        ui_plan = _plan_from_ui(ui)
+
     result = {
         "reply": final_text,
         "tool_calls": tool_calls,
@@ -332,6 +457,7 @@ async def run_react(req: ChatRequest, trace_id: str | None = None,
             provider, int((time.monotonic() - started) * 1000),
         ),
         "ui": ui,
+        "ui_plan": ui_plan,
         "tools_used": list(dict.fromkeys(tool_names)),
         "pending_action": pending,
         "trace_id": trace_id,
@@ -354,4 +480,18 @@ def to_chat_response(result: dict) -> ChatResponse:
         degraded=result.get("degraded", False),
         provider=result.get("provider"),
         reason=result.get("reason"),
+        ui_plan=result.get("ui_plan"),
     )
+
+
+def attach_ui_plan(response: ChatResponse) -> ChatResponse:
+    """Añade `ui_plan` a respuestas del motor demo (camino sin ReAct).
+
+    Reutiliza los `ui` deterministas ya calculados por el dominio, de modo que
+    demo y think muestran exactamente las mismas cifras.
+    """
+    if response.ui_plan is None and response.ui:
+        response.ui_plan = _plan_from_ui(
+            [spec.model_dump() for spec in response.ui],
+        )
+    return response

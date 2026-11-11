@@ -38,6 +38,8 @@ AGENT_MAX_COST_USD = float(os.getenv("AGENT_MAX_COST_USD", "0.05"))
 AGENT_MAX_ITERATIONS = max(1, int(os.getenv("AGENT_MAX_ITERATIONS", "4")))
 AGENT_MEMORY_LIMIT = max(0, int(os.getenv("AGENT_MEMORY_LIMIT", "5")))
 AGENT_ROUTER_THRESHOLD = min(1.0, max(0.0, float(os.getenv("AGENT_ROUTER_THRESHOLD", "0.6"))))
+# Planificador A2UI: reintentos de reparación cuando el plan no valida.
+AGENT_UI_MAX_REPAIRS = max(0, min(3, int(os.getenv("AGENT_UI_MAX_REPAIRS", "2"))))
 
 _DEFAULT_TOKEN_COSTS = {
     "gpt-4o-mini": {"input": 0.00000015, "output": 0.00000060},
@@ -123,6 +125,7 @@ def load_dotenv() -> None:
         "AGENT_RETRY_DELAY_SECONDS": ("AGENT_RETRY_DELAY_SECONDS", float),
         "AGENT_TOOL_TIMEOUT_SECONDS": ("AGENT_TOOL_TIMEOUT_SECONDS", float),
         "AGENT_MAX_COST_USD": ("AGENT_MAX_COST_USD", float),
+        "AGENT_UI_MAX_REPAIRS": ("AGENT_UI_MAX_REPAIRS", int),
         "AGENT_TOKEN_COSTS": ("AGENT_TOKEN_COSTS", parse_token_costs),
         "FRONTEND_ORIGIN": ("FRONTEND_ORIGIN", str),
         "DEV_MODE": ("DEV_MODE", lambda value: value.lower() in ("1", "true", "yes")),

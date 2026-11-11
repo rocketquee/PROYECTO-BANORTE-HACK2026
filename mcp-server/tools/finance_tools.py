@@ -359,7 +359,16 @@ async def apply_savings_contribution_impl(
     `direction` acepta `account_to_goal` (aportación) o `goal_to_account` (retiro).
     """
     if not confirm:
-        return {"status": "requires_confirmation"}
+        return {
+            "status": "requires_confirmation",
+            "params": {
+                "goal_id": goal_id,
+                "amount": amount,
+                "goal_name": goal_name,
+                "direction": direction,
+            },
+            "message": f"¿Confirmas el abono de ${amount:,.2f}?",
+        }
     if not idempotency_key:
         raise ValueError("La transferencia requiere una clave de idempotencia.")
     with db() as conn:

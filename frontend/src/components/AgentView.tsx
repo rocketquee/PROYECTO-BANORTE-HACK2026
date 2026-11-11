@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { ChatResponse, HealthResponse, PurchaseOption, UIEvent, UISpec } from "@/types/contract";
+import type { ChatResponse, HealthResponse, PurchaseOption, UIEvent, UIPlanAction, UISpec } from "@/types/contract";
 import { apiFetch, post } from "@/lib/api";
 import DynamicRenderer from "@/components/dynamic/DynamicRenderer";
+import UIRenderer from "@/components/UIRenderer";
 import { activeConversation, chatActions, useChatStore, type ChatMsg } from "@/lib/chatStore";
 
 const QUICK_PROMPTS = [
@@ -388,27 +389,47 @@ export default function AgentView({
                   )}
                 </div>
               </div>
-              {m.resp?.ui?.map((spec, j) => (
-                <DynamicRenderer
-                  key={`${conversation.id}-${i}-${j}`}
-                  spec={spec}
-                  onAsk={send}
-                  onGoalCreated={goalCreatedFromForm}
-                  onGoalsChanged={onGoalsChanged}
-                  pendingAction={m.resp?.pending_action
-                    ? { id: m.resp.pending_action.id, description: m.resp.pending_action.description }
-                    : null}
-                  onConfirmPending={(actionId) => confirmPending(actionId, i)}
-                  traceId={m.resp?.trace_id}
-                  loading={loading}
-                  onPurchaseOptionSelect={selectPurchaseOption}
-                  onPurchaseGoalRequest={requestPurchaseGoal}
-                  onPurchaseGoalConfirm={confirmPurchaseGoal}
-                  onContributionGoalSelect={selectContributionGoal}
-                  onContributionAmountChange={changeContributionAmount}
-                  onContributionConfirm={confirmContribution}
+              {m.resp?.ui_plan?.components?.length ? (
+                <UIRenderer
+                  plan={m.resp.ui_plan}
+                  onAction={(message, action) => {
+                    const traceId = m.resp?.trace_id;
+                    if (action && traceId) {
+                      send(message, {
+                        id: crypto.randomUUID(),
+                        type: action.type,
+                        payload: action.payload,
+                        trace_id: traceId,
+                      });
+                    } else {
+                      send(message);
+                    }
+                  }}
+                  disabled={loading}
                 />
-              ))}
+              ) : (
+                m.resp?.ui?.map((spec, j) => (
+                  <DynamicRenderer
+                    key={`${conversation.id}-${i}-${j}`}
+                    spec={spec}
+                    onAsk={send}
+                    onGoalCreated={goalCreatedFromForm}
+                    onGoalsChanged={onGoalsChanged}
+                    pendingAction={m.resp?.pending_action
+                      ? { id: m.resp.pending_action.id, description: m.resp.pending_action.description }
+                      : null}
+                    onConfirmPending={(actionId) => confirmPending(actionId, i)}
+                    traceId={m.resp?.trace_id}
+                    loading={loading}
+                    onPurchaseOptionSelect={selectPurchaseOption}
+                    onPurchaseGoalRequest={requestPurchaseGoal}
+                    onPurchaseGoalConfirm={confirmPurchaseGoal}
+                    onContributionGoalSelect={selectContributionGoal}
+                    onContributionAmountChange={changeContributionAmount}
+                    onContributionConfirm={confirmContribution}
+                  />
+                ))
+              )}
             </div>
           );
         })}

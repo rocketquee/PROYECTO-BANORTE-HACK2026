@@ -305,11 +305,76 @@ export interface ChatResponse {
   message: string;
   mode: "demo" | "live";
   ui: UISpec[];
+  ui_plan?: UIPlan | null;
   tools_used: string[];
   suggestions?: string[];
   pending_action?: PendingAction | null;
   interaction_context?: Record<string, unknown>;
 }
+
+export interface BarChartItem {
+  label: string;
+  value: number;
+}
+
+export type UIPlanComponent =
+  | {
+      type: "StatCard";
+      title: string;
+      value: string;
+      hint?: string | null;
+      trend_pct?: number | null;
+      tone?: "positive" | "negative" | "neutral";
+    }
+  | {
+      type: "BarChart";
+      title: string;
+      series: BarChartItem[];
+      unit?: string;
+      note?: string | null;
+    }
+  | {
+      type: "Table";
+      title: string;
+      columns: string[];
+      rows: string[][];
+      note?: string | null;
+    }
+  | {
+      type: "ProgressRing";
+      title: string;
+      label: string;
+      value: number;
+      target_label?: string | null;
+      note?: string | null;
+    }
+  | {
+      type: "TransferForm";
+      title: string;
+      from_account: string;
+      to_account: string;
+      amount: number;
+      concept: string;
+      confirmation_text: string;
+      goal_id?: number | null;
+      confirmation_token?: string | null;
+      idempotency_key?: string | null;
+    };
+
+export interface UIPlan {
+  title: string;
+  components: UIPlanComponent[];
+}
+
+export type UIPlanAction = {
+  type: "savings_contribution_confirmed";
+  payload: {
+    goal_id: number;
+    amount: number;
+    confirmation_token: string;
+    idempotency_key: string;
+  };
+};
 
 export type UIEvent =
   | {

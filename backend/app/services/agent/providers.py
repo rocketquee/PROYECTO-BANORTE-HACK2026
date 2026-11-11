@@ -43,7 +43,16 @@ class ProviderTurn(StrictProviderModel):
     usage: ProviderUsage | None = None
 
 
-class OpenAIProvider:
+class CompleteMixin:
+    """Segundo paso (planificador): una respuesta de texto, sin herramientas."""
+
+    async def complete(self, system: str, messages: list[dict]) -> str:
+        raw = await self.chat_with_tools(system, messages, [])
+        turn = ProviderTurn.model_validate(raw)
+        return turn.content or ""
+
+
+class OpenAIProvider(CompleteMixin):
     name = "openai"
 
     @property
@@ -60,8 +69,9 @@ class OpenAIProvider:
             "model": config.OPENAI_MODEL,
             "temperature": config.AI_TEMPERATURE,
             "messages": [{"role": "system", "content": system}, *messages],
-            "tools": payload_tools,
         }
+        if payload_tools:
+            body["tools"] = payload_tools
         async with httpx.AsyncClient(timeout=config.AI_TIMEOUT_SECONDS) as client:
             try:
                 resp = await client.post(
@@ -106,7 +116,7 @@ class OpenAIProvider:
                 "content": json.dumps(result, ensure_ascii=False)}
 
 
-class AnthropicProvider:
+class AnthropicProvider(CompleteMixin):
     name = "anthropic"
 
     @property
@@ -124,8 +134,9 @@ class AnthropicProvider:
             "temperature": config.AI_TEMPERATURE,
             "system": system,
             "messages": messages,
-            "tools": payload_tools,
         }
+        if payload_tools:
+            body["tools"] = payload_tools
         async with httpx.AsyncClient(timeout=config.AI_TIMEOUT_SECONDS) as client:
             try:
                 resp = await client.post(
@@ -183,7 +194,7 @@ HEALTH_TOOL = {
 }
 
 
-class OpenAICompatibleProvider:
+class OpenAICompatibleProvider(CompleteMixin):
     """OpenAI chat-completions client with explicit endpoint settings.
 
     Used by the unified `LLM_*` configuration for OpenAI and local
@@ -211,8 +222,9 @@ class OpenAICompatibleProvider:
             "model": self._model,
             "temperature": config.AI_TEMPERATURE,
             "messages": [{"role": "system", "content": system}, *messages],
-            "tools": payload_tools,
         }
+        if payload_tools:
+            body["tools"] = payload_tools
         async with httpx.AsyncClient(timeout=config.AI_TIMEOUT_SECONDS) as client:
             try:
                 resp = await client.post(
@@ -295,7 +307,7 @@ class OpenAICompatibleProvider:
                 "content": json.dumps(result, ensure_ascii=False)}
 
 
-class AnthropicCompatibleProvider:
+class AnthropicCompatibleProvider(CompleteMixin):
     """Anthropic Messages client with explicit endpoint settings."""
 
     name = "anthropic"
@@ -320,8 +332,9 @@ class AnthropicCompatibleProvider:
             "temperature": config.AI_TEMPERATURE,
             "system": system,
             "messages": messages,
-            "tools": payload_tools,
         }
+        if payload_tools:
+            body["tools"] = payload_tools
         async with httpx.AsyncClient(timeout=config.AI_TIMEOUT_SECONDS) as client:
             try:
                 resp = await client.post(

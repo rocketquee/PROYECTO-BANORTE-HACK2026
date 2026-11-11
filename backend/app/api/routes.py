@@ -312,8 +312,10 @@ async def agent_chat(request: Request, body: ChatRequest):
                 return loop.to_chat_response(await loop.run_react(body))
             # El router eligió demo: se fuerza el motor local aunque haya
             # proveedor configurado, para que "auto" cumpla su decisión.
-            return await orchestrator.handle_chat(body, force_demo=True)
-        return await orchestrator.handle_chat(body)
+            return loop.attach_ui_plan(
+                await orchestrator.handle_chat(body, force_demo=True),
+            )
+        return loop.attach_ui_plan(await orchestrator.handle_chat(body))
     except MCPClientError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
 
