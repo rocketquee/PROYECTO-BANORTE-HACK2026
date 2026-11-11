@@ -1,0 +1,104 @@
+{
+  "kind": "agent-memory-v1",
+  "timestamp": "2026-11-11T01:35:29",
+  "motivo": "Migración agent-memory-v1 aplicada de forma accidental durante una corrida de pruebas que arrancó TestClient(app) sin base temporal. Se acepta la migración (opción A) y se corrige la causa en la suite.",
+  "result_mode": "aceptada_con_auditoria",
+  "db_path": "backend\\data\\banorte.db",
+  "db_sha256_before": "0013a3e6d9525ca8466ffe63c06fbf22d0f09a044a28a4e18cded5e708b9a414",
+  "db_sha256_after": "0013a3e6d9525ca8466ffe63c06fbf22d0f09a044a28a4e18cded5e708b9a414",
+  "db_sha256_unchanged": true,
+  "backup_file": "backend\\data\\backups\\banorte.db.bak-20261110-193528",
+  "backup_sha256": "30f1c1d0c12773e77e559aa01df8f654b49b38b2c1bf910eda8f03aaaca21e32",
+  "backup_sha256_declarado": "30f1c1d0c12773e77e559aa01df8f654b49b38b2c1bf910eda8f03aaaca21e32",
+  "backup_sidecar_matches": true,
+  "backup_previo": {
+    "file": "backend\\data\\backups\\banorte.db.bak-20261107-140829",
+    "sha256": "30f1c1d0c12773e77e559aa01df8f654b49b38b2c1bf910eda8f03aaaca21e32",
+    "identico_al_nuevo": true
+  },
+  "nota_backup": "El backup nuevo banorte.db.bak-20261110-193528 es copia byte a byte del backup previo banorte.db.bak-20261107-140829. La migración solo añadió la tabla agent_memory; no tocó datos de negocio, por lo que ambos respaldos comparten el mismo SHA-256.",
+  "migration": {
+    "version": "agent-memory-v1",
+    "applied_at": "2026-11-11 01:35:29",
+    "checksum": "4a69be2d62328deab2c635d9aa57586a03db64432f8b7e3bffe4f192c2c3c0c6",
+    "result_json": "{\"created\": \"agent_memory\"}",
+    "backup_file": "banorte.db.bak-20261110-193528"
+  },
+  "schema_versions_before": [
+    "ledger-v1",
+    "ledger-v2",
+    "confirm-v1",
+    "auth-v1",
+    "goal-status-v1"
+  ],
+  "schema_versions_after": [
+    "ledger-v1",
+    "ledger-v2",
+    "confirm-v1",
+    "auth-v1",
+    "goal-status-v1",
+    "agent-memory-v1"
+  ],
+  "cambios": {
+    "tabla": "agent_memory",
+    "existia_antes": false,
+    "columnas": [
+      { "name": "id", "type": "INTEGER", "pk": 1, "notnull": 0 },
+      { "name": "kind", "type": "TEXT", "pk": 0, "notnull": 1 },
+      { "name": "user_msg", "type": "TEXT", "pk": 0, "notnull": 1 },
+      { "name": "wrong_action", "type": "TEXT", "pk": 0, "notnull": 0 },
+      { "name": "right_action", "type": "TEXT", "pk": 0, "notnull": 0 },
+      { "name": "created_at", "type": "TEXT", "pk": 0, "notnull": 1 },
+      { "name": "session_id", "type": "TEXT", "pk": 0, "notnull": 1 },
+      { "name": "tool_calls_json", "type": "TEXT", "pk": 0, "notnull": 0 }
+    ],
+    "indices": ["idx_agent_memory_session"],
+    "filas_iniciales": 0
+  },
+  "datos_de_negocio": {
+    "antes": {
+      "transactions": 999,
+      "accounts": 3,
+      "cards": 2,
+      "savings_goals": 3,
+      "agent_memory": null
+    },
+    "despues": {
+      "transactions": 999,
+      "accounts": 3,
+      "cards": 2,
+      "savings_goals": 3,
+      "agent_memory": 0
+    },
+    "sin_cambios": true
+  },
+  "filas_968_969": {
+    "antes": [
+      { "id": 968, "date": "2026-10-20", "amount_cents": 9137 },
+      { "id": 969, "date": "2026-10-20", "amount_cents": 20399 }
+    ],
+    "despues": [
+      { "id": 968, "date": "2026-10-20", "amount_cents": 9137 },
+      { "id": 969, "date": "2026-10-20", "amount_cents": 20399 }
+    ],
+    "intactas": true
+  },
+  "reconcile": {
+    "ok": true,
+    "failures": 0,
+    "invariant_count": 13
+  },
+  "migrate_dry_run": {
+    "pending": [],
+    "applied": [],
+    "dry_run": true
+  },
+  "guard_proof": {
+    "test": "backend/tests/test_database_guard.py::test_testclient_startup_uses_tmp_database",
+    "suite_guard": "backend/tests/conftest.py::guard_real_database_file (sesión, autouse)",
+    "db_sha256_before_suite": "0013a3e6d9525ca8466ffe63c06fbf22d0f09a044a28a4e18cded5e708b9a414",
+    "db_sha256_after_suite": "0013a3e6d9525ca8466ffe63c06fbf22d0f09a044a28a4e18cded5e708b9a414",
+    "suite_result": "465 passed in 180.74s",
+    "hash_identico": true
+  }
+}

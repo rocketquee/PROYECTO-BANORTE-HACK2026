@@ -188,6 +188,44 @@ categoría y una consulta de privacidad); no se ocultan con exclusiones.
 - `agent_memory` añade `tool_calls_json` para trazabilidad además de las
   columnas mínimas solicitadas.
 - El router es heurístico y determinista; no promete intención perfecta.
+- **Deuda #7 — retención de memoria:** `agent_memory` crece sin límite por
+  sesión. Política mínima propuesta (no implementada): conservar los últimos
+  `N=50` turnos y `N=20` correcciones por `session_id`, borrando los más
+  antiguos al insertar y exponiendo el límite por configuración
+  (`AGENT_MEMORY_MAX_TURNS`, `AGENT_MEMORY_MAX_CORRECTIONS`). Requiere prueba de
+  que el borrado no elimina correcciones de otras sesiones.
+- **Deuda #8 — paridad demo/think:** `tests/test_agent_parity.py` cubre las
+  intenciones críticas (consulta, gasto, meta, confirmación); un conjunto de
+  paridad por intención con salida dorada queda como ampliación opcional, no
+  como bloqueo.
+
+**Auditoría de la migración real:** `docs/AUDITORIA-AGENT-MEMORY-20261110-193528.json`.
+La migración se aplicó de forma accidental al arrancar `TestClient(app)` en dos
+pruebas sin base temporal; se acepta (opción A) y se corrige la causa en la
+suite. Solo se creó `agent_memory` (8 columnas, índice
+`idx_agent_memory_session`, 0 filas); no cambió ningún dato de negocio: 999
+transacciones, 3 cuentas, 2 tarjetas y 3 metas antes y después, y las filas
+968/969 conservan `2026-10-20`, `$91.37` y `$203.99`. `reconcile` sigue
+`ok=true`/`failures=0`/13 invariantes. El respaldo
+`banorte.db.bak-20261110-193528` (SHA `30f1c1d0…a21e32`) es copia byte a byte
+del previo `banorte.db.bak-20261107-140829`.
+
+**Guardia de la suite:** `backend/tests/conftest.py` instala
+`guard_real_database_file` (sesión, autouse) que compara el SHA-256 de
+`database.DB_PATH` antes/después y falla si la suite toca la base real.
+`backend/tests/test_database_guard.py` prueba que el lifespan de `TestClient`
+migra la base temporal. Se corrigieron
+`test_provider_health.py::test_backend_starts_and_health_reports_provider` y
+`test_bugfixes.py::TestBug009BackendHardening::test_health_endpoint_hides_tool_names`
+para recibir `tmp_db` + `migrate.mark_fresh_install`.
+
+**Evidencia (2026-11-10, puerta de corrección):** suite backend
+`465 passed in 180.74s`; `test_agent_*.py` aislado `91 passed in 15.66s`;
+`npm test` `10 passed, 0 failed, 0 skipped`; `npm run build` exit 0;
+reconciliación `ok=true`, `failures=0`, `invariant_count=13`;
+`migrate --dry-run` → `pending=[]`; `date.today()` → 0 y `xfail/skip/skipif`
+→ 0; `git diff --check` exit 0 (solo avisos LF→CRLF). El SHA-256 de
+`banorte.db` es `0013a3e6…b9a414` antes y después de la suite completa.
 
 ---
 

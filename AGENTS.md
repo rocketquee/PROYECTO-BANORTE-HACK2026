@@ -86,6 +86,11 @@ Se derivan de `docs/PLAN.md` y de las sesiones de corrección de la Fase A.
   porcentajes.
 - Se prueban idempotencia de escrituras y aislamiento de confirmación.
 - La suite debe fallar antes del cambio y pasar después.
+- La suite nunca migra ni escribe en la base real. `backend/tests/conftest.py`
+  instala `guard_real_database_file`, que compara el SHA-256 de
+  `database.DB_PATH` antes y después de la sesión y falla si cambia. Cualquier
+  prueba que arranque `TestClient(app)` debe recibir `tmp_db` y marcar la base
+  temporal con `migrate.mark_fresh_install`.
 
 ## 9. Cuota y alcance limitados
 

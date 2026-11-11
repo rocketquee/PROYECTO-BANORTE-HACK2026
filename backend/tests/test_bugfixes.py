@@ -539,9 +539,14 @@ class TestBug009BackendHardening:
         assert app.redoc_url is None
         assert app.openapi_url is None
 
-    def test_health_endpoint_hides_tool_names(self):
+    def test_health_endpoint_hides_tool_names(self, tmp_db):
         from fastapi.testclient import TestClient
+
+        from app.core import database, migrate
         from app.main import app
+
+        with database.db() as conn:
+            migrate.mark_fresh_install(conn)
         with TestClient(app) as client:
             data = client.get("/api/health").json()
         assert "mcp_tools" not in data
