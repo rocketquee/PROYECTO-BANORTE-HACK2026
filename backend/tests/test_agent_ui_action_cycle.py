@@ -109,8 +109,9 @@ def test_transfer_form_action_updates_domain_and_returns_a_new_ui_plan():
     assert applied["value"] == "$500"
     assert goal_name in applied["hint"]
     progress = updated_plan["components"][1]
-    assert progress["label"]
-    assert 0 <= progress["value"] <= 100
+    assert progress["label"] == goal_name
+    assert progress["value"] == pytest.approx(19.3)
+    assert progress["target_label"] == "$45,000"
 
     # Dominio: el ahorro sube exactamente $500 (50,000 centavos) y queda una
     # sola transferencia con sus dos piernas.
@@ -140,3 +141,65 @@ def test_transfer_form_action_updates_domain_and_returns_a_new_ui_plan():
     assert report["ok"] is True
     assert report["failures"] == 0
     assert report["invariant_count"] == 13
+
+
+def test_contribution_to_non_first_goal_shows_that_goal_in_progress_ring():
+    """Regresión: el ProgressRing debe mostrar la meta abonada, no `goals[0]`."""
+    first_goal_name = "Fondo de emergencia"
+    goal_name = "Enganche del auto"
+    goal_id, saved_before = _goal_cents(goal_name)
+    _, first_saved_before = _goal_cents(first_goal_name)
+    session_id = "ui-action-non-first-goal"
+
+    prepared = asyncio.run(orch.handle_chat(ChatRequest(
+        message=f"Quiero abonar $500 a {goal_name}.", session_id=session_id,
+    )))
+    plan = loop.attach_ui_plan(prepared).ui_plan
+    assert plan is not None
+    form = next(
+        component for component in plan["components"]
+        if component["type"] == "TransferForm"
+    )
+    assert form["goal_id"] == goal_id
+    assert form["to_account"] == goal_name
+
+    event = UIEventIn(
+        id="confirm-non-first-goal",
+        type="savings_contribution_confirmed",
+        payload={
+            "goal_id": form["goal_id"],
+            "amount": form["amount"],
+            "confirmation_token": form["confirmation_token"],
+            "idempotency_key": form["idempotency_key"],
+        },
+        trace_id=prepared.trace_id,
+    )
+    confirmed = asyncio.run(orch.handle_chat(ChatRequest(
+        message="Confirmo el abono", ui_event=event, session_id=session_id,
+    )))
+    updated_plan = loop.attach_ui_plan(confirmed).ui_plan
+    assert updated_plan is not None
+    assert [c["type"] for c in updated_plan["components"]] == [
+        "StatCard", "ProgressRing",
+    ]
+
+    applied = updated_plan["components"][0]
+    assert applied["title"] == "Abono aplicado"
+    assert applied["value"] == "$500"
+    assert goal_name in applied["hint"]
+
+    progress = updated_plan["components"][1]
+    assert progress["label"] == goal_name
+    assert progress["label"] != first_goal_name
+    assert progress["value"] == pytest.approx(51.1)
+    assert progress["target_label"] == "$45,000"
+
+    # El dominio abona la meta B y no toca la meta A.
+    _, saved_after = _goal_cents(goal_name)
+    assert saved_after == saved_before + 50_000
+    _, first_saved_after = _goal_cents(first_goal_name)
+    assert first_saved_after == first_saved_before
+    with database.db() as conn:
+        report = reconcile_mod.reconcile(conn)
+    assert report["ok"] is True
+    assert report["failures"] == 0

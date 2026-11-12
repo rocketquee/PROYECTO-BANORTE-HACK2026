@@ -1824,7 +1824,9 @@ async def _savings_contribution_event_response(
                         ),
                         available_balance=result["available_balance"],
                     ),
-                    composer.savings_progress_ui(goals_result.get("goals", [])),
+                    composer.savings_progress_ui(
+                        goals_result.get("goals", []), goal_id=fresh_goal["id"],
+                    ),
                 ],
                 suggestions=["¿Cómo voy con mis metas?", "¿Qué movimientos hice hoy?"],
             )

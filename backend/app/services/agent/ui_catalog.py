@@ -776,8 +776,19 @@ def plan_from_ui_specs(ui_specs: list[dict[str, Any]], *,
                 })
         elif kind == "savings_progress":
             goals = spec.get("goals") or []
-            if goals:
-                goal = goals[0]
+            goal_id = _as_int(spec.get("goal_id"))
+            if goal_id is not None:
+                # Selecciona la meta afectada por la acción (p. ej. el abono),
+                # no la primera de la lista.
+                goal = next(
+                    (item for item in goals
+                     if _as_int(item.get("id")) == goal_id),
+                    None,
+                )
+            else:
+                # Compatibilidad: sin `goal_id` se conserva la primera meta.
+                goal = goals[0] if goals else None
+            if goal:
                 components.append({
                     "type": "ProgressRing",
                     "title": "Avance de meta",

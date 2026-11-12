@@ -425,6 +425,9 @@ class AnthropicCompatibleProvider(CompleteMixin):
 
 
 _health_status: dict | None = None
+# Solo para ensayos de demo: simula una caída del proveedor sin tocar el
+# proceso externo. Lo activa `POST /api/dev/provider/degrade` (DEV_MODE=true).
+_forced_degraded = False
 
 
 def _configured_provider() -> object | None:
@@ -504,6 +507,8 @@ def configured_model() -> str | None:
 
 
 def get_provider():
+    if _forced_degraded:
+        return None
     explicit = config.LLM_PROVIDER.strip().lower()
     if explicit:
         if explicit in ("demo", "none"):
@@ -578,6 +583,8 @@ async def check_provider_health(provider=None, timeout: float | None = None) -> 
 
 
 def provider_health_report() -> dict:
+    if _forced_degraded:
+        return _forced_health_report()
     if _health_status is not None:
         return dict(_health_status)
     name = configured_provider_name()
@@ -590,6 +597,36 @@ def provider_health_report() -> dict:
         "reason": "not_checked",
         "latency_ms": None,
     }
+
+
+def _forced_health_report() -> dict:
+    """Estado que simula un proveedor caído para el ensayo del paso 5."""
+    name = configured_provider_name()
+    return {
+        # Sin proveedor configurado el motivo sería "not_configured"; para el
+        # ensayo se declara un proveedor simulado y así el motivo es el de una
+        # caída real ("provider_unavailable").
+        "name": "dev-simulated" if name == "none" else name,
+        "model": configured_model(),
+        "reachable": False,
+        "tools_supported": False,
+        "mode": "demo",
+        "reason": "provider_unavailable",
+        "latency_ms": None,
+        "forced": True,
+    }
+
+
+def force_degraded() -> dict:
+    """Fuerza la degradación al motor demo en la siguiente petición."""
+    global _forced_degraded
+    _forced_degraded = True
+    return provider_health_report()
+
+
+def clear_forced_degraded() -> None:
+    global _forced_degraded
+    _forced_degraded = False
 
 
 def reset_provider_health() -> None:

@@ -94,6 +94,9 @@ class SavingsProgressSpec(Strict):
     type: Literal["savings_progress"]
     title: str
     goals: list[GoalProgress]
+    # Meta afectada por una acción (p. ej. un abono). Si falta, el plan usa la
+    # primera meta para conservar el comportamiento anterior.
+    goal_id: int | None = None
 
 
 class SavingsContributionCandidate(Strict):

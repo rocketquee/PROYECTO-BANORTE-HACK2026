@@ -126,50 +126,49 @@ $500; abre *Movimientos* y verifica una sola transferencia.
 
 ---
 
-## Paso 5 — Degradación en vivo (sin reiniciar el backend)
+## Paso 5 — Degradación controlada (sin reiniciar el backend)
 
 **Objetivo:** demostrar que el producto sigue respondiendo con el motor local
-cuando el proveedor de IA desaparece a mitad de la demo.
+cuando el proveedor de IA no está disponible, sin depender de matar procesos ni
+de tener Ollama instalado.
 
-**Requisito:** Ollama instalado y el backend arrancado con el proveedor local:
+**Requisito:** backend arrancado con `DEV_MODE=true`. Los endpoints de
+degradación solo existen en ese modo; con `DEV_MODE` apagado devuelven `404`.
 
 ```powershell
-ollama serve
-ollama pull llama3.2
-$env:LLM_PROVIDER = "ollama"
-$env:LLM_MODEL = "llama3.2"
-$env:LLM_BASE_URL = "http://localhost:11434/v1"
-$env:LLM_API_KEY = "ollama"
+$env:DEV_MODE = "true"
 scripts\start-all.cmd
 ```
 
-**Antes de la caída:** comprueba que el proveedor está sano y que una petición
-en modo `think` usa el modelo real:
+**Antes del ensayo:** consulta el estado real del proveedor:
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8000/api/health |
   Select-Object -ExpandProperty provider | ConvertTo-Json
+```
 
+**Caída simulada:** sin tocar el backend ni Ollama, fuerza la degradación:
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri http://127.0.0.1:8000/api/dev/provider/degrade | ConvertTo-Json -Depth 4
+```
+
+Esperado: `forced = true`, `provider.mode = "demo"` y
+`provider.reason = "provider_unavailable"`.
+
+**Mensaje exacto:** pide una respuesta en modo `think`:
+
+```powershell
 $body = @{
   message = "¿Cuál es mi saldo?"
   mode = "think"
-  session_id = "demo-live"
+  session_id = "demo-degraded"
 } | ConvertTo-Json
 Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/agent/chat `
   -ContentType "application/json" -Body $body |
   Select-Object mode, degraded, reason | ConvertTo-Json
 ```
-
-Esperado: `provider.mode = "live"` y la respuesta `mode = "live"`.
-
-**Caída en vivo:** sin tocar el backend, detén Ollama:
-
-```powershell
-Get-Process ollama* -ErrorAction SilentlyContinue | Stop-Process -Force
-```
-
-**Mensaje exacto:** repite la misma petición `mode = "think"` con el mismo
-cuerpo. El backend sigue encendido; solo desapareció el proveedor.
 
 **Resultado esperado:** la petición no devuelve 500. Devuelve:
 
@@ -178,34 +177,31 @@ cuerpo. El backend sigue encendido; solo desapareció el proveedor.
 - `reason = "provider_unavailable"`,
 - un `ui_plan` válido con `StatCard` de saldo.
 
-El camino está en `backend/app/services/agent/loop.py:386-404`: cualquier
-`ProviderError`, timeout o fallo del proveedor se convierte en
-`_demo_fallback(...)`. La cifra sigue viniendo de la misma herramienta MCP.
+El camino es el mismo de una caída real: `loop.get_provider()` devuelve `None`
+y `_demo_fallback(...)` responde con las herramientas MCP
+(`backend/app/services/agent/loop.py:298-302`). La cifra sigue viniendo de la
+misma herramienta MCP.
 
-**Nota sobre el indicador:** `/api/health` devuelve el estado cacheado del
-arranque (`backend/app/services/agent/providers.py:427`,
-`backend/app/main.py:44-59`), así que la cabecera puede seguir diciendo
-*IA activa* hasta reiniciar el backend. La verdad por petición es `degraded`
-en la respuesta del chat.
+**Recuperación:** retira la degradación forzada y vuelve a comprobar el
+proveedor real:
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri http://127.0.0.1:8000/api/dev/provider/recheck | ConvertTo-Json -Depth 4
+```
+
+Esperado: `forced = false` y `provider.mode = "live"` si hay proveedor
+configurado. Sin proveedor, el healthcheck reporta `mode = "demo"` con
+`reason = "not_configured"`, que es el estado real y no una caída.
+
+**Implementación:** `backend/app/services/agent/providers.py` expone
+`force_degraded()` y `clear_forced_degraded()`; los endpoints viven en
+`backend/app/api/routes.py` y están protegidos por `config.DEV_MODE`.
 
 **Alcance de la interfaz:** el cliente web actual envía `mode=demo`
 (`frontend/src/components/AgentView.tsx:82-87`), de modo que este paso se
 demuestra contra la API con `mode=think`; la interfaz sigue usando el motor
-local. Para verlo desde la UI hace falta la propuesta de abajo.
-
-**Por qué no se cambia `LLM_BASE_URL` en caliente:** `backend/app/core/config.py:24`
-lee la variable al importar el módulo y
-`backend/app/services/agent/providers.py:455` construye el proveedor con ese
-valor. Cambiar la variable de entorno de un proceso ya iniciado no es posible
-desde fuera en Windows; exigiría reiniciar el backend. Para una caída sin
-reinicio, mata el proceso local.
-
-**Alternativa sin Ollama (propuesta, no implementada):** un endpoint de
-desarrollo `POST /api/dev/provider/degrade` protegido por `DEV_MODE` que fije
-`_health_status` en `mode="demo"`, y otro `POST /api/dev/provider/recheck` que
-vuelva a ejecutar `check_provider_health()`. Permitiría ensayar la caída y la
-recuperación desde la interfaz sin matar procesos. Hoy no existe; la vía limpia
-es detener Ollama.
+local.
 
 ---
 

@@ -17,7 +17,7 @@ from app.services import credit as credit_service
 from app.services import domain
 from app.services import finance
 from app.services import savings
-from app.services.agent import confirmations, loop, memory, orchestrator, router as agent_router
+from app.services.agent import confirmations, loop, memory, orchestrator, providers, router as agent_router
 from app.services.agent.providers import provider_health_report, provider_mode
 from app.services.mcp_client import MCPClientError, mcp_client
 import os
@@ -176,6 +176,25 @@ def health():
     if config.DEV_MODE:
         data["mcp_tools"] = [t.name for t in mcp_client.tools]
     return data
+
+
+@router.post("/dev/provider/degrade")
+def dev_provider_degrade():
+    """Fuerza la caída del proveedor para ensayar el paso 5 del guion."""
+    if not config.DEV_MODE:
+        raise HTTPException(status_code=404, detail="Not Found")
+    report = providers.force_degraded()
+    return {"ok": True, "forced": True, "provider": report}
+
+
+@router.post("/dev/provider/recheck")
+async def dev_provider_recheck():
+    """Retira la degradación forzada y vuelve a comprobar el proveedor."""
+    if not config.DEV_MODE:
+        raise HTTPException(status_code=404, detail="Not Found")
+    providers.clear_forced_degraded()
+    report = await providers.check_provider_health()
+    return {"ok": True, "forced": False, "provider": report}
 
 
 @router.get("/dashboard")

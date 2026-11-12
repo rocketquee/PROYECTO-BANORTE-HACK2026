@@ -128,7 +128,8 @@ def transactions_table_ui(txs: list[dict], total_count: int, categories: list[st
     )
 
 
-def savings_progress_ui(goals: list[dict]) -> SavingsProgressSpec:
+def savings_progress_ui(goals: list[dict], *,
+                        goal_id: int | None = None) -> SavingsProgressSpec:
     return SavingsProgressSpec(type="savings_progress",
         title="Metas de ahorro",
         goals=[
@@ -139,6 +140,7 @@ def savings_progress_ui(goals: list[dict]) -> SavingsProgressSpec:
             )
             for g in goals
         ],
+        goal_id=goal_id,
     )
 
 
