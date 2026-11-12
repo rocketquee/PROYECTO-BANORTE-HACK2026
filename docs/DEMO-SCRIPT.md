@@ -1,6 +1,7 @@
 # Guion de demo — Banorte AI Finanzas (5 pasos)
 
-Duración objetivo: **4–5 minutos**. Todo corre sobre datos sintéticos y una base
+Duración objetivo: **3–5 minutos** (medición del ensayo: **3:06** sobre el
+commit `287247d`). Todo corre sobre datos sintéticos y una base
 SQLite local; ninguna escritura mueve dinero real.
 
 El catálogo A2UI tiene **9 componentes** por decisión de producto: los 5
@@ -9,11 +10,17 @@ Ninguno se retiró.
 
 ## Preparación
 
-1. Desde la raíz del repositorio:
+1. Desde la raíz del repositorio, exporta `DEV_MODE` y arranca:
 
    ```powershell
+   $env:DEV_MODE = "true"
    scripts\start-all.cmd
    ```
+
+   `DEV_MODE=true` habilita los endpoints de degradación del paso 5. Sin esta
+   variable, `POST /api/dev/provider/degrade` y `/recheck` devuelven **404**.
+   `scripts\start-all.cmd` no la define por sí solo: hay que exportarla en la
+   misma consola antes de arrancar.
 
    El script propaga `BANORTE_DEMO_TODAY` al backend, al servidor MCP y al
    frontend, de modo que "hoy" es la misma fecha en toda la demo.
@@ -224,3 +231,104 @@ local.
 No cambies el monto ni el nombre de la meta en el paso 4 sin volver a ensayar:
 la confirmación valida monto, meta, token e idempotencia contra el estado del
 servidor.
+
+---
+
+## Tiempos medidos (commit 287247d)
+
+Medición sobre el commit `287247d`, con ensayo narrado usando voz sintetizada
+es-MX y pausas humanas de interacción. **No hubo presentador físico**; los
+tiempos incluyen narración real medida y maniobras de tipeo, clic y cambio de
+ventana.
+
+| Bloque | Tiempo |
+|---|---:|
+| Preparación | 12.0 s |
+| Paso 1 — Saldo | 23.4 s |
+| Paso 2 — Tendencia | 28.4 s |
+| Paso 3 — Metas | 15.2 s |
+| Paso 4 — Acción | 51.2 s |
+| Paso 5 — Degradación | 34.2 s |
+| Cierre | 21.7 s |
+| **Suma pasos 1–5** | **152.4 s (2:32)** |
+| **Total con preparación y cierre** | **186.4 s (3:06)** |
+
+Ningún paso supera 60 s. El más largo es el paso 4 con 51.2 s.
+
+**Ajuste opcional si hay retraso:** omitir la verificación de *Ahorro* y
+*Movimientos* del paso 4 (~5 s) y dejar la pestaña *Movimientos* abierta antes
+de empezar. El `StatCard` y el `ProgressRing` de la propia respuesta ya prueban
+el abono.
+
+---
+
+## Plan B si falla el proyector
+
+Actívalo si no hay señal, el proyector no reconoce la laptop, los colores no se
+leen o la máquina de demo falla. La demo se puede sostener con capturas y
+narración, sin interacción en vivo.
+
+### Material de respaldo
+
+- `docs/demo-fallback/README.md` — cómo generar y nombrar las capturas.
+- `docs/demo-fallback/guion-demo.pdf` — guion completo para leer en una segunda
+  pantalla o imprimir.
+- `docs/demo-fallback/paso1-saldo.png`
+- `docs/demo-fallback/paso2-tendencia.png`
+- `docs/demo-fallback/paso3-metas.png`
+- `docs/demo-fallback/paso4-formulario.png`
+- `docs/demo-fallback/paso4-resultado.png`
+- `docs/demo-fallback/paso5-degradacion.png`
+
+### a) Capturas de los 5 pasos
+
+Genera las capturas antes de la demo siguiendo `docs/demo-fallback/README.md`.
+Resumen:
+
+1. Arranca la demo normal con `DEV_MODE=true`.
+2. Ejecuta cada paso con el mensaje exacto de este guion.
+3. Con la respuesta en pantalla, pulsa `Win + Shift + S`, recorta la tarjeta o
+   el panel completo y guarda con el nombre indicado en `docs/demo-fallback/`.
+4. En el paso 4 guarda **dos** capturas: el `TransferForm` antes de confirmar y
+   el `StatCard` + `ProgressRing` después de confirmar.
+5. En el paso 5 guarda la respuesta del chat con `mode=demo`, `degraded=true` y
+   `reason=provider_unavailable`, o el JSON del endpoint si se muestra en
+   terminal.
+
+No incluyas claves, rutas personales ni datos fuera de la base sintética.
+
+### b) PDF para segunda pantalla
+
+`docs/demo-fallback/guion-demo.pdf` se genera a partir de este mismo documento.
+Si cambia el guion, regenéralo antes de la demo:
+
+```powershell
+# Opción 1: abrir este Markdown en el navegador y usar Imprimir → Guardar como PDF.
+# Opción 2: con Edge instalado, imprimir el HTML renderizado a PDF sin abrir ventanas.
+```
+
+También sirve abrir este `DEMO-SCRIPT.md` en una segunda pantalla; el PDF es
+solo para que la lectura sea estable y sin dependencia del editor.
+
+### c) Guion si solo hay capturas
+
+| Paso | Qué decir mientras se muestra la captura |
+|---|---|
+| 1 | “El asistente consulta el saldo con `get_balance`; la cifra se calcula en centavos en el dominio y la respuesta es de solo lectura.” |
+| 2 | “Cada punto viene de `get_spending_trend`. El modelo elige el componente y copia la serie; no recalcula porcentajes ni sumas. El plan se valida contra la herramienta antes de renderizarse.” |
+| 3 | “El avance lo calcula el dominio: ahorrado entre objetivo. El asistente solo lo presenta.” |
+| 4 | “Preparar el abono no escribe nada. Esta es la propuesta; al confirmar, el servidor verifica token e idempotencia y solo entonces el dominio aplica la transferencia. El resultado muestra el `StatCard` y el `ProgressRing` de Viaje a Japón.” |
+| 5 | “Forzamos la caída del proveedor. La petición no devuelve error: responde con el motor local, `degraded=true` y motivo `provider_unavailable`, con las mismas cifras de la herramienta MCP. Después se retira la degradación.” |
+
+### Cómo cambiar a “modo capturas” sin perder el hilo
+
+1. No reinicies la narrativa: di “les muestro la misma pantalla en captura” y
+   cambia a la carpeta o al PDF.
+2. Sigue el orden 1 → 5. Cada captura sustituye la interacción, no la
+   explicación.
+3. En el paso 4 muestra primero el formulario y luego el resultado; explica que
+   entre ambas imágenes ocurrió la confirmación verificada.
+4. En el paso 5 muestra la respuesta degradada y aclara que el `recheck` ya se
+   ejecutó, aunque no se vea en vivo.
+5. Si se recupera el proyector, vuelve a la demo en vivo en el paso siguiente;
+   no repitas los pasos ya narrados.
