@@ -229,6 +229,68 @@ reconciliación `ok=true`, `failures=0`, `invariant_count=13`;
 
 ---
 
+## Catálogo A2UI de 9 componentes y ciclo de acción (2026-11-12)
+
+**Alcance implementado:**
+
+- `ui_catalog.py`: `PlanDePago` (plazos con CAT), `LineChart` (series
+  cronológicas), `Slider` (monto o plazo, recálculo por el agente) y
+  `BudgetAllocator` (regla 50/30/20). Cada uno tiene esquema Pydantic estricto
+  (`extra="forbid"`), fuente MCP declarada en `COMPONENT_TOOL_SOURCES` y
+  mensaje de ejemplo en `COMPONENT_EXAMPLES`. El catálogo pasa de 5 a **9**
+  componentes por decisión de producto; no se retiró ninguno.
+- `UIRenderer.tsx` dibuja `PlanDePago` completo: plazo, pago mensual, CAT e
+  intereses por término (no solo el CAT).
+- La aritmética sigue en el dominio: `credit.cat_estimate()` calcula el CAT
+  (tasa anual efectiva sin comisiones) y `finance.allocate_503020()` reparte el
+  ingreso. Ni el planificador ni el frontend recalculan importes o porcentajes.
+- `Slider` no hace cuentas en el cliente: `sliderAction()` sustituye `{value}`
+  y envía un mensaje al agente, que vuelve a ejecutar la herramienta MCP.
+- `docs/DEMO-SCRIPT.md` contiene los 5 pasos de demo con mensaje exacto,
+  componente esperado y narración, incluida la caída de proveedor en vivo sin
+  reiniciar el backend.
+
+**Flujo E2E del ciclo de acción** (`backend/tests/test_agent_ui_action_cycle.py`):
+
+1. `handle_chat("Quiero abonar $500 a Viaje a Japón.")` prepara la propuesta y
+   `loop.attach_ui_plan` publica un `TransferForm` con `goal_id`, monto,
+   `confirmation_token` e `idempotency_key`.
+2. El cliente envía `UIEventIn(type="savings_contribution_confirmed")` con esos
+   datos y el `trace_id` del servidor.
+3. `domain` aplica la transferencia real sobre `tmp_db`: el ahorro sube
+   exactamente 50,000 centavos y se crea **una** transferencia con dos piernas.
+4. El nuevo `ui_plan` devuelve `StatCard` "Abono aplicado" y `ProgressRing`.
+5. `reconcile.reconcile(conn)` → `ok=true`, `failures=0`,
+   `invariant_count=13`.
+
+**Flujo E2E del slider** (`backend/tests/test_agent_ui_components.py`):
+
+1. El plan demo publica un `PlanDePago` y dos `Slider` (`amount` y `months`).
+2. El test reproduce el texto exacto de `sliderAction()` (MXN con dos decimales
+   o meses enteros), no una variante equivalente.
+3. El agente vuelve a ejecutar `calculate_credit_simulation` y devuelve un
+   `ui_plan` actualizado: monto `$150,000.00` a 24 meses y `$100,000` a 36
+   meses, respectivamente.
+
+**Evidencia de la puerta (2026-11-12):**
+
+- Suite backend completa: `491 passed in 237.16s` (incluye
+  `test_agent_ui_catalog.py`, `test_agent_ui_components.py` y
+  `test_agent_ui_action_cycle.py`).
+- `npm test` en `frontend`: `pass 16`, `fail 0`, `skipped 0` (catálogo de 9
+  componentes, `sliderAction` exacto y rechazo de props inválidas).
+- `npm run build` en `frontend`: exit 0.
+- Reconciliación de la base real: `{"ok": true, "failures": 0,
+  "invariant_count": 13}`.
+- `banorte.db`: SHA-256 `0013a3e6…b9a414` antes y después de la suite; el
+  guardián de sesión de `conftest.py` no reportó cambios.
+- Componentes nuevos: `test_component_example_generates_the_declared_component`
+  recorre los 4 mensajes de `COMPONENT_EXAMPLES` con herramientas MCP reales.
+- `date.today()`/`datetime.today()` fuera de `seed.reference_today()` → 0;
+  `xfail`/`skip`/`skipif` en `backend/tests` → 0.
+
+---
+
 ## Etapa 6 — UI/UX: contrato en ejecución y ciclo cerrado
 
 | ID | Tarea | Estado | Evidencia / archivo | Criterio de cierre |
@@ -238,7 +300,8 @@ reconciliación `ok=true`, `failures=0`, `invariant_count=13`;
 | 6.3 | Una sola semántica de "disponible" | Pendiente | `finance.py:633` y `BudgetPlanner.tsx:20-21` usan ingreso − gasto; `DOMAIN.md:116` define disponible = saldo en cuentas | El servidor calcula una vez; el cliente muestra, no recalcula |
 | 6.4 | Accesibilidad medida | Pendiente | Solo hay declaraciones; no hay axe/Lighthouse ni pruebas de teclado | axe sin errores críticos, foco visible, contraste y lectores de pantalla |
 | 6.5 | Pruebas de componentes y navegador | Pendiente | `frontend/tests/*.test.mjs` lee archivos y compara regex; no renderiza componentes | Al menos un E2E de compra, aportación, presupuesto y recarga |
-| 6.6 | Capa A2UI `ui_plan` con componentes validados | **Hecho (2026-11-10, sin commit)** | `backend/app/services/agent/ui_catalog.py` (5 componentes estrictos, `validate_ui_plan` con grounding numérico y respaldo determinista); `loop.py` fase 1 ReAct + fase 2 planificador con reparación (`AGENT_UI_MAX_REPAIRS`); `ChatResponse.ui_plan` y backfill demo en `routes.py:315-318`; `UIRenderer.tsx` montado en `AgentView.tsx`; 9 pruebas en `test_agent_ui_catalog.py`; suite `473 passed`, `npm test` 11/11, build OK, reconcile `ok=true`/`failures=0` y SHA-256 de `banorte.db` sin cambios | Ningún componente/prop fuera del catálogo; cifras del plan existen en las herramientas; reparación inválido→feedback→válido; paridad demo/think |
+| 6.6 | Capa A2UI `ui_plan` con componentes validados | **Hecho (2026-11-10); ampliado a 9 el 2026-11-12** | `backend/app/services/agent/ui_catalog.py` (9 componentes estrictos, `validate_ui_plan` con grounding numérico y respaldo determinista); `loop.py` fase 1 ReAct + fase 2 planificador con reparación (`AGENT_UI_MAX_REPAIRS`); `ChatResponse.ui_plan` y backfill demo en `routes.py:315-318`; `UIRenderer.tsx` montado en `AgentView.tsx`; pruebas en `test_agent_ui_catalog.py` y `test_agent_ui_components.py` | Ningún componente/prop fuera del catálogo; cifras del plan existen en las herramientas; reparación inválido→feedback→válido; paridad demo/think |
+| 6.7 | Catálogo ampliado y ciclo de acción cerrado | **Hecho (2026-11-12, commit feat(a2ui))** | Nuevos `PlanDePago`, `LineChart`, `Slider` y `BudgetAllocator` con esquema Pydantic, herramienta MCP de origen y mensaje de ejemplo; `credit.cat_estimate` y `finance.allocate_503020` como única autoridad de cálculo; `TransferForm` → `savings_contribution_confirmed` → `domain` → nuevo `ui_plan` probado en `test_agent_ui_action_cycle.py`; `sliderAction()` exacto probado en `test_agent_ui_components.py`; guion en `docs/DEMO-SCRIPT.md` con degradación en vivo | Los 9 componentes tienen esquema, fuente y ejemplo; el E2E de abono deja la reconciliación en `ok=true`/`failures=0`/13 invariantes |
 
 ---
 

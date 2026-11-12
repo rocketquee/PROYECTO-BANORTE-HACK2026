@@ -104,5 +104,5 @@ def test_money_module_is_the_only_converter():
     """money.py existe y expone el contrato completo de conversión."""
     from app.core import money  # noqa: F401
     for name in ("to_cents", "to_pesos", "boundary", "difference", "round_half_up",
-                 "apply_rate", "monthly_rate", "pct", "split_evenly"):
+                 "apply_rate", "monthly_rate", "pct", "rate_to_pct", "split_evenly"):
         assert hasattr(money, name), f"falta money.{name}"

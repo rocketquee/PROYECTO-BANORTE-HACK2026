@@ -187,6 +187,117 @@ def test_transfer_form_uses_the_pending_amount():
     assert component.confirmation_text
 
 
+def test_catalog_accepts_the_four_new_components_together():
+    plan = ui_catalog.validate_ui_plan({
+        "title": "Plan completo",
+        "components": [
+            {
+                "type": "PlanDePago",
+                "title": "Plan de pago",
+                "amount": 100_000,
+                "annual_rate": 15.9,
+                "terms": [{
+                    "months": 24, "monthly_payment": 4_894.15,
+                    "cat_pct": 17.09, "total_interest": 17_459.6,
+                }],
+            },
+            {
+                "type": "LineChart",
+                "title": "Tendencia",
+                "points": [{"label": "Mayo", "value": 5_000},
+                           {"label": "Junio", "value": 4_200}],
+                "period": "Mayo — Junio",
+            },
+            {
+                "type": "Slider",
+                "title": "Ajustar monto",
+                "label": "Monto",
+                "param": "amount",
+                "min_value": 1_000,
+                "max_value": 500_000,
+                "step": 5_000,
+                "value": 100_000,
+                "recalculate_message": "Recalcula con {value}.",
+            },
+            {
+                "type": "BudgetAllocator",
+                "title": "Distribución 50/30/20",
+                "income": 10_000,
+                "buckets": [
+                    {"bucket": "necesidades", "pct": 50, "amount": 5_000},
+                    {"bucket": "deseos", "pct": 30, "amount": 3_000},
+                    {"bucket": "ahorro", "pct": 20, "amount": 2_000},
+                ],
+            },
+        ],
+    })
+    assert [component.type for component in plan.components] == [
+        "PlanDePago", "LineChart", "Slider", "BudgetAllocator",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("component", "expected"),
+    [
+        ({
+            "type": "PlanDePago", "title": "P", "amount": 100_000,
+            "annual_rate": 15.9,
+            "terms": [
+                {"months": 12, "monthly_payment": 9_000, "cat_pct": 17.09},
+                {"months": 12, "monthly_payment": 9_000, "cat_pct": 17.09},
+            ],
+        }, "una sola vez"),
+        ({
+            "type": "LineChart", "title": "L", "period": "Mayo",
+            "points": [{"label": "Mayo", "value": 1_000}],
+        }, "points"),
+        ({
+            "type": "Slider", "title": "S", "label": "Monto", "param": "amount",
+            "min_value": 500_000, "max_value": 1_000, "step": 5_000,
+            "value": 1_000, "recalculate_message": "Recalcula con {value}.",
+        }, "mínimo"),
+        ({
+            "type": "Slider", "title": "S", "label": "Monto", "param": "amount",
+            "min_value": 1_000, "max_value": 500_000, "step": 5_000,
+            "value": 100_000, "recalculate_message": "Recalcula el crédito.",
+        }, "{value}"),
+        ({
+            "type": "BudgetAllocator", "title": "B", "income": 10_000,
+            "buckets": [
+                {"bucket": "necesidades", "pct": 60, "amount": 6_000},
+                {"bucket": "deseos", "pct": 30, "amount": 3_000},
+                {"bucket": "ahorro", "pct": 10, "amount": 1_000},
+            ],
+        }, "50/30/20"),
+        ({
+            "type": "BudgetAllocator", "title": "B", "income": 10_000,
+            "buckets": [
+                {"bucket": "necesidades", "pct": 50, "amount": 5_000},
+                {"bucket": "deseos", "pct": 30, "amount": 3_000},
+                {"bucket": "ahorro", "pct": 20, "amount": 1_000},
+            ],
+        }, "sumar"),
+    ],
+)
+def test_new_components_reject_invalid_props(component, expected):
+    with pytest.raises(ui_catalog.UIPlanError) as exc:
+        ui_catalog.validate_ui_plan({"title": "Pantalla", "components": [component]})
+    assert expected in str(exc.value)
+
+
+def test_every_component_has_a_tool_source_and_an_example_message():
+    assert set(ui_catalog.COMPONENT_TOOL_SOURCES) == set(
+        ui_catalog.COMPONENT_EXAMPLES,
+    )
+    assert set(ui_catalog.COMPONENT_TOOL_SOURCES) == {
+        "StatCard", "BarChart", "Table", "ProgressRing", "TransferForm",
+        "PlanDePago", "LineChart", "Slider", "BudgetAllocator",
+    }
+    assert all(
+        message.strip() for message in ui_catalog.COMPONENT_EXAMPLES.values()
+    )
+
+
 # --------------------------------------------------------------- pipeline
 
 def test_planner_builds_ui_plan_with_real_tool_numbers(monkeypatch):

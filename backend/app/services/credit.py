@@ -34,6 +34,18 @@ def validate_inputs(amount: float, months: int, annual_rate: float, method: str)
         raise ValueError(f"Método no soportado. Use uno de: {', '.join(VALID_METHODS)}.")
 
 
+def cat_estimate(annual_rate: float) -> float:
+    """CAT estimado **sin comisiones**, en puntos porcentuales.
+
+    Convierte la tasa nominal anual a tasa efectiva anual. El CAT real incluye
+    comisiones y seguros; esta demo no los cobra, así que declara la base junto
+    al valor. Es la única definición del proyecto: ni herramientas ni pantallas
+    la recalculan.
+    """
+    rate = money.monthly_rate(annual_rate)
+    return money.rate_to_pct((1 + rate) ** 12 - 1)
+
+
 def _row(n: int, payment_c: int, interest_c: int, principal_c: int, balance_c: int) -> dict:
     """Frontera centavos→pesos: única salida de las filas de la tabla."""
     return {
@@ -112,6 +124,8 @@ def simulate_credit(amount: float, months: int, annual_rate: float, method: str 
         "monthly_payment": money.to_pesos(payment_c),
         "total_interest": money.to_pesos(total_interest_c),
         "total_paid": money.to_pesos(total_paid_c),
+        "cat": cat_estimate(annual_rate),
+        "cat_base": "tasa efectiva anual sin comisiones",
         "schedule": schedule,
         "disclaimer": ("Simulación educativa con datos de demostración. No es una oferta oficial "
                        "de crédito de Banorte ni implica aprobación o tasas reales."),

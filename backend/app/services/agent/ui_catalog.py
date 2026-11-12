@@ -24,6 +24,7 @@ from pydantic import (
     model_validator,
 )
 
+from app.services import credit, finance
 from app.services.agent import composer
 
 MAX_COMPONENTS = 5
@@ -117,8 +118,112 @@ class TransferForm(StrictPlan):
     idempotency_key: str | None = Field(default=None, min_length=36, max_length=36)
 
 
+class PaymentTerm(StrictPlan):
+    """Un plazo simulado: cuota fija y costo anual total declarado."""
+
+    months: int = Field(ge=1, le=360)
+    monthly_payment: float = Field(gt=0, le=MAX_MONEY)
+    # CAT estimado por el dominio; se expresa en puntos porcentuales.
+    cat_pct: float = Field(ge=0, le=1000)
+    total_interest: float | None = Field(default=None, ge=0, le=MAX_MONEY)
+
+
+class PlanDePago(StrictPlan):
+    """Plan de pago con uno o varios plazos y su CAT estimado."""
+
+    type: Literal["PlanDePago"]
+    title: str = Field(min_length=1, max_length=80)
+    amount: float = Field(gt=0, le=MAX_MONEY)
+    annual_rate: float = Field(ge=0, le=200)
+    terms: list[PaymentTerm] = Field(min_length=1, max_length=12)
+    note: str | None = Field(default=None, max_length=200)
+
+    @model_validator(mode="after")
+    def _unique_terms(self):
+        months = [term.months for term in self.terms]
+        if len(months) != len(set(months)):
+            raise ValueError("Cada plazo debe aparecer una sola vez.")
+        return self
+
+
+class LinePoint(StrictPlan):
+    label: str = Field(min_length=1, max_length=60)
+    value: float = Field(ge=0, le=MAX_MONEY)
+
+
+class LineChart(StrictPlan):
+    """Serie temporal (evolución o proyección) en orden cronológico."""
+
+    type: Literal["LineChart"]
+    title: str = Field(min_length=1, max_length=80)
+    points: list[LinePoint] = Field(min_length=2, max_length=60)
+    period: str = Field(min_length=1, max_length=80)
+    unit: str = Field(default="MXN", max_length=12)
+    series_label: str | None = Field(default=None, max_length=60)
+    note: str | None = Field(default=None, max_length=200)
+
+
+class Slider(StrictPlan):
+    """Control para ajustar un parámetro y pedir el recálculo al agente."""
+
+    type: Literal["Slider"]
+    title: str = Field(min_length=1, max_length=80)
+    label: str = Field(min_length=1, max_length=80)
+    # Qué parámetro ajusta: monto del crédito o plazo en meses.
+    param: Literal["amount", "months"]
+    min_value: float = Field(ge=0, le=MAX_MONEY)
+    max_value: float = Field(gt=0, le=MAX_MONEY)
+    step: float = Field(gt=0, le=MAX_MONEY)
+    value: float = Field(ge=0, le=MAX_MONEY)
+    unit: str = Field(default="MXN", max_length=12)
+    # El marcador {value} lo sustituye el cliente con el valor elegido.
+    recalculate_message: str = Field(min_length=1, max_length=200)
+    note: str | None = Field(default=None, max_length=160)
+
+    @model_validator(mode="after")
+    def _valid_range_and_template(self):
+        if self.min_value >= self.max_value:
+            raise ValueError("El mínimo del control debe ser menor que el máximo.")
+        if not self.min_value <= self.value <= self.max_value:
+            raise ValueError("El valor inicial debe estar dentro del rango del control.")
+        if "{value}" not in self.recalculate_message:
+            raise ValueError("El mensaje de recálculo debe incluir el marcador {value}.")
+        return self
+
+
+class AllocationBucket(StrictPlan):
+    bucket: Literal["necesidades", "deseos", "ahorro"]
+    pct: float = Field(gt=0, le=100)
+    amount: float = Field(ge=0, le=MAX_MONEY)
+
+
+class BudgetAllocator(StrictPlan):
+    """Distribución 50/30/20 del ingreso mensual, calculada por el dominio."""
+
+    type: Literal["BudgetAllocator"]
+    title: str = Field(min_length=1, max_length=80)
+    income: float = Field(gt=0, le=MAX_MONEY)
+    buckets: list[AllocationBucket] = Field(min_length=3, max_length=3)
+    note: str | None = Field(default=None, max_length=200)
+
+    @model_validator(mode="after")
+    def _rule_50_30_20(self):
+        expected = {"necesidades": 50.0, "deseos": 30.0, "ahorro": 20.0}
+        actual = {item.bucket: item.pct for item in self.buckets}
+        if set(actual) != set(expected) or any(
+            abs(actual[key] - value) > 0.01 for key, value in expected.items()
+        ):
+            raise ValueError("La distribución debe ser exactamente 50/30/20.")
+        if abs(sum(item.amount for item in self.buckets) - self.income) > 0.02:
+            raise ValueError("Los importes asignados deben sumar el ingreso declarado.")
+        return self
+
+
 UIPlanComponent = Annotated[
-    Union[StatCard, BarChart, Table, ProgressRing, TransferForm],
+    Union[
+        StatCard, BarChart, Table, ProgressRing, TransferForm,
+        PlanDePago, LineChart, Slider, BudgetAllocator,
+    ],
     Field(discriminator="type"),
 ]
 
@@ -138,6 +243,24 @@ COMPONENT_TOOL_SOURCES: dict[str, tuple[str, ...]] = {
     "Table": ("get_transactions", "calculate_credit_simulation", "get_budgets"),
     "ProgressRing": ("get_savings_goals", "project_savings"),
     "TransferForm": ("apply_savings_contribution", "create_savings_goal"),
+    "PlanDePago": ("calculate_credit_simulation", "compare_credit_terms"),
+    "LineChart": ("get_spending_trend", "project_savings"),
+    "Slider": ("calculate_credit_simulation", "project_savings"),
+    "BudgetAllocator": ("get_budgets", "budget_vs_actual", "get_monthly_summary"),
+}
+
+#: Mensaje de ejemplo que demuestra cada componente. Se usa en la
+#: documentación, en la demo y en las pruebas de generación.
+COMPONENT_EXAMPLES: dict[str, str] = {
+    "StatCard": "¿Cuánto dinero tengo?",
+    "BarChart": "¿En qué gasté este mes?",
+    "Table": "Muéstrame mis últimos movimientos.",
+    "ProgressRing": "¿Cómo van mis metas de ahorro?",
+    "TransferForm": "Quiero abonar $500 a Viaje a Japón.",
+    "PlanDePago": "Simula un crédito de $100,000 a 24 meses.",
+    "LineChart": "¿Cómo han cambiado mis gastos en los últimos 6 meses?",
+    "Slider": "Simula un crédito de $100,000 a 24 meses y déjame ajustar el monto y el plazo.",
+    "BudgetAllocator": "¿Cómo puedo distribuir mi ingreso con la regla 50/30/20?",
 }
 
 #: Números en texto: "$85,921", "85,921.00", "85921.45", "85921".
@@ -146,8 +269,12 @@ _NUMBER_RE = re.compile(
     r"(?<![\d.])\$?\s*(-?(?:\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?)(?![\d])"
 )
 
-#: Props opacas que no son cifras y no deben pasar por el grounding numérico.
-_UNGROUNDED_KEYS = frozenset({"confirmation_token", "idempotency_key"})
+#: Props opacas o estructurales que no son cifras y no deben pasar por el
+#: grounding numérico (claves de confirmación y límites del control).
+_UNGROUNDED_KEYS = frozenset({
+    "confirmation_token", "idempotency_key",
+    "min_value", "max_value", "step",
+})
 
 
 def _numbers_in_string(text: str) -> list[tuple[float, bool]]:
@@ -300,6 +427,169 @@ def _as_int(value: Any) -> int | None:
     return None
 
 
+def _append_component(components: list[dict[str, Any]],
+                      component: dict[str, Any] | None) -> None:
+    if component is not None and len(components) < MAX_COMPONENTS:
+        components.append(component)
+
+
+def _credit_slider_components(amount: float, months: int, annual_rate: float,
+                              *, max_amount: float | None = None) -> list[dict[str, Any]]:
+    """Dos controles para recalcular el mismo crédito con otro monto o plazo."""
+    upper_amount = min(MAX_MONEY, max(500_000.0, amount * 2, max_amount or 0))
+    lower_amount = min(1_000.0, upper_amount)
+    months = max(3, min(120, months))
+    return [
+        {
+            "type": "Slider",
+            "title": "Ajustar monto",
+            "label": "Monto del crédito",
+            "param": "amount",
+            "min_value": lower_amount,
+            "max_value": upper_amount,
+            "step": 5_000,
+            "value": max(lower_amount, min(amount, upper_amount)),
+            "unit": "MXN",
+            "recalculate_message": (
+                f"Recalcula el crédito con un monto de {{value}} a {months} meses "
+                f"al {annual_rate:g}% anual."
+            ),
+            "note": "Mueve el control y pide el recálculo; las cifras las calcula el dominio.",
+        },
+        {
+            "type": "Slider",
+            "title": "Ajustar plazo",
+            "label": "Plazo en meses",
+            "param": "months",
+            "min_value": 3,
+            "max_value": 120,
+            "step": 3,
+            "value": months,
+            "unit": "meses",
+            "recalculate_message": (
+                f"Recalcula el crédito de {_money(amount)} a un plazo de {{value}} "
+                f"meses al {annual_rate:g}% anual."
+            ),
+            "note": "El plazo se expresa en meses; cada cambio se calcula de nuevo.",
+        },
+    ]
+
+
+def _credit_components(sim: dict[str, Any], *,
+                       title: str = "Plan de pago") -> list[dict[str, Any]]:
+    """PlanDePago + controles a partir de una simulación MCP real."""
+    amount = _as_float(sim.get("amount"))
+    months = _as_int(sim.get("months"))
+    annual_rate = _as_float(sim.get("annual_rate"))
+    monthly_payment = _as_float(sim.get("monthly_payment"))
+    cat_pct = _as_float(sim.get("cat"))
+    if cat_pct is None and annual_rate is not None:
+        cat_pct = credit.cat_estimate(annual_rate)
+    if not all(value is not None for value in (
+        amount, months, annual_rate, monthly_payment, cat_pct,
+    )):
+        return []
+    assert amount is not None and months is not None and annual_rate is not None
+    assert monthly_payment is not None and cat_pct is not None
+    if amount <= 0 or months <= 0 or monthly_payment <= 0:
+        return []
+    total_interest = _as_float(sim.get("total_interest"))
+    plan = {
+        "type": "PlanDePago",
+        "title": title,
+        "amount": amount,
+        "annual_rate": annual_rate,
+        "terms": [{
+            "months": months,
+            "monthly_payment": monthly_payment,
+            "cat_pct": cat_pct,
+            "total_interest": total_interest,
+        }],
+        "note": "CAT estimado sin comisiones; simulación educativa, no una oferta.",
+    }
+    return [plan, *_credit_slider_components(amount, months, annual_rate)]
+
+
+def _terms_components(result: dict[str, Any]) -> list[dict[str, Any]]:
+    """PlanDePago con varios plazos a partir de `compare_credit_terms`."""
+    amount = _as_float(result.get("amount"))
+    annual_rate = _as_float(result.get("annual_rate"))
+    terms: list[dict[str, Any]] = []
+    for item in (result.get("terms") or [])[:12]:
+        months = _as_int(item.get("months"))
+        payment = _as_float(item.get("monthly_payment"))
+        cat_pct = _as_float(item.get("cat"))
+        if cat_pct is None and annual_rate is not None:
+            cat_pct = credit.cat_estimate(annual_rate)
+        if None in (months, payment, cat_pct):
+            continue
+        terms.append({
+            "months": months,
+            "monthly_payment": payment,
+            "cat_pct": cat_pct,
+            "total_interest": _as_float(item.get("total_interest")),
+        })
+    if amount is None or annual_rate is None or not terms:
+        return []
+    return [{
+        "type": "PlanDePago",
+        "title": "Comparación de plazos",
+        "amount": amount,
+        "annual_rate": annual_rate,
+        "terms": terms,
+        "note": "CAT estimado sin comisiones; compara cuota y costo total por plazo.",
+    }]
+
+
+def _line_chart_component(series: list[dict[str, Any]], *, title: str,
+                          period: str, note: str | None = None,
+                          series_label: str | None = None) -> dict[str, Any] | None:
+    points: list[dict[str, Any]] = []
+    for item in series[:60]:
+        value = _as_float(item.get("total", item.get("amount", item.get("value"))))
+        label = str(item.get("label") or item.get("month") or "")[:60]
+        if value is None or not label:
+            continue
+        points.append({"label": label, "value": value})
+    if len(points) < 2:
+        return None
+    return {
+        "type": "LineChart",
+        "title": title[:80],
+        "points": points,
+        "period": period[:80],
+        "unit": "MXN",
+        "series_label": series_label,
+        "note": note[:200] if note else None,
+    }
+
+
+def _budget_allocator_component(income: float,
+                                allocator: dict[str, Any] | None = None,
+                                ) -> dict[str, Any] | None:
+    if income <= 0:
+        return None
+    data = allocator or finance.allocate_503020(income)
+    buckets = [
+        {
+            "bucket": item["bucket"],
+            "pct": item["pct"],
+            "amount": item["amount"],
+        }
+        for item in (data.get("buckets") or [])
+        if item.get("bucket") in {"necesidades", "deseos", "ahorro"}
+    ]
+    if len(buckets) != 3:
+        return None
+    return {
+        "type": "BudgetAllocator",
+        "title": "Distribución 50/30/20",
+        "income": income,
+        "buckets": buckets,
+        "note": "Regla 50/30/20 sobre tu ingreso del mes; los importes los calcula el dominio.",
+    }
+
+
 def build_ui_plan(tool_results: dict[str, Any], *,
                   pending: Any | None = None,
                   title: str = "Resumen generado") -> UIPlan:
@@ -380,6 +670,39 @@ def build_ui_plan(tool_results: dict[str, Any], *,
                 "target_label": _money(float(goal.get("target_amount") or 0)),
                 "note": f"Ahorrado {_money(float(goal.get('saved_amount') or 0))}",
             })
+
+    credit_sim = tool_results.get("calculate_credit_simulation") or {}
+    for component in _credit_components(credit_sim):
+        _append_component(components, component)
+
+    credit_terms = tool_results.get("compare_credit_terms") or {}
+    for component in _terms_components(credit_terms):
+        _append_component(components, component)
+
+    trend = tool_results.get("get_spending_trend") or {}
+    trend_series = trend.get("series") or []
+    if trend_series:
+        first, last = trend_series[0], trend_series[-1]
+        change = _as_float(trend.get("change_pct"))
+        note = (
+            f"Cambio de {change:g}% entre {first.get('label')} y {last.get('label')}."
+            if change is not None else f"Serie de {trend.get('months', len(trend_series))} meses."
+        )
+        _append_component(components, _line_chart_component(
+            trend_series,
+            title=f"Tendencia de gasto · últimos {trend.get('months', len(trend_series))} meses",
+            period=f"{first.get('label')} — {last.get('label')}",
+            note=note,
+            series_label="Gasto mensual",
+        ))
+
+    budgets = tool_results.get("get_budgets") or {}
+    income = _as_float(budgets.get("income"))
+    if income is not None:
+        _append_component(
+            components,
+            _budget_allocator_component(income, budgets.get("allocator")),
+        )
 
     if pending is not None and len(components) < MAX_COMPONENTS:
         params = getattr(pending, "params", None) or {}
@@ -498,15 +821,35 @@ def plan_from_ui_specs(ui_specs: list[dict[str, Any]], *,
         elif kind == "trend_chart":
             series = [
                 {"label": str(item.get("label", ""))[:60],
-                 "value": float(item.get("expense", item.get("value", 0)) or 0)}
-                for item in (spec.get("series") or [])[:8]
+                 "value": float(item.get("amount", item.get("expense",
+                                                           item.get("value", 0))) or 0)}
+                for item in (spec.get("series") or [])[:60]
             ]
-            if series:
-                components.append({
-                    "type": "BarChart",
-                    "title": str(spec.get("title", "Tendencia"))[:80],
-                    "series": series,
-                    "unit": "MXN",
-                    "note": str(spec.get("period_label", ""))[:160] or None,
-                })
+            period = str(spec.get("period") or spec.get("period_label") or "Periodo")
+            _append_component(components, _line_chart_component(
+                series,
+                title=str(spec.get("title", "Tendencia"))[:80],
+                period=period,
+                note=spec.get("conclusion"),
+                series_label="Gasto mensual",
+            ))
+        elif kind == "credit_simulator":
+            params = spec.get("params") or {}
+            result = spec.get("result") or {}
+            sim = {
+                "amount": params.get("amount"),
+                "months": params.get("months"),
+                "annual_rate": params.get("annual_rate"),
+                "monthly_payment": result.get("monthly_payment"),
+                "total_interest": result.get("total_interest"),
+                "cat": result.get("cat"),
+            }
+            for component in _credit_components(sim):
+                _append_component(components, component)
+        elif kind == "budget_planner":
+            income = _as_float(spec.get("income"))
+            if income is not None:
+                _append_component(
+                    components, _budget_allocator_component(income),
+                )
     return UIPlan(title=title, components=components)

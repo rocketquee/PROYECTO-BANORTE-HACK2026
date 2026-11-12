@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { transferFormAction, validateUIPlanShape } from "../src/lib/uiPlan.mjs";
+import { transferFormAction, sliderAction, validateUIPlanShape } from "../src/lib/uiPlan.mjs";
 
 const page = readFileSync(new URL("../src/app/page.tsx", import.meta.url), "utf8");
 const agent = readFileSync(new URL("../src/components/AgentView.tsx", import.meta.url), "utf8");
@@ -94,12 +94,16 @@ test("assistant exposes provider health and inline degradation notice", () => {
   assert.match(agent, /\{m\.notice && \(/);
 });
 
-test("A2UI renderer draws the five validated components and closes the transfer loop", () => {
+test("A2UI renderer draws the nine validated components and closes the transfer loop", () => {
   assert.match(uiRenderer, /case "StatCard"/);
   assert.match(uiRenderer, /case "BarChart"/);
   assert.match(uiRenderer, /case "Table"/);
   assert.match(uiRenderer, /case "ProgressRing"/);
   assert.match(uiRenderer, /case "TransferForm"/);
+  assert.match(uiRenderer, /case "PlanDePago"/);
+  assert.match(uiRenderer, /case "LineChart"/);
+  assert.match(uiRenderer, /case "Slider"/);
+  assert.match(uiRenderer, /case "BudgetAllocator"/);
   assert.match(uiRenderer, /Confirmación enviada/);
   assert.match(uiRenderer, /onAction\(action\.message/);
   assert.match(agent, /UIRenderer/);
@@ -107,7 +111,7 @@ test("A2UI renderer draws the five validated components and closes the transfer 
   assert.match(agent, /type: action\.type/);
 });
 
-test("a ui_plan with the five components validates and TransferForm emits a confirmation event", () => {
+test("a ui_plan with catalog components validates and TransferForm emits a confirmation event", () => {
   const plan = {
     title: "Tu resumen",
     components: [
@@ -145,6 +149,133 @@ test("a ui_plan with the five components validates and TransferForm emits a conf
   assert.equal(action.event.payload.goal_id, 1);
   assert.equal(action.event.payload.amount, 500);
   assert.match(action.message, /Confirmo el abono/);
+});
+
+test("the four new components validate with domain-computed props", () => {
+  const plan = {
+    title: "Crédito y presupuesto",
+    components: [
+      {
+        type: "PlanDePago",
+        title: "Plan de pago",
+        amount: 100000,
+        annual_rate: 15.9,
+        terms: [
+          { months: 6, monthly_payment: 17451.6, cat_pct: 15.9 },
+          { months: 24, monthly_payment: 4896.4, cat_pct: 15.9 },
+        ],
+      },
+      {
+        type: "LineChart",
+        title: "Tendencia de gasto",
+        points: [
+          { label: "may", value: 8120 },
+          { label: "jun", value: 8450 },
+          { label: "jul", value: 7980 },
+        ],
+        period: "may — jul",
+      },
+      {
+        type: "Slider",
+        title: "Ajusta el monto",
+        label: "Monto del crédito",
+        param: "amount",
+        min_value: 10000,
+        max_value: 500000,
+        step: 10000,
+        value: 100000,
+        recalculate_message: "Simula un crédito de {value} a 24 meses.",
+      },
+      {
+        type: "BudgetAllocator",
+        title: "Distribución 50/30/20",
+        income: 10000,
+        buckets: [
+          { bucket: "necesidades", pct: 50, amount: 5000 },
+          { bucket: "deseos", pct: 30, amount: 3000 },
+          { bucket: "ahorro", pct: 20, amount: 2000 },
+        ],
+      },
+    ],
+  };
+
+  assert.deepEqual(validateUIPlanShape(plan), { ok: true, errors: [] });
+});
+
+test("sliderAction emits the exact message the backend recalculates", () => {
+  const amount = sliderAction(
+    {
+      type: "Slider",
+      param: "amount",
+      unit: "MXN",
+      recalculate_message: "Recalcula el crédito con un monto de {value} a 24 meses al 15.9% anual.",
+    },
+    150000,
+  );
+  assert.equal(
+    amount,
+    "Recalcula el crédito con un monto de $150,000.00 a 24 meses al 15.9% anual.",
+  );
+
+  const months = sliderAction(
+    {
+      type: "Slider",
+      param: "months",
+      unit: "meses",
+      recalculate_message: "Recalcula el crédito de $100,000 a un plazo de {value} meses al 15.9% anual.",
+    },
+    36,
+  );
+  assert.equal(
+    months,
+    "Recalcula el crédito de $100,000 a un plazo de 36 meses al 15.9% anual.",
+  );
+});
+
+test("new components reject props outside their catalog contract", () => {
+  const invalid = [
+    {
+      type: "PlanDePago",
+      title: "Plan",
+      amount: 100000,
+      annual_rate: 15.9,
+      terms: [
+        { months: 6, monthly_payment: 100, cat_pct: 15.9 },
+        { months: 6, monthly_payment: 100, cat_pct: 15.9 },
+      ],
+    },
+    {
+      type: "LineChart",
+      title: "Puntos",
+      points: [{ label: "solo uno", value: 1 }],
+      period: "un mes",
+    },
+    {
+      type: "Slider",
+      title: "Control",
+      label: "Monto",
+      param: "amount",
+      min_value: 100,
+      max_value: 50,
+      step: 10,
+      value: 100,
+      recalculate_message: "Calcula {value}.",
+    },
+    {
+      type: "BudgetAllocator",
+      title: "Distribución",
+      income: 10000,
+      buckets: [
+        { bucket: "necesidades", pct: 60, amount: 6000 },
+        { bucket: "deseos", pct: 30, amount: 3000 },
+        { bucket: "ahorro", pct: 10, amount: 1000 },
+      ],
+    },
+  ];
+
+  invalid.forEach((component) => {
+    assert.equal(validateUIPlanShape({ title: "Plan", components: [component] }).ok, false);
+  });
 });
 
 test("optional ui_plan props may be missing without invalidating the plan", () => {

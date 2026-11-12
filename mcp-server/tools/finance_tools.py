@@ -125,8 +125,11 @@ async def get_budgets_impl(year: int | None = None, month: int | None = None) ->
     with db() as conn:
         today = reference_today()
         overview = finance.budget_overview(conn, year or today.year, month or today.month)
+    result = dict(overview)
+    if overview["income"] > 0:
+        result["allocator"] = finance.allocate_503020(overview["income"])
     return add_sin_dato(
-        overview, not overview["categories"], "budgets_empty",
+        result, not overview["categories"], "budgets_empty",
         "No hay presupuestos ni gastos registrados en el periodo.",
         period=overview["month"],
     )
@@ -242,7 +245,8 @@ async def compare_credit_terms_impl(amount: float, terms: list[int] | None = Non
         results.append({"months": sim["months"],
                         "monthly_payment": sim["monthly_payment"],
                         "total_interest": sim["total_interest"],
-                        "total_paid": sim["total_paid"]})
+                        "total_paid": sim["total_paid"],
+                        "cat": sim["cat"]})
     return {"amount": money.boundary(amount), "annual_rate": annual_rate, "terms": results}
 
 

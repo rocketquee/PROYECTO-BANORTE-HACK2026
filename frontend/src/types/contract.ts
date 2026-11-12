@@ -108,6 +108,7 @@ export interface CreditResult {
   monthly_payment: number;
   total_interest: number;
   total_paid: number;
+  cat: number;
 }
 
 export interface PurchaseOption {
@@ -359,7 +360,51 @@ export type UIPlanComponent =
       goal_id?: number | null;
       confirmation_token?: string | null;
       idempotency_key?: string | null;
+    }
+  | {
+      type: "PlanDePago";
+      title: string;
+      amount: number;
+      annual_rate: number;
+      terms: PaymentTerm[];
+      note?: string | null;
+    }
+  | {
+      type: "LineChart";
+      title: string;
+      points: { label: string; value: number }[];
+      period: string;
+      unit?: string;
+      series_label?: string | null;
+      note?: string | null;
+    }
+  | {
+      type: "Slider";
+      title: string;
+      label: string;
+      param: "amount" | "months";
+      min_value: number;
+      max_value: number;
+      step: number;
+      value: number;
+      unit?: string;
+      recalculate_message: string;
+      note?: string | null;
+    }
+  | {
+      type: "BudgetAllocator";
+      title: string;
+      income: number;
+      buckets: { bucket: "necesidades" | "deseos" | "ahorro"; pct: number; amount: number }[];
+      note?: string | null;
     };
+
+export interface PaymentTerm {
+  months: number;
+  monthly_payment: number;
+  cat_pct: number;
+  total_interest?: number | null;
+}
 
 export interface UIPlan {
   title: string;

@@ -1881,7 +1881,8 @@ def _credit_ui_from_result(sim: dict) -> CreditSimulatorSpec:
         params=CreditParams(amount=sim["amount"], months=sim["months"],
                             annual_rate=sim["annual_rate"], method=sim["method"]),
         result=CreditResult(monthly_payment=sim["monthly_payment"],
-                            total_interest=sim["total_interest"], total_paid=sim["total_paid"]),
+                            total_interest=sim["total_interest"], total_paid=sim["total_paid"],
+                            cat=sim["cat"]),
         schedule=[ScheduleRow(**r) for r in sim["schedule"]],
         disclaimer=sim["disclaimer"],
     )

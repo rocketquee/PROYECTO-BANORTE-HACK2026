@@ -157,6 +157,18 @@ def pct(part_cents: int, whole_cents: int, ndigits: int = 1) -> float:
     return float(value.quantize(quantum, rounding=ROUND_HALF_UP))
 
 
+def rate_to_pct(rate: float, ndigits: int = 2) -> float:
+    """Tasa fraccional → puntos porcentuales con `ROUND_HALF_UP`.
+
+    Es la única conversión tasa→porcentaje fuera de este módulo (p. ej. CAT).
+    Las tasas y los porcentajes no son dinero, pero su redondeo también es
+    responsabilidad de esta capa.
+    """
+    value = Decimal(str(rate)) * 100
+    quantum = Decimal(1).scaleb(-ndigits)
+    return float(value.quantize(quantum, rounding=ROUND_HALF_UP))
+
+
 def split_evenly(total_cents: int, parts: int) -> list[int]:
     """Reparte `total_cents` en `parts` cuotas iguales; la última absorbe el
     residuo para que la suma sea **exactamente** el total."""

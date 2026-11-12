@@ -56,13 +56,21 @@ Componentes permitidos (no inventes tipos ni props):
 - Table: {"type":"Table","title","columns":["..."],"rows":[["..."]],"note"?}
 - ProgressRing: {"type":"ProgressRing","title","label","value","target_label"?,"note"?}
 - TransferForm: {"type":"TransferForm","title","from_account","to_account","amount","concept","confirmation_text"}
+- PlanDePago: {"type":"PlanDePago","title","amount","annual_rate","terms":[{"months","monthly_payment","cat_pct","total_interest"?}],"note"?}
+- LineChart: {"type":"LineChart","title","points":[{"label","value"}],"period","unit"?,"series_label"?,"note"?}
+- Slider: {"type":"Slider","title","label","param":"amount"|"months","min_value","max_value","step","value","unit"?,"recalculate_message":"... {value} ...","note"?}
+- BudgetAllocator: {"type":"BudgetAllocator","title","income","buckets":[{"bucket":"necesidades"|"deseos"|"ahorro","pct","amount"}],"note"?}
 
 Mapa de intención (elige el componente por la pregunta y los DATOS):
 - saldo, cuánto dinero tengo, resumen del mes -> StatCard.
-- en qué gasté, gasto por categoría, tendencia -> BarChart.
+- en qué gasté, gasto por categoría -> BarChart.
 - movimientos, transacciones, últimos cargos -> Table.
 - cómo va mi meta, avance de ahorro -> ProgressRing.
 - abonar o transferir a una meta -> TransferForm.
+- crédito, plazos, CAT, pago mensual -> PlanDePago.
+- evolución o proyección temporal -> LineChart.
+- ajustar monto o plazo y recalcular -> Slider.
+- distribución 50/30/20 del ingreso -> BudgetAllocator.
 - Puedes combinar hasta 5 componentes si la pregunta lo pide.
 
 Ejemplo de composición:

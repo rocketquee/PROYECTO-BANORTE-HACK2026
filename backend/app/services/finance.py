@@ -631,6 +631,31 @@ def set_budget_limit(conn, category: str, monthly_limit: float) -> dict:
     return {"category": category, "monthly_limit": money.to_pesos(limit_cents)}
 
 
+def allocate_503020(income: float) -> dict:
+    """Distribuye el ingreso con la regla 50/30/20, en centavos exactos.
+
+    La suma de las tres asignaciones es **exactamente** el ingreso: el ahorro
+    absorbe el residuo de centavos. Es la única implementación de la regla; ni
+    la interfaz ni el modelo vuelven a calcularla.
+    """
+    income_cents = money.to_cents(income)
+    needs_cents = income_cents * 50 // 100
+    wants_cents = income_cents * 30 // 100
+    savings_cents = income_cents - needs_cents - wants_cents
+    return {
+        "income": money.to_pesos(income_cents),
+        "base": "ingreso mensual declarado",
+        "buckets": [
+            {"bucket": "necesidades", "pct": 50.0,
+             "amount": money.to_pesos(needs_cents)},
+            {"bucket": "deseos", "pct": 30.0,
+             "amount": money.to_pesos(wants_cents)},
+            {"bucket": "ahorro", "pct": 20.0,
+             "amount": money.to_pesos(savings_cents)},
+        ],
+    }
+
+
 def budget_overview(conn, year: int, month: int) -> dict:
     date_from, date_to = month_range(year, month)
     limits = list_budgets(conn)

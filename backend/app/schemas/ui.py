@@ -155,6 +155,8 @@ class CreditResult(Strict):
     monthly_payment: float
     total_interest: float
     total_paid: float
+    # CAT estimado sin comisiones, en puntos porcentuales (lo calcula el dominio).
+    cat: float = Field(ge=0)
 
 
 class PurchaseOption(Strict):

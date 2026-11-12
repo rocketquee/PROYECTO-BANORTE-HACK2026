@@ -30,7 +30,7 @@ export default function CreditSimulator({
           "/api/credit/simulate", params
         );
         setResult({ monthly_payment: res.monthly_payment, total_interest: res.total_interest,
-                    total_paid: res.total_paid });
+                    total_paid: res.total_paid, cat: res.cat });
         setSchedule(res.schedule);
         setError(null);
       } catch (err) {
@@ -107,6 +107,7 @@ export default function CreditSimulator({
           <div className="mt-4 space-y-1 text-base text-neutral-600">
             <p>Intereses totales: <strong>{money(result.total_interest, 2)}</strong></p>
             <p>Total a pagar: <strong>{money(result.total_paid, 2)}</strong></p>
+            <p>CAT estimado: <strong>{result.cat}%</strong> <span className="text-neutral-500">(sin comisiones)</span></p>
             <p>Método: <strong>{method === "frances" ? "Francés (pago fijo)" : "Alemán (pago decreciente)"}</strong></p>
           </div>
           {error && <p className="mt-3 text-base text-brand">{error}</p>}
