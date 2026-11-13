@@ -319,7 +319,7 @@ solo para que la lectura sea estable y sin dependencia del editor.
 | 2 | “Cada punto viene de `get_spending_trend`. El modelo elige el componente y copia la serie; no recalcula porcentajes ni sumas. El plan se valida contra la herramienta antes de renderizarse.” |
 | 3 | “El avance lo calcula el dominio: ahorrado entre objetivo. El asistente solo lo presenta.” |
 | 4 | “Preparar el abono no escribe nada. Esta es la propuesta; al confirmar, el servidor verifica token e idempotencia y solo entonces el dominio aplica la transferencia. El resultado muestra el `StatCard` y el `ProgressRing` de Viaje a Japón.” |
-| 5 | “Forzamos la caída del proveedor. La petición no devuelve error: responde con el motor local, `degraded=true` y motivo `provider_unavailable`, con las mismas cifras de la herramienta MCP. Después se retira la degradación.” |
+| 5 | “Miren el indicador superior derecho: dice «Ayuda local (IA no disponible)». Las cifras son las mismas que en el paso 1 porque el motor determinista siguió respondiendo. Forzamos la caída del proveedor. La petición no devuelve error: responde con el motor local, `degraded=true` y motivo `provider_unavailable`, con las mismas cifras de la herramienta MCP. Después se retira la degradación.” |
 
 ### Cómo cambiar a “modo capturas” sin perder el hilo
 

@@ -13,14 +13,17 @@ vivo: permite narrar los 5 pasos con capturas si no hay señal de video.
 | `paso4-formulario.png` | 4 | `TransferForm` de $500 a Viaje a Japón |
 | `paso4-resultado.png` | 4 | `StatCard` + `ProgressRing` de Viaje a Japón 19.3% |
 | `paso5-degradacion.png` | 5 | Respuesta con el aviso **Ayuda local (IA no disponible)** |
+| `paso5-detalle.png` | 5 | Acercamiento del aviso **Ayuda local (IA no disponible)** con la primera tarjeta de saldo |
 | `guion-demo.pdf` | — | Guion completo para leer en segunda pantalla |
 
-Las seis capturas y el PDF se versionan para que el Plan B exista sin depender
-de la máquina de demo. Se generaron sobre el commit `dc89df3` con un **viewport
+Las capturas y el PDF se versionan para que el Plan B exista sin depender de
+la máquina de demo. Se generaron sobre el commit `dc89df3` con un **viewport
 de 1600×1000**, datos sintéticos y una copia temporal de la base
 (`BANORTE_DB_PATH`), de modo que la `banorte.db` real no se modificó. Si cambia
 la interfaz o los datos, regenéralas con el procedimiento de abajo y revisa de
 nuevo la privacidad.
+
+Si al proyectar el aviso del paso 5 no se lee, muestra `paso5-detalle.png`.
 
 ## Cómo generar las capturas
 
@@ -52,7 +55,7 @@ nuevo la privacidad.
 Get-ChildItem docs\demo-fallback\*.png | Select-Object Name,Length
 ```
 
-Deben aparecer las seis capturas. Si falta alguna, usa el PDF y el guion de
+Deben aparecer las siete capturas. Si falta alguna, usa el PDF y el guion de
 narración del Plan B en `docs/DEMO-SCRIPT.md`.
 
 ## Cómo generar el PDF
@@ -71,6 +74,29 @@ Alternativa con Edge instalado, sin abrir ventanas:
   --print-to-pdf="docs\demo-fallback\guion-demo.pdf" `
   "file:///C:/ruta/al/repositorio/docs/demo-fallback/guion-demo.html"
 ```
+
+## Guion en segunda pantalla o móvil
+
+`guion-demo.pdf` es autocontenido (7 páginas, sin dependencias externas). Tres
+formas de tenerlo a la vista durante la demo:
+
+1. **Segunda pantalla física:** abre el PDF en el monitor secundario y deja la
+   app en el principal. Si el proyector duplica pantalla, lee el PDF en la
+   laptop y proyecta desde el otro equipo.
+2. **Impreso:** imprime en A4; con doble cara son 4 hojas. Comprueba que salgan
+   las páginas finales, donde están el Plan B y su tabla de narración.
+3. **Móvil como segunda pantalla**, sin cables:
+   - En la laptop, desde la raíz del repositorio:
+     `python -m http.server 8080`
+   - Obtén la IPv4 de la laptop con `ipconfig` (por ejemplo `192.168.1.20`).
+   - En el móvil, conectado a la misma Wi-Fi:
+     `http://192.168.1.20:8080/docs/demo-fallback/guion-demo.pdf`
+   - Al terminar, detén el servidor con `Ctrl + C`.
+   - Alternativa sin servidor: envíate el PDF por correo, mensajería o nube y
+     ábrelo en el móvil.
+
+El servidor HTTP expone todo el repositorio en la red local: úsalo solo durante
+la demo y apágalo al terminar.
 
 ## Privacidad
 
