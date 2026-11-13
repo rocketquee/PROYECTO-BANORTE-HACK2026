@@ -114,7 +114,7 @@ confirmación. El servidor ya emitió `confirmation_token` e `idempotency_key`.
 > envía un evento de interfaz verificado en el servidor. Solo entonces el
 > dominio aplica la transferencia, de forma atómica e idempotente."
 
-**Acción en pantalla:** pulsa **Confirmar abono**.
+**Acción en pantalla:** pulsa **Confirmar transferencia**.
 
 **Resultado esperado:** el asistente responde *"Listo. Registré un abono de
 $500.00 a «Viaje a Japón»…"* y el nuevo `ui_plan` muestra:
@@ -291,9 +291,10 @@ Resumen:
    el panel completo y guarda con el nombre indicado en `docs/demo-fallback/`.
 4. En el paso 4 guarda **dos** capturas: el `TransferForm` antes de confirmar y
    el `StatCard` + `ProgressRing` después de confirmar.
-5. En el paso 5 guarda la respuesta del chat con `mode=demo`, `degraded=true` y
-   `reason=provider_unavailable`, o el JSON del endpoint si se muestra en
-   terminal.
+5. En el paso 5 fuerza la degradación, recarga para que el indicador de salud se
+   actualice y captura la respuesta con el aviso **Ayuda local (IA no
+   disponible)**. El motivo `provider_unavailable` viaja en el JSON de la API,
+   no en la interfaz; si hace falta, captura también la terminal.
 
 No incluyas claves, rutas personales ni datos fuera de la base sintética.
 

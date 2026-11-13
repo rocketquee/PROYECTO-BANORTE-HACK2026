@@ -12,11 +12,15 @@ vivo: permite narrar los 5 pasos con capturas si no hay señal de video.
 | `paso3-metas.png` | 3 | `ProgressRing` de una meta |
 | `paso4-formulario.png` | 4 | `TransferForm` de $500 a Viaje a Japón |
 | `paso4-resultado.png` | 4 | `StatCard` + `ProgressRing` de Viaje a Japón 19.3% |
-| `paso5-degradacion.png` | 5 | Respuesta con `degraded=true` y `reason=provider_unavailable` |
+| `paso5-degradacion.png` | 5 | Respuesta con el aviso **Ayuda local (IA no disponible)** |
 | `guion-demo.pdf` | — | Guion completo para leer en segunda pantalla |
 
-Las capturas las genera el presentador antes de la demo; no se versionan para
-evitar imágenes obsoletas o datos de pantalla. El PDF sí se versiona.
+Las seis capturas y el PDF se versionan para que el Plan B exista sin depender
+de la máquina de demo. Se generaron sobre el commit `dc89df3` con un **viewport
+de 1600×1000**, datos sintéticos y una copia temporal de la base
+(`BANORTE_DB_PATH`), de modo que la `banorte.db` real no se modificó. Si cambia
+la interfaz o los datos, regenéralas con el procedimiento de abajo y revisa de
+nuevo la privacidad.
 
 ## Cómo generar las capturas
 
@@ -32,11 +36,15 @@ evitar imágenes obsoletas o datos de pantalla. El PDF sí se versiona.
 3. Ejecuta cada mensaje exacto de `docs/DEMO-SCRIPT.md`.
 4. Con la respuesta en pantalla, pulsa `Win + Shift + S`, recorta la tarjeta o
    el panel y guarda la imagen en esta carpeta con el nombre de la tabla.
-5. En el paso 4 guarda **dos** imágenes: antes de pulsar **Confirmar abono**
-   (`paso4-formulario.png`) y después de confirmar (`paso4-resultado.png`).
-6. En el paso 5, si la respuesta se ve en la interfaz, captura el aviso de
-   degradación; si se ejecuta por API, captura la terminal con
-   `mode=demo`, `degraded=true` y `reason=provider_unavailable`.
+5. En el paso 4 guarda **dos** imágenes: antes de pulsar **Confirmar
+   transferencia** (`paso4-formulario.png`) y después de confirmar
+   (`paso4-resultado.png`).
+6. En el paso 5, fuerza la degradación con
+   `POST /api/dev/provider/degrade`, recarga la página para que el indicador de
+   salud se actualice y captura la respuesta junto con el aviso
+   **Ayuda local (IA no disponible)**. El motivo `provider_unavailable` viaja en
+   la respuesta JSON de la API, no en la interfaz; si necesitas mostrarlo,
+   captura también la terminal.
 
 ### Verificación rápida
 
